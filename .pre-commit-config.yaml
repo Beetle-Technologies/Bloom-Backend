@@ -1,0 +1,63 @@
+exclude: '^scripts/|^docs/|^build/|^dist/|^venv/|\.egg-info/|\.tox/|\.mypy_cache/|\.pytest_cache/|\.coverage$'
+default_stages: [pre-commit]
+
+default_language_version:
+  python: python3
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        files: ^app/
+      - id: end-of-file-fixer
+        files: ^app/
+      - id: check-json
+        files: ^app/
+      - id: check-toml
+        files: ^app/
+      - id: check-xml
+        files: ^app/
+      - id: check-yaml
+        files: ^app/
+      - id: debug-statements
+        files: ^app/.*\.py$
+      - id: check-builtin-literals
+        files: ^app/.*\.py$
+      - id: check-case-conflict
+        files: ^app/
+      - id: check-docstring-first
+        files: ^app/.*\.py$
+      - id: detect-private-key
+        files: ^app/
+      - id: check-merge-conflict
+        files: ^app/
+      - id: check-added-large-files
+        files: ^app/
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        name: isort
+        files: ^app/.*\.py$
+        args: [--profile=black, --line-length=120]
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        name: black
+        files: ^app/.*\.py$
+        language_version: python3
+        args: [--line-length=120]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.6
+    hooks:
+      - id: ruff
+        name: ruff
+        files: ^app/.*\.py$
+        args: [--fix, --ignore=I]
+
+ci:
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

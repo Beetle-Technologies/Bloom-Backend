@@ -1,0 +1,22 @@
+from fastapi import status
+
+from .base import ServiceError
+
+
+class AuthenticationError(ServiceError):
+    """
+    An base error indicating that authentication credentials were not provided, invalid or expired.
+    """
+
+    title = "Invalid credentials"
+    detail = "Please provide valid authentication credentials."
+
+
+class InvalidTokenError(AuthenticationError):
+    """
+    An error indicating that the provided authentication token is invalid or expired.
+    """
+
+    title = "Invalid or expired authentication token"
+    detail = "Please login to continue."
+    status = status.HTTP_401_UNAUTHORIZED

@@ -1,0 +1,84 @@
+volumes:
+  bloom-postgres-data:
+  bloom-redis-data:
+
+
+x-app-base: &app-base
+  build:
+    context: ./app
+    dockerfile: Dockerfile
+  networks:
+    - default
+  env_file:
+    - .env
+  environment:
+    - DOMAIN=${DOMAIN}
+    - ENVIRONMENT=${ENVIRONMENT}
+    - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+    - SECRET_KEY=${SECRET_KEY?Variable not set}
+    - SMTP_USER=${SMTP_USER}
+    - SMTP_PASSWORD=${SMTP_PASSWORD}
+    - POSTGRES_HOST=postgres
+    - POSTGRES_PORT=${POSTGRES_PORT}
+    - POSTGRES_DB=${POSTGRES_DB}
+    - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+    - REDIS_HOST=${REDIS_HOST}
+    - REDIS_PORT=${REDIS_PORT}
+    - REDIS_DB=${REDIS_DB}
+    - REDIS_PASSWORD=${REDIS_PASSWORD?Variable not set}
+  volumes:
+    - ./app:/app
+
+
+services:
+  postgres:
+    container_name: bloom_postgres-16
+    image: postgres:16-alpine
+    restart: always
+    networks:
+      - default
+    ports:
+      - "5432:5432"
+    volumes:
+      - bloom-postgres-data:/var/lib/postgresql/data/pgdata
+    env_file:
+      - .env
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_DB=${POSTGRES_DB?Variable not set}
+
+  redis:
+    container_name: bloom_redis-7
+    image: redis:7-alpine
+    networks:
+      - default
+    volumes:
+      - bloom-redis-data:/data
+
+  app:
+    <<: *app-base
+    container_name: bloom_api-1
+    ports:
+      - "8888:80"
+      - "80:80"
+    command: /app/scripts/start.sh
+    depends_on:
+      - postgres
+      - redis
+
+  celery_worker:
+    <<: *app-base
+    container_name: bloom_celery-worker-1
+    command: celery -A src.core.celery worker -Q bloom_default_tasks,bloom_recurring_tasks -l INFO
+    depends_on:
+      - app
+
+  celery_beat:
+    <<: *app-base
+    container_name: bloom_celery-beat-1
+    command: celery -A src.core.celery beat -l INFO
+    depends_on:
+      - app
