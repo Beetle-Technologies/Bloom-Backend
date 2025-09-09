@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from src.domain.models import Account, AccountTypeInfo, Permission
 
 
-class AccountTypePermission(UUIDMixin, table=True):
+class AccountTypeInfoPermission(UUIDMixin, table=True):
     """
     Represents the permissions associated with an account type attribute.
 

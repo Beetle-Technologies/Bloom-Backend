@@ -19,4 +19,20 @@ class AccountTypeRepository(
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(AccountType, session)
-        pass
+
+    async def create_if_not_exists(self, schema: AccountTypeCreate) -> AccountType:
+        """
+        Create an account type if it doesn't already exist.
+
+        Args:
+            schema (AccountTypeCreate): The account type data
+
+        Returns:
+            AccountType: The existing or newly created account type
+        """
+        existing = await self.find_one_by_and_none(key=schema.key)
+
+        if existing:
+            return existing
+
+        return await self.create(schema)

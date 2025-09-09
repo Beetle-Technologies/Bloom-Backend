@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 from src.core.database.mixins import GUIDMixin, TimestampMixin
 from src.core.types import GUID
-from src.domain.enums import AccountType, KYCVerificationType
+from src.domain.enums import AccountTypeEnum, KYCVerificationType
 
 if TYPE_CHECKING:
     from src.domain.models import Country
@@ -42,7 +42,7 @@ class KYCDocumentType(GUIDMixin, TimestampMixin, table=True):
 
     name: str = Field(max_length=255, nullable=False)
     is_active: bool = Field(default=True, nullable=False)
-    account_type: AccountType = Field()
+    account_type: AccountTypeEnum = Field()
     verification_type: KYCVerificationType = Field(
         sa_column=Column(TEXT(), nullable=False, default=KYCVerificationType.MANUAL)
     )

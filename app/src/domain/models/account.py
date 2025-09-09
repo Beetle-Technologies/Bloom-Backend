@@ -28,11 +28,11 @@ from src.core.database.mixins import (
     TimestampMixin,
     TrackableMixin,
 )
-from src.core.types import PhoneNumber
-from src.domain.enums import AccountType
+from src.core.types import PhoneNumber, IDType
+from src.domain.enums import AccountTypeEnum
 
 if TYPE_CHECKING:
-    from src.domain.models import AccountTypeInfo, BankingInfo
+    from src.domain.models import AccountType, AccountTypeInfo, BankingInfo
 
 
 class Account(
@@ -175,6 +175,14 @@ class Account(
         back_populates="account", sa_relationship_kwargs={"lazy": "selectin"}
     )
 
+    account_types: list["AccountType"] = Relationship(
+        sa_relationship_kwargs={
+            "secondary": "account_type_infos",
+            "back_populates": "accounts",
+            "viewonly": True,
+        }
+    )
+
     # Properties
     display_name: ClassVar = hybrid_property(
         lambda self: f"{self.first_name.title()} {self.last_name.title()}"
@@ -248,8 +256,8 @@ class Account(
     def has_permission(
         self,
         permission_scope: str,
-        account_type: AccountType | None = None,
-        resource_id: str | None = None,
+        account_type: AccountTypeEnum | None = None,
+        resource_id: IDType | None = None,
     ) -> bool:
         """
         Check if the account has a specific permission for a given account type.
@@ -268,7 +276,9 @@ class Account(
                     return True
         return False
 
-    def get_permissions_for_account_type(self, account_type: AccountType) -> list[str]:
+    def get_permissions_for_account_type(
+        self, account_type: AccountTypeEnum
+    ) -> list[str]:
         """
         Get all permission scopes for a specific account type.
 
@@ -283,7 +293,7 @@ class Account(
                 return type_info.get_permission_scopes()
         return []
 
-    def get_all_permissions(self) -> dict[AccountType, list[str]]:
+    def get_all_permissions(self) -> dict[AccountTypeEnum, list[str]]:
         """
         Get all permissions for all account types associated with this account.
 
@@ -292,13 +302,13 @@ class Account(
         """
         permissions = {}
         for type_info in self.type_infos:
-            permissions[AccountType(type_info.account_type.key)] = (
+            permissions[AccountTypeEnum(type_info.account_type.key)] = (
                 type_info.get_permission_scopes()
             )
         return permissions
 
     def get_account_type_infos(
-        self, account_type: AccountType
+        self, account_type: AccountTypeEnum
     ) -> "AccountTypeInfo | None":
         """
         Get the account type attribute for a specific account type.
@@ -313,3 +323,38 @@ class Account(
             if type_info.account_type.key == account_type.value:
                 return type_info
         return None
+
+    def has_account_type(self, account_type: AccountTypeEnum) -> bool:
+        """
+        Check if the account has a specific account type.
+
+        Args:
+            account_type: The account type to check for
+
+        Returns:
+            True if the account has this account type, False otherwise
+        """
+        return self.get_account_type_infos(account_type) is not None
+
+    def get_account_types(self) -> list[AccountTypeEnum]:
+        """
+        Get all account types associated with this account.
+
+        Returns:
+            List of AccountType enums
+        """
+        return [
+            AccountTypeEnum(type_info.account_type.key) for type_info in self.type_infos
+        ]
+
+    def get_active_account_types(self) -> list[AccountTypeEnum]:
+        """
+        Get all active account types associated with this account.
+        This method can be extended later if account type infos have active/inactive states.
+
+        Returns:
+            List of AccountType enums for active account types
+        """
+        # For now, all account type infos are considered active
+        # This can be extended later with additional filtering logic
+        return self.get_account_types()

@@ -80,25 +80,24 @@ def create_rate_limit_dependency(
 
 
 def validate_bloom_client_header(
-    request: Request, x_bloom_client: str = Header(None, alias="X-Bloom-Client")
+    x_bloom_client: str = Header(None, alias="X-Bloom-Client")
 ) -> BloomClientInfo:
     """
     Validate and parse the X-Bloom-Client header.
     For OpenAPI docs endpoints, provides a default header value.
 
     Args:
-        request (Request): The FastAPI request object
         x_bloom_client (str): The X-Bloom-Client header value
 
     Returns:
         BloomClientInfo: Parsed client information
     """
-    openapi_paths = [settings.OPENAPI_DOCS_URL, settings.OPENAPI_JSON_SCHEMA_URL]
-    if request.url.path in openapi_paths:
-        default_header = "platform=web; version=1.0.0; app=bloom-main"
-        return parse_bloom_client_header(default_header)
+    environment = settings.ENVIRONMENT
 
-    if not x_bloom_client:
+    if environment in ['local']:
+        x_bloom_client = "platform=web; version=1.0.0; app=bloom-main"
+
+    if environment not in ['local'] and not x_bloom_client:
         raise errors.InvalidClientHeaderError(detail="X-Bloom-Client header is required")
 
     return parse_bloom_client_header(x_bloom_client)

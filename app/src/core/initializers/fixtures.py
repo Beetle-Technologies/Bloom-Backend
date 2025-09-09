@@ -1,44 +1,108 @@
 from __future__ import annotations
 
+import inflection
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
 from src.core.database.session import db_context_manager
-from src.domain.enums import AccountType
-from src.domain.repositories import AccountTypeRepository
-from src.domain.schemas import AccountTypeCreate
+from src.domain.enums import AccountTypeEnum
+from src.domain.models import (
+    Account,
+    AccountType,
+    AccountTypeGroup,
+    AccountTypeInfo,
+    AccountTypeInfoPermission,
+    Address,
+    Attachment,
+    AttachmentBlob,
+    AttachmentVariant,
+    AuditLog,
+    BankingInfo,
+    Cart,
+    CartItem,
+    Category,
+    Country,
+    Currency,
+    EventOutbox,
+    Inventory,
+    InventoryAction,
+    KYCAttempt,
+    KYCDocument,
+    KYCDocumentType,
+    KYCDocumentVerificationComment,
+    Notification,
+    NotificationPreference,
+    NotificationTemplate,
+    Order,
+    OrderInvoice,
+    OrderItem,
+    Permission,
+    Product,
+    ProductItem,
+    ProductItemRequest,
+    Review,
+    Wishlist,
+    WishlistItem,
+)
+from src.domain.repositories import AccountTypeRepository, PermissionRepository
+from src.domain.schemas import AccountTypeCreate, PermissionCreate
 
-# from src.domain.enums.permission import PermissionAction, PermissionResource
-# from src.domain.schemas.permission import PermissionBatchCreate, PermissionCreate
-# from src.domain.services.permission_service import PermissionService
+MODEL_CLASSES = [
+    Account,
+    AccountType,
+    AccountTypeGroup,
+    AccountTypeInfo,
+    AccountTypeInfoPermission,
+    Address,
+    Attachment,
+    AttachmentBlob,
+    AttachmentVariant,
+    AuditLog,
+    BankingInfo,
+    Cart,
+    CartItem,
+    Category,
+    Country,
+    Currency,
+    EventOutbox,
+    Inventory,
+    InventoryAction,
+    KYCAttempt,
+    KYCDocument,
+    KYCDocumentType,
+    KYCDocumentVerificationComment,
+    Notification,
+    NotificationPreference,
+    NotificationTemplate,
+    Order,
+    OrderInvoice,
+    OrderItem,
+    Permission,
+    Product,
+    ProductItem,
+    ProductItemRequest,
+    Review,
+    Wishlist,
+    WishlistItem,
+]
 
 
-# async def _load_permissions(session: AsyncSession) -> None:
-#     """
-#     Load permissions into the database.
-#     """
+STANDARD_ACTIONS = ["read", "write", "update", "delete", "manage"]
 
-#     def generate_all_permissions() -> PermissionBatchCreate:
-#         """
-#         Generate all possible combinations of resource and action permissions.
 
-#         Returns:
-#             PermissionBatchCreate: Object containing all permission combinations
-#         """
-#         permissions: list[PermissionCreate] = []
+def get_table_name_from_model(model_class) -> str:
+    """
+    Get the table name from a model class.
 
-#         for resource, action in product(PermissionResource, PermissionAction):
-#             permission = PermissionCreate(
-#                 namespace=resource.value,
-#                 action=action.value,
-#                 description=f"Permission to {action.value} {resource.value.replace('_', ' ')}",
-#             )
-#             permissions.append(permission)
+    Args:
+        model_class: The SQLModel class
 
-#         return PermissionBatchCreate(permissions=permissions)
+    Returns:
+        str: The table name
+    """
+    if hasattr(model_class, "__tablename__") and model_class.__tablename__:
+        return model_class.__tablename__
 
-#     permission_service = PermissionService(session=session)
-#     batch_permissions = generate_all_permissions()
-#     await permission_service.add_permissions(batch=batch_permissions)
+    return inflection.pluralize(inflection.underscore(model_class.__name__))
 
 
 async def _load_default_account_types(session: AsyncSession) -> None:
@@ -47,20 +111,42 @@ async def _load_default_account_types(session: AsyncSession) -> None:
     """
     account_types: list[AccountTypeCreate] = [
         AccountTypeCreate(title=account_type.name, key=account_type.value)
-        for account_type in AccountType
+        for account_type in AccountTypeEnum
     ]
     account_type_repo = AccountTypeRepository(session=session)
 
     for account_type in account_types:
-        await account_type_repo.create(schema=account_type)
+        await account_type_repo.create_if_not_exists(schema=account_type)
+
+
+async def _load_default_permissions(session: AsyncSession) -> None:
+    """
+    Load default permissions for all model tables into the system.
+    """
+    permission_repo = PermissionRepository(session=session)
+    permissions_to_create: list[PermissionCreate] = []
+
+    for model_class in MODEL_CLASSES:
+        table_name = get_table_name_from_model(model_class)
+
+        for action in STANDARD_ACTIONS:
+            permission = PermissionCreate(
+                resource=table_name,
+                action=action,
+                description=f"Permission to {action} {table_name}",
+            )
+            permissions_to_create.append(permission)
+
+    await permission_repo.bulk_create_if_not_exists(permissions_to_create)
 
 
 async def load() -> None:
     if settings.LOAD_FIXTURES:
         async with db_context_manager() as session:
             await _load_default_account_types(session=session)
-            # await _load_permissions(session=session)
-            pass
+            await _load_default_permissions(session=session)
+    else:
+        print("Skipping loading fixtures as per configuration.")
 
 
 async def main() -> None:

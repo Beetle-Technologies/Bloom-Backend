@@ -5,6 +5,7 @@ from sqlmodel import Field, Relationship
 from src.core.database.mixins import GUIDMixin, TimestampMixin
 
 if TYPE_CHECKING:
+    from src.domain.models.account import Account
     from src.domain.models.account_type_group import AccountTypeGroup
     from src.domain.models.account_type_info import AccountTypeInfo
 
@@ -36,3 +37,12 @@ class AccountType(GUIDMixin, TimestampMixin, table=True):
 
     type_infos: list["AccountTypeInfo"] = Relationship(back_populates="account_type")
     groups: list["AccountTypeGroup"] = Relationship(back_populates="account_type")
+
+    # Additional relationships for accounts that have this account type
+    accounts: list["Account"] = Relationship(
+        sa_relationship_kwargs={
+            "secondary": "account_type_infos",
+            "back_populates": "account_types",
+            "viewonly": True,
+        }
+    )

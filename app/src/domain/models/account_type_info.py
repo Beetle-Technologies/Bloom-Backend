@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING, Any, Dict
 from uuid import UUID
 
-from sqlalchemy import Index
+from sqlalchemy import Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, Relationship
 from src.core.database.mixins import GUIDMixin, TimestampMixin
+from src.core.types import IDType
 from src.domain.models.account_type import AccountType
 
 if TYPE_CHECKING:
-    from src.domain.models import Account, AccountTypePermission, BankingInfo
+    from src.domain.models import Account, AccountTypeInfoPermission, BankingInfo
 
 
 class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
@@ -33,19 +34,27 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
     __tablename__ = "account_type_infos"  # type: ignore
 
     __table_args__ = (
-        Index("idx_account_type_infos_gin", "attributes", postgresql_using="gin"),
-        Index("idx_account_type_infos_account_type", "account_id", "account_type"),
+        UniqueConstraint(
+            "account_id", "account_type_id", name="uq_account_type_info_account_type"
+        ),
+        Index("idx_account_type_infos_account_type", "account_id", "account_type_id"),
+        Index(
+            "idx_account_type_infos_user", 
+            "attributes",
+            postgresql_using="gin",
+            postgresql_where="account_type_id = (SELECT id FROM account_type WHERE key = 'user')",
+        ),
         Index(
             "idx_account_type_infos_business",
             "attributes",
             postgresql_using="gin",
-            postgresql_where="account_type = 'business'",
+            postgresql_where="account_type_id = (SELECT id FROM account_type WHERE key = 'business')",
         ),
         Index(
             "idx_account_type_infos_supplier",
             "attributes",
             postgresql_using="gin",
-            postgresql_where="account_type = 'supplier'",
+            postgresql_where="account_type_id = (SELECT id FROM account_type WHERE key = 'supplier')",
         ),
     )
 
@@ -80,9 +89,9 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
         }
     )
     account_type: "AccountType" = Relationship(back_populates="type_infos")
-    permissions: list["AccountTypePermission"] = Relationship(
+    permissions: list["AccountTypeInfoPermission"] = Relationship(
         sa_relationship_kwargs={
-            "foreign_keys": "[AccountTypePermission.account_type_info_id]",
+            "foreign_keys": "[AccountTypeInfoPermission.account_type_info_id]",
             "back_populates": "account_type_info",
             "lazy": "selectin",
         }
@@ -154,7 +163,7 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
         self.attributes.update(new_attributes)
 
     def has_permission(
-        self, permission_scope: str, resource_id: str | None = None
+        self, permission_scope: str, resource_id: IDType | None = None
     ) -> bool:
         """
         Check if this account type attribute has a specific permission.
@@ -178,7 +187,7 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
 
     def get_permissions(
         self, active_only: bool = True
-    ) -> list["AccountTypePermission"]:
+    ) -> list["AccountTypeInfoPermission"]:
         """
         Get all permissions for this account type attribute.
 

@@ -2,6 +2,7 @@ from typing import ClassVar
 
 from sqlalchemy import ColumnElement, String, UniqueConstraint, func, type_coerce
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlmodel import Field
 from src.core.database.mixins import CreatedDateTimeMixin, IntegerIDMixin
 
 
@@ -18,7 +19,9 @@ class Permission(IntegerIDMixin, CreatedDateTimeMixin, table=True):
         created_datetime (datetime): The timestamp when the permission was created.
     """
 
-    __table_args__ = (UniqueConstraint("resource", "action", name="uq_permission_resource_action"),)
+    __table_args__ = (
+        UniqueConstraint("resource", "action", name="uq_permission_resource_action"),
+    )
 
     SELECTABLE_FIELDS = [
         "id",
@@ -29,9 +32,9 @@ class Permission(IntegerIDMixin, CreatedDateTimeMixin, table=True):
         "created_datetime",
     ]
 
-    resource: str
-    action: str
-    description: str | None = None
+    resource: str = Field(nullable=False, index=True)
+    action: str = Field(nullable=False, index=True)
+    description: str | None = Field(default=None)
 
     # Properties
     scope: ClassVar = hybrid_property(lambda self: f"{self.resource}:{self.action}")
@@ -50,7 +53,9 @@ class Permission(IntegerIDMixin, CreatedDateTimeMixin, table=True):
         """
         SQL expression for the scope property.
         """
-        return type_coerce(func.concat(cls.resource, ":", cls.action), String()).label("scope")
+        return type_coerce(func.concat(cls.resource, ":", cls.action), String()).label(
+            "scope"
+        )
 
     def __str__(self):
         return f"{self.resource}:{self.action}"

@@ -1,9 +1,9 @@
 from enum import StrEnum
 
 
-class ResaleRequestStatus(StrEnum):
+class ProductItemRequestStatus(StrEnum):
     """
-    Enumeration for the status of a resale request.
+    Enumeration for the status of a product item request.
 
     Attributes:
         PENDING: The 'pending' status.

@@ -1,6 +1,11 @@
-from sqlmodel import Field
+from typing import TYPE_CHECKING
+
+from sqlmodel import Field, Relationship
 from src.core.database.mixins import CompositeIDMixin
 from src.core.types import GUID
+
+if TYPE_CHECKING:
+    from src.domain.models.account import Account, AccountTypeEnum
 
 
 class AccountTypeGroup(CompositeIDMixin[tuple[GUID, GUID]], table=True):
@@ -19,7 +24,15 @@ class AccountTypeGroup(CompositeIDMixin[tuple[GUID, GUID]], table=True):
         "assigned_by",
     ]
 
-    account_type_id: GUID = Field(primary_key=True, index=True, nullable=False, foreign_key="account_type.id")
-    account_id: GUID = Field(primary_key=True, index=True, nullable=False, foreign_key="accounts.id")
+    account_type_id: GUID = Field(
+        primary_key=True, index=True, nullable=False, foreign_key="account_type.id"
+    )
+    account_id: GUID = Field(
+        primary_key=True, index=True, nullable=False, foreign_key="accounts.id"
+    )
 
     assigned_by: GUID | None = Field(default=None, nullable=True)
+
+    # Relationships
+    account_type: "AccountTypeEnum" = Relationship(back_populates="groups")
+    account: "Account" = Relationship()
