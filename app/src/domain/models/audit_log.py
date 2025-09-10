@@ -1,10 +1,11 @@
-from uuid import UUID
+from typing import ClassVar
 
 from pydantic import JsonValue
 from sqlalchemy import VARCHAR, Column
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 from src.core.database.mixins import CreatedDateTimeMixin, UUIDMixin
+from src.core.types import GUID
 from src.domain.models import Account
 
 
@@ -18,6 +19,18 @@ class AuditLog(UUIDMixin, CreatedDateTimeMixin, table=True):
         action (str): The action performed that is being logged.
         details (str): Additional details about the action.
     """
+
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
+        "id",
+        "action",
+        "resource_type",
+        "resource_id",
+        "details",
+        "ip_address",
+        "user_agent",
+        "account_id",
+        "created_datetime",
+    ]
 
     action: str = Field(sa_column=Column(VARCHAR(255), nullable=False))
     resource_type: str = Field(sa_column=Column(VARCHAR(255), nullable=False))
@@ -33,5 +46,5 @@ class AuditLog(UUIDMixin, CreatedDateTimeMixin, table=True):
     user_agent: str = Field(sa_column=Column(VARCHAR(255), nullable=True))
 
     # Relationships
-    account_id: UUID = Field(foreign_key="accounts.id", nullable=False)
+    account_id: GUID = Field(foreign_key="accounts.id", nullable=False)
     account: Account = Relationship()

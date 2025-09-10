@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship
@@ -22,7 +22,7 @@ class AccountType(GUIDMixin, TimestampMixin, table=True):
         updated_datetime (datetime | None): When the account type was last updated.
     """
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "title",
         "key",
@@ -31,9 +31,7 @@ class AccountType(GUIDMixin, TimestampMixin, table=True):
     ]
 
     title: str = Field(sa_column=Column(String(120), nullable=False, unique=True))
-    key: str = Field(
-        sa_column=Column(String(64), nullable=False, unique=True, index=True)
-    )
+    key: str = Field(sa_column=Column(String(64), nullable=False, unique=True, index=True))
 
     type_infos: list["AccountTypeInfo"] = Relationship(back_populates="account_type")
     groups: list["AccountTypeGroup"] = Relationship(back_populates="account_type")

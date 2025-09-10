@@ -10,9 +10,7 @@ from src.domain.schemas import AccountTypeCreate, AccountTypeUpdate
 logger = logging.getLogger(__name__)
 
 
-class AccountTypeRepository(
-    BaseRepository[AccountType, AccountTypeCreate, AccountTypeUpdate]
-):
+class AccountTypeRepository(BaseRepository[AccountType, AccountTypeCreate, AccountTypeUpdate]):
     """
     Repository for managing account type in the system.
     """
@@ -36,3 +34,19 @@ class AccountTypeRepository(
             return existing
 
         return await self.create(schema)
+
+    async def bulk_create_if_not_exists(self, schemas: list[AccountTypeCreate]) -> list[AccountType]:
+        """
+        Bulk create account types if they don't already exist.
+
+        Args:
+            schemas (list[AccountTypeCreate]): List of account type data to create
+
+        Returns:
+            list[AccountType]: List of existing or newly created account types
+        """
+        results = []
+        for schema in schemas:
+            result = await self.create_if_not_exists(schema)
+            results.append(result)
+        return results

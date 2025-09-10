@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import ClassVar
 
 from pydantic import JsonValue
 from sqlalchemy import Column, UniqueConstraint
@@ -27,7 +28,7 @@ class AttachmentBlob(GUIDMixin, FriendlyMixin, CreatedDateTimeMixin, DeletableMi
 
     __table_args__ = (UniqueConstraint("key", name="uq_attachment_blobs_key"),)
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "friendly_id",
         "key",

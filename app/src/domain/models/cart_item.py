@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlmodel import Field, Relationship
 from src.core.database.mixins import GUIDMixin, TimestampMixin
@@ -22,7 +22,7 @@ class CartItem(GUIDMixin, TimestampMixin, table=True):
         updated_datetime (datetime | None): When the item was last updated.
     """
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "cart_id",
         "cartable_type",

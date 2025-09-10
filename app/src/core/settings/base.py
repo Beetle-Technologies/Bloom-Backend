@@ -4,14 +4,7 @@ import warnings
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import (
-    AnyUrl,
-    BeforeValidator,
-    PostgresDsn,
-    RedisDsn,
-    computed_field,
-    model_validator,
-)
+from pydantic import AnyUrl, BeforeValidator, PostgresDsn, RedisDsn, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,7 +37,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+    BASE_DIR: str = str(Path(__file__).resolve().parent.parent.parent.parent)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -65,8 +58,7 @@ class Settings(BaseSettings):
     OPENAPI_DOCS_URL: str = "/docs"
     OPENAPI_JSON_SCHEMA_URL: str = "/openapi.json"
     CSRF_SECRET_KEY: str = secrets.token_urlsafe(32)
-    SESSION_SECRET_KEY: str = secrets.token_urlsafe(64)
-    AUTH_SECRET_KEY: str = secrets.token_urlsafe(32)
+    AUTH_SECRET_KEY: str = secrets.token_hex(64)
     BANKING_SECRET_KEY: str = secrets.token_urlsafe(32)
     AUTH_TOKEN_MAX_AGE: int = 60 * 60 * 8  # 8 hours
     AUTH_TOKEN: str = "bloom_auth_token"
@@ -108,9 +100,7 @@ class Settings(BaseSettings):
             return int(self.PORT)
         return 443 if self.ENVIRONMENT == "production" else 80
 
-    BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = (
-        []
-    )
+    BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
@@ -180,30 +170,17 @@ class Settings(BaseSettings):
         return self
 
     def _check_email_config_for_backend(self, backend: str) -> None:
-        if (
-            backend == "smtp"
-            and self.SMTP_AUTH_SURPPORT
-            and not self.SMTP_USER
-            or not self.SMTP_PASSWORD
+        if backend == "smtp" and self.SMTP_AUTH_SURPPORT and (not self.SMTP_USER or not self.SMTP_PASSWORD):
+            raise ValueError("SMTP configuration is incomplete. Please check SMTP settings.")
+        elif backend == "ses" and (
+            not self.AWS_SES_REGION_NAME or not self.AWS_SES_ACCESS_KEY_ID or not self.AWS_SES_SECRET_ACCESS_KEY
         ):
-            raise ValueError(
-                "SMTP configuration is incomplete. Please check SMTP settings."
-            )
-        elif (
-            backend == "ses"
-            and not self.AWS_SES_REGION_NAME
-            or not self.AWS_SES_ACCESS_KEY_ID
-            or not self.AWS_SES_SECRET_ACCESS_KEY
-        ):
-            raise ValueError(
-                "AWS SES configuration is incomplete. Please check AWS SES settings."
-            )
+            raise ValueError("AWS SES configuration is incomplete. Please check AWS SES settings.")
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (
-                f'The value of {var_name} is "changethis", '
-                "for security, please change it, at least for deployments."
+                f'The value of {var_name} is "changethis", ' "for security, please change it, at least for deployments."
             )
             if self.ENVIRONMENT in ["local", "staging"]:
                 warnings.warn(message, stacklevel=1)

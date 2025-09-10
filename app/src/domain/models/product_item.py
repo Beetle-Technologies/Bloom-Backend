@@ -1,16 +1,11 @@
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, Optional
 from uuid import UUID
 
 from sqlalchemy import TEXT, Boolean, CheckConstraint, Column, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, NUMERIC
 from sqlmodel import Field, Relationship
-from src.core.database.mixins import (
-    DeletableMixin,
-    FriendlyMixin,
-    GUIDMixin,
-    TimestampMixin,
-)
+from src.core.database.mixins import DeletableMixin, FriendlyMixin, GUIDMixin, TimestampMixin
 from src.core.types import GUID
 from src.domain.enums import ProductStatus
 
@@ -45,19 +40,13 @@ class ProductItem(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, tabl
     __table_args__ = (
         Index("idx_product_items_gin", "attributes", postgresql_using="gin"),
         CheckConstraint(
-            "price != (SELECT price FROM products WHERE id = product_id)",
-            name="chk_product_item_price_not_equal_product_price",
-        ),
-        CheckConstraint(
             "markup_percentage >= 0",
             name="chk_product_item_markup_percentage_non_negative",
         ),
-        UniqueConstraint(
-            "product_id", "seller_account_id", name="uq_product_item_seller"
-        ),
+        UniqueConstraint("product_id", "seller_account_id", name="uq_product_item_seller"),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "friendly_id",
         "product_id",
@@ -78,9 +67,7 @@ class ProductItem(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, tabl
 
     # Core references
     product_id: GUID = Field(foreign_key="products.id", nullable=False, index=True)
-    seller_account_id: GUID = Field(
-        foreign_key="accounts.id", nullable=False, index=True
-    )
+    seller_account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
     markup_percentage: Decimal = Field(
         sa_column=Column(NUMERIC(6, 2), nullable=False, default=0),
         description="Markup percentage applied to original product price",

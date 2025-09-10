@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, Relationship
@@ -22,7 +22,7 @@ class NotificationPreference(GUIDMixin, TimestampMixin, table=True):
         updated_datetime (datetime | None): When updated.
     """
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "account_type_info_id",
         "enabled_methods",
@@ -31,9 +31,7 @@ class NotificationPreference(GUIDMixin, TimestampMixin, table=True):
         "updated_datetime",
     ]
 
-    account_type_info_id: GUID = Field(
-        foreign_key="account_type_infos.id", nullable=False, index=True
-    )
+    account_type_info_id: GUID = Field(foreign_key="account_type_infos.id", nullable=False, index=True)
     enabled_methods: dict[NotificationDeliveryMethod, bool] = Field(
         sa_column=Column(
             JSONB,
@@ -47,6 +45,4 @@ class NotificationPreference(GUIDMixin, TimestampMixin, table=True):
     )
 
     # Relationships
-    account_type_info: "AccountTypeInfo" = Relationship(
-        back_populates="notification_preferences"
-    )
+    account_type_info: "AccountTypeInfo" = Relationship()

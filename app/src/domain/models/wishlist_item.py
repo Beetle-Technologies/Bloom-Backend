@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import CheckConstraint
 from sqlmodel import Field, Relationship, UniqueConstraint
@@ -29,12 +29,10 @@ class WishlistItem(GUIDMixin, TimestampMixin, table=True):
             "wishable_type",
             name="uq_wishlist_item_wishlist_type",
         ),
-        CheckConstraint(
-            "priority >= 1 AND priority <= 5", name="chk_wishlist_item_priority_range"
-        ),
+        CheckConstraint("priority >= 1 AND priority <= 5", name="chk_wishlist_item_priority_range"),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "wishlist_id",
         "wishable_type",

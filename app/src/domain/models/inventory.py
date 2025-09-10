@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, ClassVar, Union
 
 from sqlalchemy import CheckConstraint, Column, String, UniqueConstraint
 from sqlmodel import Field, Relationship, select
@@ -8,7 +8,7 @@ from src.core.types import GUID
 from src.domain.enums import InventoriableType
 
 if TYPE_CHECKING:
-    from src.domain.models import Account, InventoryAction, Product, ProductItem
+    from src.domain.models import InventoryAction, Product, ProductItem
 
 
 class Inventory(GUIDMixin, TimestampMixin, table=True):
@@ -19,7 +19,6 @@ class Inventory(GUIDMixin, TimestampMixin, table=True):
         id (GUID): The unique identifier for the inventory entry.
         inventoriable_type (str): Type of item being inventoried ('product' or 'resale').
         inventoriable_id (GUID): Reference to the product or resale item.
-        account_id (GUID): Reference to the account (owner or reseller).
         quantity_in_stock (int): The total quantity in stock.
         reserved_stock (int): The quantity reserved for pending orders.
         available_stock (int): Computed field: quantity_in_stock - reserved_stock.
@@ -33,23 +32,17 @@ class Inventory(GUIDMixin, TimestampMixin, table=True):
         UniqueConstraint(
             "inventoriable_type",
             "inventoriable_id",
-            "account_id",
-            name="uq_inventory_item_account",
+            name="uq_inventory_item",
         ),
-        CheckConstraint(
-            "quantity_in_stock >= 0", name="chk_quantity_in_stock_positive"
-        ),
+        CheckConstraint("quantity_in_stock >= 0", name="chk_quantity_in_stock_positive"),
         CheckConstraint("reserved_stock >= 0", name="chk_reserved_stock_positive"),
-        CheckConstraint(
-            "reserved_stock <= quantity_in_stock", name="chk_reserved_not_exceed_stock"
-        ),
+        CheckConstraint("reserved_stock <= quantity_in_stock", name="chk_reserved_not_exceed_stock"),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "inventoriable_type",
         "inventoriable_id",
-        "account_id",
         "quantity_in_stock",
         "reserved_stock",
         "available_stock",
@@ -62,7 +55,6 @@ class Inventory(GUIDMixin, TimestampMixin, table=True):
         description="Type of item being inventoried (product or resale)",
     )
     inventoriable_id: GUID = Field(nullable=False, index=True)
-    account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
     quantity_in_stock: int = Field(default=0, nullable=False)
     reserved_stock: int = Field(default=0, nullable=False)
 
@@ -72,12 +64,9 @@ class Inventory(GUIDMixin, TimestampMixin, table=True):
         return self.quantity_in_stock - self.reserved_stock
 
     # Relationships
-    account: "Account" = Relationship(back_populates="inventory")
     actions: list["InventoryAction"] = Relationship(back_populates="inventory")
 
-    async def get_inventoriable_item(
-        self, session: AsyncSession
-    ) -> Union["Product", "ProductItem"]:
+    async def get_inventoriable_item(self, session: AsyncSession) -> Union["Product", "ProductItem"]:
         """
         Get the actual inventoriable item (Product or Resale) from the database.
 
@@ -161,9 +150,6 @@ class Inventory(GUIDMixin, TimestampMixin, table=True):
             Inventory.inventoriable_type == inventoriable_type,
             Inventory.inventoriable_id == inventoriable_id,
         )
-
-        if account_id:
-            query = query.where(Inventory.account_id == account_id)
 
         result = await session.exec(query)
         return list(result.all())

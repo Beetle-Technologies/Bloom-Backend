@@ -1,4 +1,4 @@
-from uuid import UUID
+from typing import ClassVar
 
 from sqlalchemy import Column, String, UniqueConstraint
 from sqlmodel import Field
@@ -33,7 +33,7 @@ class Attachment(GUIDMixin, FriendlyMixin, CreatedDateTimeMixin, DeletableMixin,
         ),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "friendly_id",
         "name",
@@ -53,4 +53,4 @@ class Attachment(GUIDMixin, FriendlyMixin, CreatedDateTimeMixin, DeletableMixin,
         ),
     )
     attachable_id: GUID = Field(nullable=False)
-    blob_id: UUID = Field(foreign_key="attachment_blobs.id", nullable=False, index=True)
+    blob_id: GUID = Field(foreign_key="attachment_blobs.id", nullable=False, index=True)

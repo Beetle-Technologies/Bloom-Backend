@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -12,9 +11,7 @@ from src.domain.schemas import PermissionCreate, PermissionUpdate
 logger = logging.getLogger(__name__)
 
 
-class PermissionRepository(
-    BaseRepository[Permission, PermissionCreate, PermissionUpdate]
-):
+class PermissionRepository(BaseRepository[Permission, PermissionCreate, PermissionUpdate]):
     """
     Repository for managing permissions in the system.
     """
@@ -76,18 +73,14 @@ class PermissionRepository(
         Returns:
             Permission: The existing or newly created permission
         """
-        existing = await self.find_one_by_and_none(
-            resource=schema.resource, action=schema.action
-        )
+        existing = await self.find_one_by_and_none(resource=schema.resource, action=schema.action)
 
         if existing:
             return existing
 
         return await self.create(schema)
 
-    async def bulk_create_if_not_exists(
-        self, schemas: list[PermissionCreate]
-    ) -> list[Permission]:
+    async def bulk_create_if_not_exists(self, schemas: list[PermissionCreate]) -> list[Permission]:
         """
         Create multiple permissions if they don't already exist.
 

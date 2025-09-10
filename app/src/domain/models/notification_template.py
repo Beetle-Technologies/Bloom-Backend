@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import TEXT, Column
 from sqlmodel import Field, Relationship
@@ -23,7 +23,7 @@ class NotificationTemplate(GUIDMixin, TimestampMixin, table=True):
         updated_datetime (datetime | None): When updated.
     """
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "name",
         "title",

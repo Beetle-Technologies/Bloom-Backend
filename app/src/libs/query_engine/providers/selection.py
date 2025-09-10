@@ -102,11 +102,14 @@ class SelectionProvider:
         Returns:
             List of selectable field names
         """
-        # Check if model has a SELECTABLE_FIELDS constant
-        if hasattr(self.model, "SELECTABLE_FIELDS"):
-            return list(getattr(self.model, "SELECTABLE_FIELDS"))
+        if hasattr(self.model, "SELECTABLE_FIELDS") is not None:
+            fields = getattr(self.model, "SELECTABLE_FIELDS")
 
-        # Fallback to all model fields if no SELECTABLE_FIELDS defined
+            assert isinstance(fields, list), "SELECTABLE_FIELDS must be a list of strings"
+            assert all(isinstance(field, str) for field in fields), "All SELECTABLE_FIELDS must be strings"
+
+            return fields
+
         return [name for name, _ in self.model.__fields__.items()]
 
     def _validate_and_get_columns(self, field_names: list[str]) -> tuple[list[str], list]:

@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import VARCHAR, Column, UniqueConstraint
 from sqlmodel import Field, Relationship
 from src.core.database.mixins import GUIDMixin, TimestampMixin
 from src.core.types import GUID
-from src.domain.enums import ResaleRequestStatus
+from src.domain.enums import ProductItemRequestStatus
 
 if TYPE_CHECKING:
     from src.domain.models import Account, Product
@@ -36,7 +36,7 @@ class ProductItemRequest(GUIDMixin, TimestampMixin, table=True):
         ),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "requester_account_id",
         "supplier_account_id",
@@ -47,23 +47,30 @@ class ProductItemRequest(GUIDMixin, TimestampMixin, table=True):
         "updated_datetime",
     ]
 
-    seller_account_id: GUID = Field(
-        foreign_key="accounts.id", nullable=False, index=True
-    )
-    supplier_account_id: GUID = Field(
-        foreign_key="accounts.id", nullable=False, index=True
-    )
+    seller_account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
+    supplier_account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
+    mode: str = Field(max_length=50, nullable=False, index=True, default="implicit")  # implicit or explicit
     product_id: GUID = Field(foreign_key="products.id", nullable=False, index=True)
     requested_quantity: int = Field(nullable=False)
-    status: ResaleRequestStatus = Field(
+    status: ProductItemRequestStatus = Field(
         sa_column=Column(
             VARCHAR(50),
             nullable=False,
-            default=ResaleRequestStatus.PENDING,
+            default=ProductItemRequestStatus.PENDING,
         )
     )
 
     # Relationships
-    seller: "Account" = Relationship(back_populates="resale_requests_as_seller")
-    supplier: "Account" = Relationship(back_populates="resale_requests_as_supplier")
+    seller: "Account" = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "[ProductItemRequest.seller_account_id]",
+            "back_populates": "resale_requests_as_seller",
+        }
+    )
+    supplier: "Account" = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "[ProductItemRequest.supplier_account_id]",
+            "back_populates": "resale_requests_as_supplier",
+        }
+    )
     product: "Product" = Relationship(back_populates="resale_requests")

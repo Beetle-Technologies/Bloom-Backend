@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from sqlalchemy import TIMESTAMP, Column, UniqueConstraint, func
 from sqlmodel import Field, Relationship
@@ -40,7 +40,7 @@ class AccountTypeInfoPermission(UUIDMixin, table=True):
         ),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "account_type_info_id",
         "permission_id",
@@ -51,25 +51,19 @@ class AccountTypeInfoPermission(UUIDMixin, table=True):
         "expires_at",
     ]
 
-    account_type_info_id: GUID = Field(
-        foreign_key="account_type_infos.id", nullable=False, index=True
-    )
+    account_type_info_id: GUID = Field(foreign_key="account_type_infos.id", nullable=False, index=True)
     permission_id: int = Field(foreign_key="permissions.id", nullable=False, index=True)
 
     granted: bool = Field(default=True, nullable=False)
     resource_id: str | None = Field(default=None, max_length=255)
-    assigned_at: datetime = Field(
-        sa_column=Column(
-            TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
-        )
-    )
+    assigned_at: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now()))
     assigned_by: GUID | None = Field(default=None, foreign_key="accounts.id")
     expires_at: datetime | None = Field(default=None)
 
     # Relationships
     account_type_info: Optional["AccountTypeInfo"] = Relationship(
         sa_relationship_kwargs={
-            "foreign_keys": "[AccountTypePermission.account_type_info_id]",
+            "foreign_keys": "[AccountTypeInfoPermission.account_type_info_id]",
             "back_populates": "permissions",
         }
     )
@@ -78,7 +72,7 @@ class AccountTypeInfoPermission(UUIDMixin, table=True):
 
     assigned_by_account: Optional["Account"] = Relationship(
         sa_relationship_kwargs={
-            "foreign_keys": "[AccountTypePermission.assigned_by]",
+            "foreign_keys": "[AccountTypeInfoPermission.assigned_by]",
         }
     )
 

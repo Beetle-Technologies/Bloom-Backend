@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from babel.numbers import get_currency_symbol
 from pycountries import Currency as CurrencyCode
@@ -25,9 +25,16 @@ class Currency(UUIDMixin, table=True):
 
     __tablename__ = "currency"  # type: ignore
 
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
+        "id",
+        "code",
+        "is_active",
+        "is_default",
+    ]
+
     code: CurrencyCode = Field(
         description="ISO 4217 currency code (e.g., USD, EUR)",
-        sa_column=Column(VARCHAR(length=3), unique=True, index=True),
+        sa_column=Column(VARCHAR(), unique=True, index=True),
     )
     is_active: bool = Field(
         sa_column=Column(type_=Boolean(), default=True, nullable=False),
@@ -37,9 +44,7 @@ class Currency(UUIDMixin, table=True):
         sa_column=Column(type_=Boolean(), default=False, nullable=False),
         description="Indicates if this currency is the default one for the system",
     )
-    countries: list["Country"] = Relationship(
-        back_populates="currency", sa_relationship_kwargs={"lazy": "selectin"}
-    )
+    countries: list["Country"] = Relationship(back_populates="currency", sa_relationship_kwargs={"lazy": "selectin"})
 
     @property
     def symbol(self) -> str:

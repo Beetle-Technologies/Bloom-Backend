@@ -2,16 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import EmailStr
-from sqlalchemy import (
-    TEXT,
-    TIMESTAMP,
-    Column,
-    ColumnElement,
-    Index,
-    String,
-    func,
-    type_coerce,
-)
+from sqlalchemy import TEXT, TIMESTAMP, Column, ColumnElement, Index, String, func, type_coerce
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship
 from src.core.config import settings
@@ -28,11 +19,11 @@ from src.core.database.mixins import (
     TimestampMixin,
     TrackableMixin,
 )
-from src.core.types import PhoneNumber, IDType
+from src.core.types import IDType, PhoneNumber
 from src.domain.enums import AccountTypeEnum
 
 if TYPE_CHECKING:
-    from src.domain.models import AccountType, AccountTypeInfo, BankingInfo
+    from src.domain.models import AccountType, AccountTypeInfo, ProductItemRequest
 
 
 class Account(
@@ -92,11 +83,9 @@ class Account(
         deleted_datetime (datetime | None): The timestamp when the account was deleted.
     """
 
-    __table_args__ = (
-        Index("idx_account_search_vector", "search_vector", postgresql_using="gin"),
-    )
+    __table_args__ = (Index("idx_account_search_vector", "search_vector", postgresql_using="gin"),)
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "friendly_id",
         "first_name",
@@ -171,9 +160,6 @@ class Account(
             "back_populates": "account",
         }
     )
-    banking_infos: list["BankingInfo"] = Relationship(
-        back_populates="account", sa_relationship_kwargs={"lazy": "selectin"}
-    )
 
     account_types: list["AccountType"] = Relationship(
         sa_relationship_kwargs={
@@ -183,10 +169,22 @@ class Account(
         }
     )
 
-    # Properties
-    display_name: ClassVar = hybrid_property(
-        lambda self: f"{self.first_name.title()} {self.last_name.title()}"
+    # Product item request relationships
+    resale_requests_as_seller: list["ProductItemRequest"] = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "[ProductItemRequest.seller_account_id]",
+            "back_populates": "seller",
+        }
     )
+    resale_requests_as_supplier: list["ProductItemRequest"] = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "[ProductItemRequest.supplier_account_id]",
+            "back_populates": "supplier",
+        }
+    )
+
+    # Properties
+    display_name: ClassVar = hybrid_property(lambda self: f"{self.first_name.title()} {self.last_name.title()}")
 
     @display_name.inplace.setter
     def _display_name_setter(self, value: str):
@@ -214,9 +212,7 @@ class Account(
         """
         from src.core.security import verify_password
 
-        return verify_password(
-            plain_password, self.encrypted_password, self.password_salt
-        )
+        return verify_password(plain_password, self.encrypted_password, self.password_salt)
 
     def check_suspended(self) -> bool:
         """
@@ -234,21 +230,13 @@ class Account(
         """
         Checks if the user account is prevented from logging in.
         """
-        return (
-            self.check_suspended()
-            or self.is_locked()
-            or not self.is_active
-            or not self.is_verified
-        )
+        return self.check_suspended() or self.is_locked() or not self.is_active or not self.is_verified
 
     def check_reenumeration_attempts(self) -> bool:
         """
         Checks if the user account has exceeded the maximum number of failed login attempts.
         """
-        if (
-            self.is_locked()
-            and self.failed_attempts >= settings.MAX_LOGIN_FAILED_ATTEMPTS
-        ):
+        if self.is_locked() and self.failed_attempts >= settings.MAX_LOGIN_FAILED_ATTEMPTS:
             return True
 
         return False
@@ -276,9 +264,7 @@ class Account(
                     return True
         return False
 
-    def get_permissions_for_account_type(
-        self, account_type: AccountTypeEnum
-    ) -> list[str]:
+    def get_permissions_for_account_type(self, account_type: AccountTypeEnum) -> list[str]:
         """
         Get all permission scopes for a specific account type.
 
@@ -302,14 +288,10 @@ class Account(
         """
         permissions = {}
         for type_info in self.type_infos:
-            permissions[AccountTypeEnum(type_info.account_type.key)] = (
-                type_info.get_permission_scopes()
-            )
+            permissions[AccountTypeEnum(type_info.account_type.key)] = type_info.get_permission_scopes()
         return permissions
 
-    def get_account_type_infos(
-        self, account_type: AccountTypeEnum
-    ) -> "AccountTypeInfo | None":
+    def get_account_type_infos(self, account_type: AccountTypeEnum) -> "AccountTypeInfo | None":
         """
         Get the account type attribute for a specific account type.
 
@@ -343,9 +325,7 @@ class Account(
         Returns:
             List of AccountType enums
         """
-        return [
-            AccountTypeEnum(type_info.account_type.key) for type_info in self.type_infos
-        ]
+        return [AccountTypeEnum(type_info.account_type.key) for type_info in self.type_infos]
 
     def get_active_account_types(self) -> list[AccountTypeEnum]:
         """

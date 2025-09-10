@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from sqlalchemy import TEXT, Column
 from sqlmodel import Field, Relationship
@@ -25,9 +25,9 @@ class Category(GUIDMixin, FriendlyMixin, table=True):
 
     __tablename__ = "category"  # type: ignore
 
-    ENABLE_FRIENDLY_SLUG = True
+    ENABLE_FRIENDLY_SLUG: ClassVar[bool] = True
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "friendly_id",
         "title",
@@ -38,9 +38,7 @@ class Category(GUIDMixin, FriendlyMixin, table=True):
     ]
 
     title: str = Field(max_length=255, nullable=False, index=True)
-    description: str | None = Field(
-        sa_column=Column(TEXT(), nullable=True, default=None)
-    )
+    description: str | None = Field(sa_column=Column(TEXT(), nullable=True, default=None))
     parent_id: GUID | None = Field(default=None, foreign_key="category.id")
     is_active: bool = Field(default=True, nullable=False)
     sort_order: int = Field(default=0, nullable=False)

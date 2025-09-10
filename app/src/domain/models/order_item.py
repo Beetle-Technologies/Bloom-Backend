@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlmodel import Column, Field, Relationship
@@ -25,7 +25,7 @@ class OrderItem(GUIDMixin, TimestampMixin, table=True):
         updated_datetime (datetime | None): When the item was last updated.
     """
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "order_id",
         "orderable_type",

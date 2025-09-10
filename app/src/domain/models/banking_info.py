@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
-from sqlalchemy import TEXT, TIMESTAMP, Boolean, Column
+from sqlalchemy import TEXT, TIMESTAMP, Boolean, Column, ColumnElement, String, type_coerce
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship, col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -12,7 +12,7 @@ from src.core.types import GUID
 from src.domain.enums import BankAccountType, BankingInfoStatus
 
 if TYPE_CHECKING:
-    from src.domain.models import Account, AccountTypeInfo
+    from src.domain.models import AccountTypeInfo
 
 
 BANKING_INFO_ENCRYPTION_CONTEXT = settings.BANKING_SECRET_KEY
@@ -30,7 +30,7 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
         account_holder_name (str): Name of the account holder.
         encrypted_account_number (str): Encrypted bank account number.
         encrypted_routing_number (str | None): Encrypted bank routing number (optional).
-        account_type (BankAccountType): Type of bank account.
+        bank_account_type (BankAccountType): Type of bank account.
         bank_address (str | None): Address of the bank.
         swift_code (str | None): SWIFT/BIC code for international transfers.
         status (BankingInfoStatus): Current status of the banking info.
@@ -43,7 +43,7 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
         updated_datetime (datetime | None): When the banking info was last updated.
     """
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "account_id",
         "account_type_info_id",
@@ -63,10 +63,9 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
     ]
 
     # Foreign key relationships
-    account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
-    account_type_info_id: GUID | None = Field(
+    account_type_info_id: GUID = Field(
         foreign_key="account_type_infos.id",
-        nullable=True,
+        nullable=False,
         index=True,
         description="Optional specific account type info this banking info is associated with",
     )
@@ -77,12 +76,10 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
 
     # Encrypted sensitive fields
     encrypted_account_number: str = Field(sa_column=Column(TEXT(), nullable=False))
-    encrypted_routing_number: str | None = Field(
-        sa_column=Column(TEXT(), nullable=True)
-    )
+    encrypted_routing_number: str | None = Field(sa_column=Column(TEXT(), nullable=True))
 
     # Account details
-    account_type: BankAccountType = Field(
+    bank_account_type: BankAccountType = Field(
         default=BankAccountType.CHECKING,
         nullable=False,
         description="Type of bank account",
@@ -95,13 +92,9 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
     )
 
     # Status fields
-    status: BankingInfoStatus = Field(
-        sa_column=Column(TEXT(), default=BankingInfoStatus.PENDING, nullable=False)
-    )
+    status: BankingInfoStatus = Field(sa_column=Column(TEXT(), default=BankingInfoStatus.PENDING, nullable=False))
     is_primary: bool = Field(sa_column=Column(Boolean(), default=False, nullable=False))
-    is_verified: bool = Field(
-        sa_column=Column(Boolean(), default=False, nullable=False)
-    )
+    is_verified: bool = Field(sa_column=Column(Boolean(), default=False, nullable=False))
     verified_at: datetime | None = Field(
         sa_column=Column(
             TIMESTAMP(timezone=True),
@@ -119,10 +112,7 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
     )
 
     # Relationships
-    account: "Account" = Relationship(back_populates="banking_infos")
-    account_type_info: "AccountTypeInfo | None" = Relationship(
-        back_populates="banking_infos", sa_relationship_kwargs={"lazy": "selectin"}
-    )
+    account_type_info: "AccountTypeInfo" = Relationship(back_populates="banking_infos")
 
     @classmethod
     def _get_cipher(cls):
@@ -153,46 +143,47 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
         cipher = self._get_cipher()
         return cipher.decrypt(self.encrypted_routing_number.encode()).decode()
 
-    @hybrid_property
-    def masked_account_number(self) -> str:
-        """Return a masked version of the account number (e.g., ****1234)."""
-        try:
-            decrypted = self.decrypt_account_number()
-            if len(decrypted) <= 4:
-                return "*" * len(decrypted)
-            return "*" * (len(decrypted) - 4) + decrypted[-4:]
-        except Exception:
-            return "****"
+    # Properties
+    masked_account_number: ClassVar = hybrid_property(
+        lambda self: (
+            "****"
+            if (decrypted := self.decrypt_account_number()) is None
+            else ("*" * len(decrypted) if len(decrypted) <= 4 else "*" * (len(decrypted) - 4) + decrypted[-4:])
+        )
+    )
 
-    @hybrid_property
-    def masked_routing_number(self) -> str:
-        """Return a masked version of the routing number (e.g., ****5678)."""
-        try:
-            decrypted = self.decrypt_routing_number()
-            if decrypted is None:
-                return "N/A"
-            if len(decrypted) <= 4:
-                return "*" * len(decrypted)
-            return "*" * (len(decrypted) - 4) + decrypted[-4:]
-        except Exception:
-            return "****"
+    @masked_account_number.inplace.expression
+    def _masked_account_number_expression(cls) -> ColumnElement[str]:
+        """SQL expression for masked account number (returns '****' for security)."""
+        return type_coerce(cls.masked_account_number, String()).label("masked_account_number")
+
+    masked_routing_number: ClassVar = hybrid_property(
+        lambda self: (
+            "N/A"
+            if (decrypted := self.decrypt_routing_number()) is None
+            else ("*" * len(decrypted) if len(decrypted) <= 4 else "*" * (len(decrypted) - 4) + decrypted[-4:])
+        )
+    )
+
+    @masked_routing_number.inplace.expression
+    def _masked_routing_number_expression(cls) -> ColumnElement[str]:
+        """SQL expression for masked routing number (returns 'N/A' if not set)."""
+        return type_coerce(cls.masked_routing_number, String()).label("masked_routing_number")
 
     @classmethod
     def create_with_encryption(
         cls,
-        account_id: GUID,
         bank_name: str,
         account_holder_name: str,
         account_number: str,
         routing_number: str | None,
-        account_type: BankAccountType,
-        **kwargs
+        bank_account_type: BankAccountType,
+        **kwargs,
     ) -> "BankingInfo":
         """
         Create a new BankingInfo instance with encrypted sensitive data.
 
         Args:
-            account_id: The account ID
             bank_name: Name of the bank
             account_holder_name: Name of the account holder
             account_number: Plain text account number (will be encrypted)
@@ -204,12 +195,11 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
             BankingInfo instance with encrypted sensitive data
         """
         klass = cls(
-            account_id=account_id,
             bank_name=bank_name,
             account_holder_name=account_holder_name,
             encrypted_account_number=cls.encrypt_account_number(account_number),
-            account_type=account_type,
-            **kwargs
+            bank_account_type=bank_account_type,
+            **kwargs,
         )
 
         if routing_number:
@@ -226,9 +216,7 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
         if new_routing_number is None:
             self.encrypted_routing_number = None
         else:
-            self.encrypted_routing_number = self.encrypt_routing_number(
-                new_routing_number
-            )
+            self.encrypted_routing_number = self.encrypt_routing_number(new_routing_number)
 
     def to_safe_dict(self) -> dict:
         """
@@ -237,15 +225,12 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
         """
         return {
             "id": str(self.id),
-            "account_id": str(self.account_id),
-            "account_type_info_id": (
-                str(self.account_type_info_id) if self.account_type_info_id else None
-            ),
+            "account_type_info_id": (str(self.account_type_info_id) if self.account_type_info_id else None),
             "bank_name": self.bank_name,
             "account_holder_name": self.account_holder_name,
             "masked_account_number": self.masked_account_number,
             "masked_routing_number": self.masked_routing_number,
-            "account_type": self.account_type.value,
+            "bank_account_type": self.bank_account_type.value,
             "bank_address": self.bank_address,
             "swift_code": self.swift_code,
             "status": self.status.value,
@@ -255,17 +240,15 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
             "is_active": self.is_active,
             "nickname": self.nickname,
             "created_datetime": self.created_datetime.isoformat(),
-            "updated_datetime": (
-                self.updated_datetime.isoformat() if self.updated_datetime else None
-            ),
+            "updated_datetime": (self.updated_datetime.isoformat() if self.updated_datetime else None),
         }
 
     @classmethod
     async def get_banking_info_for_account_type(
         cls,
         session: AsyncSession,
-        account_id: GUID,
-        account_type_info_id: GUID | None = None,
+        account_type_info_id: GUID,
+        banking_info_id: GUID | None = None,
     ) -> "BankingInfo | None":
         """
         Get banking info for a specific account type info, or fallback to primary banking info.
@@ -281,30 +264,32 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
         if session is None:
             raise ValueError("Session must be provided")
 
-        if account_type_info_id:
+        banking_info: BankingInfo | None = None
+
+        if banking_info_id:
             banking_info = (
                 await session.exec(
                     select(cls).filter(
-                        col(cls.account_id) == account_id,  # noqa: E712
-                        col(cls.account_type_info_id)
-                        == account_type_info_id,  # noqa: E712
+                        col(cls.id) == banking_info_id,  # noqa: E712
+                        col(cls.account_type_info_id) == account_type_info_id,  # noqa: E712
                         col(cls.is_active) == True,  # noqa: E712
                     )
                 )
             ).one_or_none()
+
             if banking_info:
                 return banking_info
 
-        # Fallback to primary banking info for the account
-        return (
+        banking_info = (
             await session.exec(
                 select(cls).filter(
-                    col(cls.account_id) == account_id,  # noqa: E712
-                    col(cls.is_primary) == True,  # noqa: E712
+                    col(cls.account_type_info_id) == account_type_info_id,  # noqa: E712
                     col(cls.is_active) == True,  # noqa: E712
                 )
             )
         ).one_or_none()
+
+        return banking_info
 
     def is_associated_with_account_type(self, account_type_info_id: GUID) -> bool:
         """

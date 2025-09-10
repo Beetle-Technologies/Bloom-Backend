@@ -19,11 +19,9 @@ class Permission(IntegerIDMixin, CreatedDateTimeMixin, table=True):
         created_datetime (datetime): The timestamp when the permission was created.
     """
 
-    __table_args__ = (
-        UniqueConstraint("resource", "action", name="uq_permission_resource_action"),
-    )
+    __table_args__ = (UniqueConstraint("resource", "action", name="uq_permission_resource_action"),)
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "resource",
         "action",
@@ -53,9 +51,7 @@ class Permission(IntegerIDMixin, CreatedDateTimeMixin, table=True):
         """
         SQL expression for the scope property.
         """
-        return type_coerce(func.concat(cls.resource, ":", cls.action), String()).label(
-            "scope"
-        )
+        return type_coerce(func.concat(cls.resource, ":", cls.action), String()).label("scope")
 
     def __str__(self):
         return f"{self.resource}:{self.action}"

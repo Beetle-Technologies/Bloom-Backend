@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import TEXT, TIMESTAMP, Column
 from sqlmodel import Field, Relationship
@@ -7,7 +7,7 @@ from src.core.database.mixins import GUIDMixin, TimestampMixin
 from src.core.types import GUID
 
 if TYPE_CHECKING:
-    from src.domain.models import Account
+    from src.domain.models import AccountTypeInfo
 
 
 class KYCAttempt(GUIDMixin, TimestampMixin, table=True):
@@ -26,7 +26,7 @@ class KYCAttempt(GUIDMixin, TimestampMixin, table=True):
 
     __tablename__ = "kyc_attempts"  # type: ignore
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "account_id",
         "is_reset",
@@ -36,10 +36,8 @@ class KYCAttempt(GUIDMixin, TimestampMixin, table=True):
         "updated_datetime",
     ]
 
-    account_id: GUID = Field(foreign_key="accounts.id", nullable=False)
-    is_reset: bool = Field(
-        default=False, description="Indicates if the KYC attempt was reset"
-    )
+    account_type_info_id: GUID = Field(foreign_key="account_type_infos.id", nullable=False)
+    is_reset: bool = Field(default=False, description="Indicates if the KYC attempt was reset")
     reset_datetime: datetime | None = Field(
         sa_column=Column(TIMESTAMP(timezone=True), nullable=True),
         description="Datetime when the KYC attempt was reset",
@@ -50,4 +48,4 @@ class KYCAttempt(GUIDMixin, TimestampMixin, table=True):
     )
 
     # Relationships
-    account: "Account" = Relationship()
+    account_type_info: "AccountTypeInfo" = Relationship()

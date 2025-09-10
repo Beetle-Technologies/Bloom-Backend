@@ -23,6 +23,7 @@ class PermissionCreate(PermissionBase):
 
     pass
 
+
 @optional
 class PermissionUpdate(PermissionCreate):
     """Schema for updating a permission."""

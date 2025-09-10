@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 from uuid import UUID
 
 from pycountries import Country as CountryEnum
@@ -9,6 +9,7 @@ from src.core.database.mixins import UUIDMixin
 
 if TYPE_CHECKING:
     from src.domain.models import Currency
+    from src.domain.models.address import Address
 
 
 class Country(UUIDMixin, table=True):
@@ -24,16 +25,25 @@ class Country(UUIDMixin, table=True):
 
     __tablename__ = "country"  # type: ignore
 
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
+        "id",
+        "name",
+        "currency_id",
+        "is_active",
+    ]
+
     name: CountryEnum = Field(sa_column=Column(TEXT(), unique=True))
-    language: Language = Field(
-        sa_column=Column(TEXT()), description="Primary language spoken in the country"
-    )
+    language: Language = Field(sa_column=Column(TEXT()), description="Primary language spoken in the country")
 
     currency_id: UUID = Field(foreign_key="currency.id")
     currency: "Currency" = Relationship(
         back_populates="countries",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
-    is_active: bool = Field(
-        sa_column=Column(type_=Boolean(), default=True, nullable=False)
+    is_active: bool = Field(sa_column=Column(type_=Boolean(), default=True, nullable=False))
+
+    # Relationships
+    addresses: list["Address"] = Relationship(
+        back_populates="country",
+        sa_relationship_kwargs={"lazy": "select"},
     )

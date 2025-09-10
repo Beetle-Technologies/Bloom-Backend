@@ -1,21 +1,16 @@
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, List, Optional
 from uuid import UUID
 
 from sqlalchemy import Boolean, Column
 from sqlalchemy.dialects.postgresql import JSONB, NUMERIC
 from sqlmodel import TEXT, Field, Relationship
-from src.core.database.mixins import (
-    DeletableMixin,
-    FriendlyMixin,
-    GUIDMixin,
-    TimestampMixin,
-)
+from src.core.database.mixins import DeletableMixin, FriendlyMixin, GUIDMixin, TimestampMixin
 from src.core.types import GUID
 from src.domain.enums import ProductStatus
 
 if TYPE_CHECKING:
-    from src.domain.models import Account, Category, Currency, ProductItem
+    from src.domain.models import Account, Category, Currency, ProductItem, ProductItemRequest
 
 
 class Product(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, table=True):
@@ -39,6 +34,23 @@ class Product(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, table=Tr
         deleted_datetime (datetime | None): The timestamp when the product was deleted.
     """
 
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
+        "id",
+        "friendly_id",
+        "name",
+        "description",
+        "price",
+        "supplier_account_id",
+        "currency_id",
+        "category_id",
+        "status",
+        "is_digital",
+        "attributes",
+        "created_datetime",
+        "updated_datetime",
+        "deleted_datetime",
+    ]
+
     name: str = Field(
         sa_column=Column(TEXT(), nullable=False, index=True),
     )
@@ -49,19 +61,11 @@ class Product(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, table=Tr
         sa_column=Column(NUMERIC(12, 2), nullable=False),
     )
 
-    supplier_account_id: GUID = Field(
-        foreign_key="accounts.id", nullable=False, index=True
-    )
+    supplier_account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
     currency_id: UUID = Field(foreign_key="currency.id", nullable=False)
-    category_id: GUID | None = Field(
-        foreign_key="category.id", default=None, index=True
-    )
+    category_id: GUID | None = Field(foreign_key="category.id", default=None, index=True)
 
-    status: ProductStatus = Field(
-        sa_column=Column(
-            TEXT(), nullable=False, index=True, default=ProductStatus.DRAFT
-        )
-    )
+    status: ProductStatus = Field(sa_column=Column(TEXT(), nullable=False, index=True, default=ProductStatus.DRAFT))
     is_digital: bool = Field(sa_column=Column(Boolean(), nullable=False, default=False))
     attributes: dict[str, Any] = Field(
         sa_column=Column(JSONB, nullable=False, default=dict),
@@ -73,3 +77,4 @@ class Product(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, table=Tr
     currency: "Currency" = Relationship()
     category: Optional["Category"] = Relationship(back_populates="products")
     product_items: List["ProductItem"] = Relationship(back_populates="product")
+    resale_requests: List["ProductItemRequest"] = Relationship(back_populates="product")

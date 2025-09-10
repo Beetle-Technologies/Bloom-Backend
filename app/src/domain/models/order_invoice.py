@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlmodel import Column, Field, Relationship
@@ -26,7 +26,7 @@ class OrderInvoice(GUIDMixin, TimestampMixin, table=True):
 
     __tablename__ = "order_invoices"  # type: ignore
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "order_id",
         "invoiceable_type",

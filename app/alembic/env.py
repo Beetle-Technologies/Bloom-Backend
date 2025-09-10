@@ -12,7 +12,7 @@ from src.domain.models import (  # noqa
     AccountType,
     AccountTypeGroup,
     AccountTypeInfo,
-    AccountTypePermission,
+    AccountTypeInfoPermission,
     Address,
     Attachment,
     AttachmentBlob,

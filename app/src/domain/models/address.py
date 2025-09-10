@@ -1,8 +1,8 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 from uuid import UUID
 
 from sqlalchemy import TEXT
-from sqlmodel import Boolean, Column, Field
+from sqlmodel import Boolean, Column, Field, Relationship
 from src.core.database.mixins import GUIDMixin, TimestampMixin
 from src.core.types import GUID, PhoneNumber
 
@@ -26,7 +26,7 @@ class Address(GUIDMixin, TimestampMixin, table=True):
         updated_datetime (datetime | None): The timestamp when the address was last updated.
     """
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "phone_number",
         "address",
@@ -50,7 +50,7 @@ class Address(GUIDMixin, TimestampMixin, table=True):
         description="ID of the related object (GUID)",
     )
 
-    country_id: UUID = Field(foreign_key="country.id", nullable=True, index=True)
+    country_id: UUID = Field(foreign_key="country.id", nullable=False)
 
     phone_number: PhoneNumber | None = Field(
         sa_column=Column(
@@ -94,4 +94,7 @@ class Address(GUIDMixin, TimestampMixin, table=True):
     )
 
     # Relationships
-    country: "Country" = Field(default=None, foreign_key="country.id")
+    country: "Country" = Relationship(
+        back_populates="addresses",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )

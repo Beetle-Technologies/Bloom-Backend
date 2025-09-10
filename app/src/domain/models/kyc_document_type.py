@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
+from uuid import UUID
 
 from pydantic import JsonValue
 from sqlalchemy import TEXT, Column, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 from src.core.database.mixins import GUIDMixin, TimestampMixin
-from src.core.types import GUID
 from src.domain.enums import AccountTypeEnum, KYCVerificationType
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class KYCDocumentType(GUIDMixin, TimestampMixin, table=True):
         ),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "name",
         "is_active",
@@ -46,7 +46,7 @@ class KYCDocumentType(GUIDMixin, TimestampMixin, table=True):
     verification_type: KYCVerificationType = Field(
         sa_column=Column(TEXT(), nullable=False, default=KYCVerificationType.MANUAL)
     )
-    country_id: GUID = Field(foreign_key="country.id", nullable=False)
+    country_id: UUID = Field(foreign_key="country.id", nullable=False)
 
     requires_value_submission: bool = Field(
         default=False,

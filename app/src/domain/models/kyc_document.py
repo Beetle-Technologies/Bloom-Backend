@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import JsonValue
 from sqlalchemy import TEXT, Boolean, Column, UniqueConstraint
@@ -9,7 +9,7 @@ from src.core.types import GUID
 from src.domain.enums import KYCDocumentVerificationStatus
 
 if TYPE_CHECKING:
-    from src.domain.models import Account, KYCDocumentType
+    from src.domain.models import Account, AccountTypeInfo, KYCDocumentType
 
 
 class KYCDocument(GUIDMixin, TimestampMixin, table=True):
@@ -22,15 +22,15 @@ class KYCDocument(GUIDMixin, TimestampMixin, table=True):
 
     __table_args__ = (
         UniqueConstraint(
-            "account_id",
+            "account_type_info_id",
             "document_type_id",
             name="uq_kyc_document__account_id__document_type_id",
         ),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
-        "account_id",
+        "account_type_info_id",
         "document_type_id",
         "attachment_id",
         "value",
@@ -40,7 +40,7 @@ class KYCDocument(GUIDMixin, TimestampMixin, table=True):
         "updated_datetime",
     ]
 
-    account_id: GUID = Field(foreign_key="accounts.id", nullable=False)
+    account_type_info_id: GUID = Field(foreign_key="account_type_infos.id", nullable=False)
     document_type_id: GUID = Field(foreign_key="kyc_document_types.id", nullable=False)
     attachment_id: GUID = Field(foreign_key="attachments.id", nullable=False)
     value: str | None = Field(
@@ -53,11 +53,9 @@ class KYCDocument(GUIDMixin, TimestampMixin, table=True):
     )
 
     # Relationships
-    account: "Account" = Relationship()
+    account_type_info: "AccountTypeInfo" = Relationship()
     document_type: "KYCDocumentType" = Relationship()
-    verification_comments: list["KYCDocumentVerificationComment"] = Relationship(
-        back_populates="kyc_document"
-    )
+    verification_comments: list["KYCDocumentVerificationComment"] = Relationship(back_populates="kyc_document")
 
 
 class KYCDocumentVerificationComment(GUIDMixin, TimestampMixin, table=True):
@@ -76,7 +74,7 @@ class KYCDocumentVerificationComment(GUIDMixin, TimestampMixin, table=True):
 
     __tablename__ = "kyc_document_verification_comments"  # type: ignore
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "kyc_document_id",
         "reviewer_account_id",

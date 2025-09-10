@@ -1,15 +1,23 @@
-from typing import TYPE_CHECKING, Any, Dict
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, ClassVar, Dict
 
 from sqlalchemy import Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, Relationship
 from src.core.database.mixins import GUIDMixin, TimestampMixin
-from src.core.types import IDType
+from src.core.types import GUID, IDType
 from src.domain.models.account_type import AccountType
 
 if TYPE_CHECKING:
-    from src.domain.models import Account, AccountTypeInfoPermission, BankingInfo
+    from src.domain.models import (
+        Account,
+        AccountTypeInfoPermission,
+        BankingInfo,
+        Cart,
+        Notification,
+        Order,
+        Review,
+        Wishlist,
+    )
 
 
 class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
@@ -34,31 +42,16 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
     __tablename__ = "account_type_infos"  # type: ignore
 
     __table_args__ = (
-        UniqueConstraint(
-            "account_id", "account_type_id", name="uq_account_type_info_account_type"
-        ),
+        UniqueConstraint("account_id", "account_type_id", name="uq_account_type_info_account_type"),
         Index("idx_account_type_infos_account_type", "account_id", "account_type_id"),
         Index(
-            "idx_account_type_infos_user", 
+            "idx_account_type_infos_attributes",
             "attributes",
             postgresql_using="gin",
-            postgresql_where="account_type_id = (SELECT id FROM account_type WHERE key = 'user')",
-        ),
-        Index(
-            "idx_account_type_infos_business",
-            "attributes",
-            postgresql_using="gin",
-            postgresql_where="account_type_id = (SELECT id FROM account_type WHERE key = 'business')",
-        ),
-        Index(
-            "idx_account_type_infos_supplier",
-            "attributes",
-            postgresql_using="gin",
-            postgresql_where="account_type_id = (SELECT id FROM account_type WHERE key = 'supplier')",
         ),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "account_id",
         "account_type_id",
@@ -67,10 +60,8 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
         "updated_datetime",
     ]
 
-    account_id: UUID = Field(foreign_key="accounts.id", nullable=False, index=True)
-    account_type_id: UUID = Field(
-        foreign_key="account_type.id", nullable=False, index=True
-    )
+    account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
+    account_type_id: GUID = Field(foreign_key="account_types.id", nullable=False, index=True)
 
     attributes: Dict[str, Any] = Field(
         sa_column=Column(
@@ -88,7 +79,9 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
             "back_populates": "type_infos",
         }
     )
+
     account_type: "AccountType" = Relationship(back_populates="type_infos")
+
     permissions: list["AccountTypeInfoPermission"] = Relationship(
         sa_relationship_kwargs={
             "foreign_keys": "[AccountTypeInfoPermission.account_type_info_id]",
@@ -99,6 +92,34 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
     banking_infos: list["BankingInfo"] = Relationship(
         back_populates="account_type_info", sa_relationship_kwargs={"lazy": "selectin"}
     )
+
+    carts: list["Cart"] = Relationship(
+        back_populates="account_type_info",
+        sa_relationship_kwargs={"foreign_keys": "[Cart.account_type_info_id]", "lazy": "selectin"},
+    )
+
+    notifications: list["Notification"] = Relationship(
+        back_populates="account_type_info",
+        sa_relationship_kwargs={
+            "foreign_keys": "[Notification.account_type_info_id]",
+            "lazy": "selectin",
+        },
+    )
+
+    orders: list["Order"] = Relationship(
+        back_populates="account_type_info",
+        sa_relationship_kwargs={
+            "foreign_keys": "[Order.account_type_info_id]",
+            "lazy": "selectin",
+        },
+    )
+
+    wishlists: list["Wishlist"] = Relationship(
+        back_populates="account_type_info",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
+
+    reviews: list["Review"] = Relationship(back_populates="account_type_info")
 
     def get_attribute(self, key: str, default: Any = None) -> Any:
         """
@@ -162,9 +183,7 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
             self.attributes = {}
         self.attributes.update(new_attributes)
 
-    def has_permission(
-        self, permission_scope: str, resource_id: IDType | None = None
-    ) -> bool:
+    def has_permission(self, permission_scope: str, resource_id: IDType | None = None) -> bool:
         """
         Check if this account type attribute has a specific permission.
 
@@ -185,9 +204,7 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
                 return True
         return False
 
-    def get_permissions(
-        self, active_only: bool = True
-    ) -> list["AccountTypeInfoPermission"]:
+    def get_permissions(self, active_only: bool = True) -> list["AccountTypeInfoPermission"]:
         """
         Get all permissions for this account type attribute.
 

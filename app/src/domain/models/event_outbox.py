@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 from sqlalchemy import TEXT, TIMESTAMP, Column, Index
 from sqlalchemy.dialects.postgresql import JSONB
@@ -35,7 +35,7 @@ class EventOutbox(GUIDMixin, CreatedDateTimeMixin, table=True):
         Index("idx_events_outbox_event_type", "event_type"),
     )
 
-    SELECTABLE_FIELDS = [
+    SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "event_type",
         "entity_type",
@@ -57,9 +57,7 @@ class EventOutbox(GUIDMixin, CreatedDateTimeMixin, table=True):
         sa_column=Column(JSONB, nullable=False, default=dict),
         description="Event payload data",
     )
-    status: EventStatus = Field(
-        sa_column=Column(TEXT(), nullable=False, default=EventStatus.PENDING)
-    )
+    status: EventStatus = Field(sa_column=Column(TEXT(), nullable=False, default=EventStatus.PENDING))
     account_id: GUID | None = Field(
         foreign_key="accounts.id",
         nullable=True,
@@ -70,9 +68,7 @@ class EventOutbox(GUIDMixin, CreatedDateTimeMixin, table=True):
         description="Session ID associated with this event, if applicable",
     )
     attempts: int = Field(default=0, nullable=False)
-    last_attempt_at: datetime | None = Field(
-        sa_column=Column(TIMESTAMP(timezone=True), nullable=True)
-    )
+    last_attempt_at: datetime | None = Field(sa_column=Column(TIMESTAMP(timezone=True), nullable=True))
     error_message: str | None = Field(
         sa_column=Column(TEXT(), nullable=True),
         description="Error message from last failed processing attempt",
