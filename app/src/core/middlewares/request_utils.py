@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import Request, Response
 from src.core.constants import DEFAULT_PROXY_COUNT, DEFAULT_PROXY_HEADERS, REQUEST_ID_CTX
 from src.core.exceptions import errors
-from src.core.helpers.request import get_client_ip
+from src.core.helpers.request import get_client_ip, get_user_agent
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
@@ -52,7 +52,7 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
             trusted_proxies=self.trusted_proxies,
             proxy_count=self.proxy_count,
         )
-        request.state.user_agent = self._get_user_agent(request)
+        request.state.user_agent = get_user_agent(request)
 
         start_time = time.perf_counter()
 
@@ -86,6 +86,3 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
 
     def _validate_request_id(self, request_id: str) -> bool:
         return len(request_id) <= 200 and all(32 <= ord(c) <= 126 for c in request_id)
-
-    def _get_user_agent(self, request: Request) -> str | None:
-        return request.headers.get("User-Agent", None)

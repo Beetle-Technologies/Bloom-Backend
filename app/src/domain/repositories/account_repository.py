@@ -8,11 +8,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.exceptions import errors
-from src.core.security import hash_password
 from src.core.types import IDType
 from src.domain.models.account import Account
 from src.domain.repositories.base_repository import BaseRepository
 from src.domain.schemas import AccountCreate, AccountUpdate
+from src.domain.services.security_service import security_service
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class AccountRepository(BaseRepository[Account, AccountCreate, AccountUpdate]):
         """Get all active accounts."""
         try:
             query = select(Account).filter(
-                col(Account.is_active) == True,
+                col(Account.is_active) == True,  # noqa: E712
                 col(Account.deleted_datetime).is_(None),  # noqa: E712
             )
             result = await self.session.exec(query)
@@ -114,7 +114,7 @@ class AccountRepository(BaseRepository[Account, AccountCreate, AccountUpdate]):
             Account: The created account object.
         """
         try:
-            hashed_password, salt = hash_password(account.password)
+            hashed_password, salt = security_service.hash_password(password=account.password)
 
             new_account = Account(
                 email=account.email,
@@ -142,9 +142,7 @@ class AccountRepository(BaseRepository[Account, AccountCreate, AccountUpdate]):
                 detail="An error occurred while creating the account.",
             ) from e
 
-    async def update_last_sign_in(
-        self, id: IDType, ip_address: str, user_agent: str
-    ) -> bool:
+    async def update_last_sign_in(self, id: IDType, ip_address: str, user_agent: str) -> bool:
         """
         Update last sign-in information for an account.
 
@@ -199,9 +197,7 @@ class AccountRepository(BaseRepository[Account, AccountCreate, AccountUpdate]):
             if not account:
                 return False
 
-            account.sqlmodel_update(
-                {"deleted_datetime": datetime.now(UTC), "is_active": False}
-            )
+            account.sqlmodel_update({"deleted_datetime": datetime.now(UTC), "is_active": False})
             self.session.add(account)
             await self._save_changes(account)
             return True

@@ -3,6 +3,7 @@ from .account import (  # noqa: F401
     AccountChangePasswordMismatchError,
     AccountConfirmationError,
     AccountCreationError,
+    AccountIneligibleForLoginError,
     AccountInvalidPasswordError,
     AccountLockedError,
     AccountNotFoundError,

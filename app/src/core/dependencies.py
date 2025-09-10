@@ -1,15 +1,17 @@
 import time
 from functools import lru_cache
 from types import CoroutineType
-from typing import Any, Callable
+from typing import Annotated, Any, Callable
 
 from fastapi import Depends, Header, Request, status
-from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from multidict import CIMultiDict
 from src.core.config import settings
 from src.core.exceptions import errors
 from src.core.helpers.request import get_client_ip, parse_bloom_client_header
 from src.core.types import BloomClientInfo
+from src.domain.schemas import AuthSessionState
+from src.domain.services import security_service
 from src.libs.throttler import limiter
 
 
@@ -79,7 +81,9 @@ def create_rate_limit_dependency(
     return rate_limit_dependency
 
 
-def validate_bloom_client_header(x_bloom_client: str = Header(None, alias="X-Bloom-Client")) -> BloomClientInfo:
+def validate_bloom_client_header(
+    x_bloom_client: str = Header(None, alias="X-Bloom-Client", example="bloom_client")
+) -> BloomClientInfo:
     """
     Validate and parse the X-Bloom-Client header.
     For OpenAPI docs endpoints, provides a default header value.
@@ -102,3 +106,30 @@ upload_rate_limit = Depends(create_rate_limit_dependency("bloom_uploads", "5/min
 strict_rate_limit = Depends(create_rate_limit_dependency("bloom_strict", "5/minute"))
 per_minute_rate_limit = Depends(create_rate_limit_dependency("bloom_per_minute", "1/minute"))
 is_bloom_client = Depends(validate_bloom_client_header)
+
+
+def requires_authenticated_account(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(get_security_schemes()[0])],
+) -> AuthSessionState:
+    """
+    Dependency to ensure the request has a valid authenticated account via OAuth2 token.
+
+    Args:
+        token (str): The OAuth2 token from the Authorization header
+
+    Returns:
+        str: The validated token
+
+    Raises:
+        AuthenticationError: If the token is invalid or missing
+    """
+    if not credentials or not credentials.credentials:
+        raise errors.InvalidTokenError()
+
+    token = credentials.credentials
+
+    decoded_token = security_service.decode_jwt_token(token)
+
+    data = security_service.get_token_data(decoded_token, AuthSessionState)
+
+    return data

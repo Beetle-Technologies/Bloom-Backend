@@ -7,9 +7,9 @@ from sqlmodel import Field, Relationship, col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
 from src.core.database.mixins import GUIDMixin, TimestampMixin
-from src.core.security import get_cryptographic_signer
 from src.core.types import GUID
 from src.domain.enums import BankAccountType, BankingInfoStatus
+from src.domain.services import security_service
 
 if TYPE_CHECKING:
     from src.domain.models import AccountTypeInfo
@@ -117,7 +117,7 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
     @classmethod
     def _get_cipher(cls):
         """Get the encryption cipher for banking data."""
-        return get_cryptographic_signer(BANKING_INFO_ENCRYPTION_CONTEXT)
+        return security_service.get_cryptographic_signer(BANKING_INFO_ENCRYPTION_CONTEXT)
 
     @classmethod
     def encrypt_account_number(cls, account_number: str) -> str:

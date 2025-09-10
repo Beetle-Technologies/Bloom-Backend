@@ -208,9 +208,11 @@ class Account(
         """
         Verifies the provided plain password against the encrypted password.
         """
-        from src.core.security import verify_password
+        from src.domain.services.security_service import security_service
 
-        return verify_password(plain_password, self.encrypted_password, self.password_salt)
+        return security_service.verify_password(
+            plain_password=plain_password, hashed_password=self.encrypted_password, salt=self.password_salt
+        )
 
     def check_suspended(self) -> bool:
         """

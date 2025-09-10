@@ -42,6 +42,7 @@ from src.domain.models import (  # noqa
     ProductItem,
     ProductItemRequest,
     Review,
+    Token,
     Wishlist,
     WishlistItem,
 )

@@ -310,7 +310,6 @@ def cache_invalidate(
     return decorator
 
 
-# Global cache service instance
 _cache_service: Optional[CacheService] = None
 
 
@@ -326,7 +325,6 @@ async def setup_cache() -> CacheService:
     """Setup and return cache service."""
     cache_service = get_cache_service()
 
-    # Test cache health
     is_healthy = await cache_service.health_check()
     if is_healthy:
         logger.info("Cache service initialized successfully")

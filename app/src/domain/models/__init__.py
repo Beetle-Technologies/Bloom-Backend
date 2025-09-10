@@ -31,9 +31,9 @@ from .product import Product  # noqa: F401
 from .product_item import ProductItem  # noqa: F401
 from .product_item_request import ProductItemRequest  # noqa: F401
 from .review import Review  # noqa: F401
+from .token import Token  # noqa: F401
 from .wishlist import Wishlist  # noqa: F401
 from .wishlist_item import WishlistItem  # noqa: F401
-
 
 __all__ = [
     "Account",
@@ -70,6 +70,7 @@ __all__ = [
     "ProductItem",
     "ProductItemRequest",
     "Review",
+    "Token",
     "Wishlist",
     "WishlistItem",
 ]

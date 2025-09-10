@@ -1,5 +1,5 @@
 import re
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Request
 from src.core.constants import DEFAULT_PROXY_COUNT, DEFAULT_PROXY_HEADERS
@@ -154,3 +154,35 @@ def parse_bloom_client_header(x_bloom_client: str) -> BloomClientInfo:
         raise errors.InvalidClienTypeError(detail=f"Invalid build format '{build}'. Build must be numeric")
 
     return BloomClientInfo(platform=platform, version=parsed_data["version"], app=app, build=build)
+
+
+def get_user_agent(request: Request) -> str:
+    return request.headers.get("User-Agent", "Unknown")
+
+
+def get_request_info(request: Request, keys: list[Literal["user_agent", "ip_address", "request_id"]]) -> dict[str, Any]:
+    """
+    Extract specified information from the request object.
+
+    Args:
+        request (Request): The FastAPI request object.
+        keys (list): List of keys to extract. Supported keys are 'user_agent' and 'ip_address'.
+
+    Returns:
+        dict: A dictionary containing the extracted information.
+    """
+    info = {}
+
+    if "user_agent" in keys:
+        user_agent = get_user_agent(request)
+        info["user_agent"] = user_agent
+
+    if "request_id" in keys:
+        request_id: str | None = request.state.request_id if hasattr(request.state, "request_id") else None
+        info["request_id"] = request_id or "Unknown"
+
+    if "ip_address" in keys:
+        ip_address = get_client_ip(request)
+        info["ip_address"] = ip_address or "Unknown"
+
+    return info

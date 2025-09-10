@@ -1,3 +1,4 @@
+import base64
 import os
 import secrets
 import warnings
@@ -59,6 +60,8 @@ class Settings(BaseSettings):
     OPENAPI_JSON_SCHEMA_URL: str = "/openapi.json"
     CSRF_SECRET_KEY: str = secrets.token_urlsafe(32)
     AUTH_SECRET_KEY: str = secrets.token_hex(64)
+    AUTH_OTP_SECRET_KEY: str = base64.b32encode(secrets.token_bytes(32)).decode()
+    AUTH_OTP_MAX_AGE: int = 300  # 2 minutes
     BANKING_SECRET_KEY: str = secrets.token_urlsafe(32)
     AUTH_TOKEN_MAX_AGE: int = 60 * 60 * 8  # 8 hours
     AUTH_TOKEN: str = "bloom_auth_token"

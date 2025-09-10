@@ -107,3 +107,13 @@ class AccountInvalidPasswordError(ServiceError):
     title = "Invalid Password"
     detail = "The provided password is incorrect."
     status = status.HTTP_403_FORBIDDEN
+
+
+class AccountIneligibleForLoginError(ServiceError):
+    """
+    This error is raised when an account is not eligible to log in.
+    """
+
+    title = "Account Ineligible for Login"
+    detail = "This account is not eligible to log in."
+    status = status.HTTP_403_FORBIDDEN

@@ -8,11 +8,11 @@ from pydantic import EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
 from src.core.exceptions import errors
-from src.core.security import generate_random_token, hash_password
 from src.core.types import IDType, Password
 from src.domain.models import Account
 from src.domain.repositories import AccountRepository
 from src.domain.schemas import AccountUpdate
+from src.domain.services.security_service import security_service
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +61,12 @@ class AccountService:
                 raise errors.AccountNotFoundError()
 
             if account.is_eligible_for_login():
-                raise errors.UnauthorizedError(
-                    message="Account is not eligible for login.",
-                    detail="Your account is either suspended, locked, or inactive. Please contact support if you believe this is an error.",
+                raise errors.AccountIneligibleForLoginError(
+                    metadata={
+                        "verified": account.is_verified,
+                        "suspended": account.is_suspended,
+                        "locked": account.is_locked(),
+                    },
                 )
 
             if account.check_reenumeration_attempts():
@@ -80,7 +83,7 @@ class AccountService:
 
                 if account.failed_attempts >= settings.MAX_LOGIN_FAILED_ATTEMPTS:
                     account.locked_at = datetime.now(UTC)
-                    account.unlock_token = generate_random_token()
+                    account.unlock_token = security_service.generate_random_token()
 
             account.failed_attempts = 0
             account.locked_at = None
@@ -129,7 +132,7 @@ class AccountService:
             if not account.check_password(current_password):
                 raise errors.AccountInvalidPasswordError()
 
-            hashed_password, salt = hash_password(new_password)
+            hashed_password, salt = security_service.hash_password(password=new_password)
 
             await self.account_repository.update(
                 account.id,
@@ -165,7 +168,7 @@ class AccountService:
             if not account:
                 raise errors.AccountNotFoundError()
 
-            password_reset_token = generate_random_token()
+            password_reset_token = security_service.generate_random_token()
 
             await self.account_repository.update(
                 account.id,
@@ -215,7 +218,7 @@ class AccountService:
             ):
                 raise errors.InvalidPasswordResetTokenError()
 
-            hashed_password, salt = hash_password(new_password)
+            hashed_password, salt = security_service.hash_password(password=new_password)
 
             await self.account_repository.update(
                 account.id,
