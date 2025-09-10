@@ -6,6 +6,14 @@ from .account import (  # noqa: F401
     AccountTypeUpdate,
     AccountUpdate,
 )
+from .auth import (  # noqa: F401
+    AuthPreCheckRequest,
+    AuthRegisterRequest,
+    AuthSessionResponse,
+    AuthSessionState,
+    AuthSessionToken,
+    AuthVerificationTokenRequest,
+)
 from .country import CountryCreate, CountryResponse, CountryUpdate  # noqa: F401
 from .currency import CurrencyCreate, CurrencyResponse, CurrencyUpdate  # noqa: F401
 from .permission import PermissionCreate, PermissionResponse, PermissionUpdate  # noqa: F401

@@ -10,7 +10,7 @@ from .account import (  # noqa: F401
     AccountUpdateError,
     AccountVerificationError,
 )
-from .auth import AuthenticationError, InvalidTokenError  # noqa: F401
+from .auth import AuthenticationError, InvalidPasswordResetTokenError, InvalidTokenError  # noqa: F401
 from .authz import AuthorizationError, InvalidPermissionError  # noqa: F401
 from .base import (  # noqa: F401
     InternalServerError,
@@ -19,7 +19,7 @@ from .base import (  # noqa: F401
     ServiceError,
     UnauthorizedError,
 )
-from .client import InvalidClientHeaderError, UnsupportedAppError, UnsupportedPlatformError  # noqa: F401
+from .client import InvalidClienTypeError, UnsupportedAppError, UnsupportedClientPlatformError  # noqa: F401
 from .csrf import CSRFError  # noqa: F401
 from .database import DatabaseError  # noqa: F401
 
@@ -43,9 +43,9 @@ __all__ = [
     "RateLimitExceededError",
     "ServiceError",
     "UnauthorizedError",
-    "InvalidClientHeaderError",
+    "InvalidClienTypeError",
     "UnsupportedAppError",
-    "UnsupportedPlatformError",
+    "UnsupportedClientPlatformError",
     "CSRFError",
     "DatabaseError",
 ]

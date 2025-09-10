@@ -20,3 +20,13 @@ class InvalidTokenError(AuthenticationError):
     title = "Invalid or expired authentication token"
     detail = "Please login to continue."
     status = status.HTTP_401_UNAUTHORIZED
+
+
+class InvalidPasswordResetTokenError(AuthenticationError):
+    """
+    An error indicating that the provided password reset token is invalid or expired.
+    """
+
+    title = "Invalid or expired password reset token"
+    detail = "The password reset token is invalid or has expired. Please request a new password reset."
+    status = status.HTTP_400_BAD_REQUEST

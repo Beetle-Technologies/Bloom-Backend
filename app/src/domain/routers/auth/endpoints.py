@@ -1,13 +1,20 @@
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Request
 from src.core.dependencies import auth_rate_limit, is_bloom_client, per_minute_rate_limit, strict_rate_limit
+
+from app.src.domain.schemas.auth import AuthPreCheckRequest
 
 router = APIRouter(dependencies=[is_bloom_client])
 
 
 @router.get("/pre_check", dependencies=[strict_rate_limit])
-async def pre_check():
+async def pre_check(
+    request: Request,
+    body: Annotated[AuthPreCheckRequest, Body(..., description="Pre check request body")],
+):
     """
-    Pre check account to validate if authentication is possible
+    Pre check account to validate if registeration or authentication is possible
     """
     pass
 

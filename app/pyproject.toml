@@ -37,6 +37,7 @@ dependencies = [
     "pycountries>=1.2.1",
     "pydantic-settings>=2.10.1",
     "pyjwt>=2.10.1",
+    "python-json-logger>=3.3.0",
     "redis>=5.2.1",
     "sqlalchemy>=2.0.42",
     "sqlmodel>=0.0.24",

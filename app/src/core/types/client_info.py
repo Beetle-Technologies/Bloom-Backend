@@ -1,15 +1,15 @@
 from typing import Optional
 
 from pydantic import BaseModel
-from src.core.enums import AppName, Platform
+from src.core.enums import ClientType, PClientPlatform
 
 
 class BloomClientInfo(BaseModel):
     """Model representing the parsed X-Bloom-Client header information."""
 
-    platform: Platform
+    platform: PClientPlatform
     version: str
-    app: AppName
+    app: ClientType
     build: Optional[str] = None
 
     class Config:

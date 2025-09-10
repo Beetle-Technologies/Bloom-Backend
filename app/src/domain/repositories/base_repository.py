@@ -1,10 +1,12 @@
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import SQLModel, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.constants import DEFAULT_PAGE_SIZE
 from src.core.database.transaction import in_transaction
+from src.core.exceptions import errors
 from src.core.helpers.misc import call
 from src.core.types import IDType
 from src.libs.query_engine import (
@@ -152,10 +154,17 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         Raises:
             DBError: If the record is not found
         """
-        obj = await self.find_one_by(id, params)
-        if not obj:
-            raise EntityNotFoundError(metadata={"id": id})
-        return obj
+        try:
+            obj = await self.find_one_by(id, params)
+            if not obj:
+                raise EntityNotFoundError(metadata={"id": id})
+            return obj
+        except EntityNotFoundError as enf:
+            raise errors.DatabaseError(
+                detail=enf.detail,
+                status=enf.status,
+                metadata=call(enf, "metadata") or {"id": id},
+            )
 
     async def create(self, schema: CreateSchemaType) -> ModelType:
         """
@@ -266,3 +275,24 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return await self.query_engine.query(
             filters=params.filters, fields=params.fields, include=params.include, order_by=params.order_by
         )
+
+    async def execute_raw(self, query: str, params: dict[str, Any] | None = None) -> Any:
+        """
+        Execute a raw SQL query.
+
+        Args:
+            query (str): The raw SQL query to execute
+
+        Returns:
+            Any: The result of the query execution
+        """
+
+        try:
+            result = await self.session.exec(query, params=params or {})  # type: ignore
+            return result
+        except SQLAlchemyError as e:
+            raise errors.DatabaseError(
+                message="Failed to execute raw query",
+                detail="An error occurred while executing the raw query.",
+                metadata={"query": query, "params": params},
+            ) from e

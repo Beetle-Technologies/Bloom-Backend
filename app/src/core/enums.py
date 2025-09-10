@@ -1,7 +1,7 @@
 from enum import StrEnum
 
 
-class Platform(StrEnum):
+class PClientPlatform(StrEnum):
     """
     Enumeration of supported platforms.
 
@@ -16,7 +16,7 @@ class Platform(StrEnum):
     ANDROID = "android"
 
 
-class AppName(StrEnum):
+class ClientType(StrEnum):
     """
     Enumeration of supported application names.
 
@@ -24,7 +24,6 @@ class AppName(StrEnum):
         BLOOM_MAIN: Represents the main Bloom application.
         BLOOM_SUPPLIER: Represents the Bloom supplier application.
         BLOOM_BUSINESS: Represents the Bloom business application.
-        BLOOM_ADMIN: Represents the Bloom admin application.
     """
 
     BLOOM_MAIN = "bloom-main"

@@ -92,7 +92,6 @@ class Account(
         "last_name",
         "email",
         "username",
-        "account_type",
         "phone_number",
         "is_active",
         "is_verified",
@@ -110,7 +109,6 @@ class Account(
         "created_datetime",
         "updated_datetime",
         "deleted_datetime",
-        "type_attributes",
     ]
 
     first_name: str
