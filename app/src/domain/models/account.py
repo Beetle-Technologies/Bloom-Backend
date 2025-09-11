@@ -211,7 +211,9 @@ class Account(
         from src.domain.services.security_service import security_service
 
         return security_service.verify_password(
-            plain_password=plain_password, hashed_password=self.encrypted_password, salt=self.password_salt
+            plain_password=plain_password,
+            hashed_password=self.encrypted_password,
+            salt=self.password_salt,
         )
 
     def check_suspended(self) -> bool:
@@ -226,7 +228,7 @@ class Account(
         """
         return self.locked_at is not None
 
-    def is_eligible_for_login(self) -> bool:
+    def is_eligible(self) -> bool:
         """
         Checks if the user account is prevented from logging in.
         """

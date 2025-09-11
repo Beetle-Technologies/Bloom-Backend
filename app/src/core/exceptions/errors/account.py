@@ -33,6 +33,16 @@ class AccountCreationError(ServiceError):
     status = status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
+class AccountUnverifiedError(ServiceError):
+    """
+    This error is raised when an account is not verified.
+    """
+
+    title = "Account Not Verified"
+    detail = "This account has not been verified"
+    status = status.HTTP_403_FORBIDDEN
+
+
 class AccountUpdateError(ServiceError):
     """
     This error is raised when there is an issue updating an account.
@@ -109,11 +119,11 @@ class AccountInvalidPasswordError(ServiceError):
     status = status.HTTP_403_FORBIDDEN
 
 
-class AccountIneligibleForLoginError(ServiceError):
+class AccountIneligibleError(ServiceError):
     """
-    This error is raised when an account is not eligible to log in.
+    This error is raised when an account is not eligible to perform a specific action.
     """
 
-    title = "Account Ineligible for Login"
-    detail = "This account is not eligible to log in"
+    title = "Account Not Eligible"
+    detail = "This account is not eligible to perform this action"
     status = status.HTTP_403_FORBIDDEN

@@ -7,11 +7,12 @@ from fastapi import Depends, Header, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from multidict import CIMultiDict
 from src.core.config import settings
+from src.core.database.session import get_db_session
 from src.core.exceptions import errors
 from src.core.helpers.request import get_client_ip, parse_bloom_client_header
 from src.core.types import BloomClientInfo
 from src.domain.schemas import AuthSessionState
-from src.domain.services import security_service
+from src.domain.services import AccountService, security_service
 from src.libs.throttler import limiter
 
 
@@ -133,3 +134,123 @@ def requires_authenticated_account(
     data = security_service.get_token_data(decoded_token, AuthSessionState)
 
     return data
+
+
+async def requires_eligible_account(
+    auth_state: Annotated[AuthSessionState, Depends(requires_authenticated_account)],
+    session: Annotated[Any, Depends(get_db_session)],
+) -> AuthSessionState:
+    """
+    Dependency to ensure the authenticated account is verified.
+
+    Args:
+        auth_state (AuthSessionState): The authenticated session state
+        session (AsyncSession): The database session
+    Returns:
+        AuthSessionState: The authenticated and verified session state
+    """
+
+    account_service = AccountService(session=session)
+    account = await account_service.get_account_by(id=auth_state.id)
+
+    if not account:
+        raise errors.AccountNotFoundError()
+
+    if not account.is_eligible():
+        raise errors.AccountIneligibleError(
+            meta={
+                "is_verified": account.is_verified,
+                "is_active": account.is_active,
+                "is_suspended": account.is_suspended,
+                "is_locked": account.is_locked(),
+            }
+        )
+
+    return auth_state
+
+
+def require_eligible_user_account(
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
+) -> AuthSessionState:
+    """
+    Dependency to ensure the authenticated account is a verified user account.
+
+    Args:
+        auth_state (AuthSessionState): The authenticated session state
+
+    Returns:
+        AuthSessionState: The verified user account session state
+    """
+    if not auth_state.type.is_user():
+        raise errors.AccountIneligibleError(
+            detail="Account is not a user account",
+            meta={"account_type": auth_state.type.value},
+        )
+
+    return auth_state
+
+
+def require_eligible_business_account(
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
+) -> AuthSessionState:
+    """
+    Dependency to ensure the authenticated account is a verified business account.
+
+    Args:
+        auth_state (AuthSessionState): The authenticated session state
+
+    Returns:
+        AuthSessionState: The verified business account session state
+    """
+
+    if not auth_state.type.is_business():
+        raise errors.AccountIneligibleError(
+            detail="Account is not a business account",
+            meta={"account_type": auth_state.type.value},
+        )
+
+    return auth_state
+
+
+def require_eligible_supplier_account(
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
+) -> AuthSessionState:
+    """
+    Dependency to ensure the authenticated account is a verified supplier account.
+
+    Args:
+        auth_state (AuthSessionState): The authenticated session
+
+    Returns:
+        AuthSessionState: The verified supplier account session state
+    """
+
+    if not auth_state.type.is_supplier():
+        raise errors.AccountIneligibleError(
+            detail="Account is not a supplier account",
+            meta={"account_type": auth_state.type.value},
+        )
+
+    return auth_state
+
+
+def require_eligible_admin_account(
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
+) -> AuthSessionState:
+    """
+    Dependency to ensure the authenticated account is a verified admin account.
+
+    Args:
+        auth_state (AuthSessionState): The authenticated session
+
+    Returns:
+        AuthSessionState: The verified admin account session state
+    """
+
+    if not auth_state.type.is_admin():
+        raise errors.AccountIneligibleError(
+            detail="Account is not an admin account",
+            meta={"account_type": auth_state.type.value},
+        )
+
+    return auth_state

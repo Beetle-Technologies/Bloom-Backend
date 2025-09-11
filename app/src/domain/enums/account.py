@@ -16,3 +16,19 @@ class AccountTypeEnum(StrEnum):
     BUSINESS = "business"
     SUPPLIER = "supplier"
     USER = "user"
+
+    def is_user(self) -> bool:
+        """Check if the account type is USER."""
+        return self == AccountTypeEnum.USER
+
+    def is_admin(self) -> bool:
+        """Check if the account type is ADMIN."""
+        return self == AccountTypeEnum.ADMIN
+
+    def is_business(self) -> bool:
+        """Check if the account type is BUSINESS."""
+        return self == AccountTypeEnum.BUSINESS
+
+    def is_supplier(self) -> bool:
+        """Check if the account type is SUPPLIER."""
+        return self == AccountTypeEnum.SUPPLIER

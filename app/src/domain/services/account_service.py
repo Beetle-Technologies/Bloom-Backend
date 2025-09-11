@@ -109,8 +109,8 @@ class AccountService:
             if not account or account.deleted_datetime is not None:
                 raise errors.AccountNotFoundError()
 
-            if account.is_eligible_for_login():
-                raise errors.AccountIneligibleForLoginError(
+            if account.is_eligible():
+                raise errors.AccountIneligibleError(
                     metadata={
                         "verified": account.is_verified,
                         "suspended": account.is_suspended,
@@ -350,7 +350,11 @@ class AccountService:
 
             await self.account_repository.update(
                 account.id,
-                AccountUpdate(is_verified=True, email_confirmed=True, verified_at=datetime.now(UTC)),
+                AccountUpdate(
+                    is_verified=True,
+                    email_confirmed=True,
+                    verified_at=datetime.now(UTC),
+                ),
             )
             return True
         except errors.DatabaseError as e:
