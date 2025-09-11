@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 from src.core.helpers.schema import optional
 from src.core.types import GUID
@@ -13,7 +15,7 @@ class TokenBase(BaseModel):
 class TokenCreate(TokenBase):
     """Schema for creating a token."""
 
-    pass
+    deleted_datetime: datetime
 
 
 @optional

@@ -51,6 +51,4 @@ DEFAULT_PROXY_HEADERS = [
 
 DEFAULT_PROXY_COUNT = 1
 
-
-# Bloom client header constant
 BLOOM_CLIENT_HEADER = "X-Bloom-Client"

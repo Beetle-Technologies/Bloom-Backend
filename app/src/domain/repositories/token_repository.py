@@ -77,3 +77,19 @@ class TokenRepository(BaseRepository[Token, TokenCreate, TokenUpdate]):
             return existing
 
         return await self.create(schema)
+
+    async def bulk_create_if_not_exists(self, tokens: list[TokenCreate]) -> list[Token]:
+        """
+        Create multiple tokens if they do not already exist.
+
+        Args:
+            tokens (list[TokenCreate]): The list of token schemas to create
+
+        Returns:
+            list[Token]: The list of created tokens
+        """
+        results = []
+        for schema in tokens:
+            token = await self.create_if_not_exists(schema)
+            results.append(token)
+        return results

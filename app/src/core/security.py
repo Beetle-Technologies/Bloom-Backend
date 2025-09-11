@@ -3,18 +3,9 @@ import hmac
 import logging
 import secrets
 
-from passlib.context import CryptContext
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def hash_password(password: str, salt_rounds: int = 32) -> tuple[str, str]:
-    salt = secrets.token_hex(salt_rounds)
-    pwd_hash = pwd_context.hash(password + salt)
-    return pwd_hash, salt
 
 
 def generate_csrf(secret_key: str = settings.CSRF_SECRET_KEY) -> dict[str, str]:

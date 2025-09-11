@@ -6,13 +6,14 @@ from typing import Annotated, Any, Callable
 from fastapi import Depends, Header, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from multidict import CIMultiDict
+from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
 from src.core.database.session import get_db_session
 from src.core.exceptions import errors
 from src.core.helpers.request import get_client_ip, parse_bloom_client_header
 from src.core.types import BloomClientInfo
 from src.domain.schemas import AuthSessionState
-from src.domain.services import AccountService, security_service
+from src.domain.services import AccountService, TokenService, security_service
 from src.libs.throttler import limiter
 
 
@@ -109,20 +110,22 @@ per_minute_rate_limit = Depends(create_rate_limit_dependency("bloom_per_minute",
 is_bloom_client = Depends(validate_bloom_client_header)
 
 
-def requires_authenticated_account(
+async def requires_authenticated_account(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(get_security_schemes()[0])],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuthSessionState:
     """
     Dependency to ensure the request has a valid authenticated account via OAuth2 token.
 
     Args:
-        token (str): The OAuth2 token from the Authorization header
+        credentials: The HTTP Authorization credentials
+        session: Database session
 
     Returns:
-        str: The validated token
+        AuthSessionState: The validated token data
 
     Raises:
-        AuthenticationError: If the token is invalid or missing
+        AuthenticationError: If the token is invalid, missing, or revoked
     """
     if not credentials or not credentials.credentials:
         raise errors.InvalidTokenError()
@@ -130,15 +133,20 @@ def requires_authenticated_account(
     token = credentials.credentials
 
     decoded_token = security_service.decode_jwt_token(token)
+    auth_data = security_service.get_token_data(decoded_token, AuthSessionState)
 
-    data = security_service.get_token_data(decoded_token, AuthSessionState)
+    token_service = TokenService(session=session)
+    is_valid = await token_service.is_token_valid(token=token)
 
-    return data
+    if not is_valid:
+        raise errors.InvalidTokenError()
+
+    return auth_data
 
 
 async def requires_eligible_account(
     auth_state: Annotated[AuthSessionState, Depends(requires_authenticated_account)],
-    session: Annotated[Any, Depends(get_db_session)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuthSessionState:
     """
     Dependency to ensure the authenticated account is verified.
@@ -146,6 +154,7 @@ async def requires_eligible_account(
     Args:
         auth_state (AuthSessionState): The authenticated session state
         session (AsyncSession): The database session
+
     Returns:
         AuthSessionState: The authenticated and verified session state
     """

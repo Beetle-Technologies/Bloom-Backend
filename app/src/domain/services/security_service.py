@@ -30,7 +30,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class SecurityService:
-    """Service for handling JWT tokens and OTP generation"""
+    """Service for handling Passwords, JWT tokens and OTP generation"""
 
     def __init__(self):
         self.algorithm = ALGORITHM
@@ -186,6 +186,54 @@ class SecurityService:
             URL-safe random token string
         """
         return secrets.token_urlsafe(rounds)
+
+    def generate_email_verification_token(
+        self, fid: str, expiry_time: int = settings.AUTH_VERIFICATION_TOKEN_MAX_AGE
+    ) -> str:
+        """
+        Generate a secure email verification token with expiry time
+
+        Args:
+            fid: The friendly identifier for the account
+
+        Returns:
+            URL-safe email verification token string
+        """
+
+        signer = self.get_cryptographic_signer(context="email-verification")
+        encodable_data = f"{fid}__{int((datetime.now(UTC) + timedelta(seconds=expiry_time)).timestamp())}"
+        token = signer.encrypt(encodable_data.encode())
+        return token.decode()
+
+    def verify_email_verification_token(
+        self, token: str, expiry_time: int = settings.AUTH_VERIFICATION_TOKEN_MAX_AGE
+    ) -> str:
+        """
+        Verify and decrypt an email verification token.
+
+        Args:
+            token: The email verification token to verify
+
+        Returns:
+            The friendly identifier (fid) if the token is valid
+
+        Raises:
+            InvalidTokenError: If the token is invalid or cannot be decrypted
+        """
+
+        signer = self.get_cryptographic_signer(context="email-verification")
+        try:
+            decrypted_fid = signer.decrypt(token.encode()).decode()
+            fid, exp_timestamp = decrypted_fid.rsplit("__", 1)
+
+            if int(exp_timestamp) < int(datetime.now(UTC).timestamp()):
+                raise errors.InvalidVerificationLinkError("Token has expired")
+            return fid
+        except errors.InvalidVerificationLinkError as ite:
+            raise ite
+        except Exception as e:
+            logger.error(f"Error decrypting email verification token: {e}")
+            raise errors.InvalidVerificationLinkError() from e
 
     def generate_otp_secret(self) -> str:
         """

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import status
 from pydantic import EmailStr
@@ -153,6 +154,34 @@ class AccountService:
             raise errors.AuthenticationError(
                 detail="Failed to authenticate account.",
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ) from de
+        except errors.ServiceError as se:
+            raise se
+
+    async def update_account(self, id: IDType, account_update: AccountUpdate | dict[str, Any]) -> Account | None:
+        """
+        Update account details.
+
+        Args:
+            id (IDType): The ID of the account to update.
+            account_update (AccountUpdate): The account update data.
+
+        Returns:
+            Account: The updated account.
+        """
+
+        try:
+            account = await self.account_repository.find_one_by_or_none(id=id)
+            if not account:
+                raise errors.AccountNotFoundError()
+
+            return await self.account_repository.update(id, account_update)
+        except errors.DatabaseError as de:
+            logger.exception(
+                f"src.domain.services.account_service.update_account:: error while updating account {id}: {de!s}",
+            )
+            raise errors.AccountUpdateError(
+                detail="Failed to update account",
             ) from de
         except errors.ServiceError as se:
             raise se

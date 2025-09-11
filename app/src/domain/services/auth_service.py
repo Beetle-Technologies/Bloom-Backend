@@ -1,20 +1,33 @@
 import logging
-from typing import ClassVar
+from datetime import UTC, datetime, timedelta
+from typing import ClassVar, Literal
 
 from pydantic import EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.config import settings
 from src.core.database.decorators import transactional
 from src.core.enums import ClientType
 from src.core.exceptions import errors
 from src.core.types import Password, PhoneNumber
-from src.domain.enums import AccountTypeEnum
-from src.domain.schemas import AuthRegisterResponse, AuthSessionResponse, AuthSessionState
+from src.domain.enums import AccountTypeEnum, TokenVerificationRequestTypeEnum
+from src.domain.schemas import (
+    AuthPreCheckResponse,
+    AuthRegisterResponse,
+    AuthSessionResponse,
+    AuthSessionState,
+    CachedAccountData,
+    TokenCreate,
+)
 from src.domain.services.account_service import AccountService
 from src.domain.services.account_type_info_service import AccountTypeInfoService
 from src.domain.services.permission_service import PermissionService
 from src.domain.services.security_service import security_service
 from src.domain.services.token_service import TokenService
+from src.domain.tasks.mailer import send_email_task
 from src.libs.cache import get_cache_service
+from src.libs.mailer import MailerRequest
+
+from app.src.domain.enums.auth import AuthPreCheckTypeEnum
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +62,7 @@ class AuthService:
         type_attributes: dict | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
-    ):
+    ) -> AuthRegisterResponse:
         """
         Register a new account with the specified client type and attributes.
 
@@ -108,6 +121,10 @@ class AuthService:
             )
 
             assert account.friendly_id is not None
+
+            # If account is already verified during registration, cache it
+            if account.is_verified:
+                await self._cache_verified_account(account)
 
             return AuthRegisterResponse(
                 fid=account.friendly_id,
@@ -202,6 +219,16 @@ class AuthService:
 
             auth_tokens = self.security_service.generate_auth_tokens(auth_session_state)
 
+            await self.token_service.bulk_create_if_not_exists(
+                tokens=[
+                    TokenCreate(
+                        token=auth_token.token,
+                        deleted_datetime=datetime.now(UTC) + timedelta(seconds=auth_token.expires_in),
+                    )
+                    for auth_token in auth_tokens
+                ]
+            )
+
             return AuthSessionResponse(tokens=auth_tokens)
         except errors.AuthenticationError as ae:
             logger.warning(
@@ -226,3 +253,343 @@ class AuthService:
                 detail="Login failed due to an unexpected error",
                 status=500,
             ) from e
+
+    async def request_email_verification(
+        self,
+        *,
+        fid: str,
+        mode: TokenVerificationRequestTypeEnum,
+    ) -> None:
+        """
+        Request an email verification to be sent to the specified email address.
+
+        Args:
+            email (EmailStr): The email address to send the verification to.
+
+        Raises:
+            ServiceError: If there is an error during the process.
+        """
+        try:
+            account = await self.account_service.get_account_by(friendly_id=fid)
+            if not account:
+                # To prevent user enumeration, we do not disclose whether the email exists.
+                return
+
+            if account.is_verified:
+                # If already verified, no action is needed.
+                return
+
+            token: str | None = None
+
+            if mode == TokenVerificationRequestTypeEnum.OTP:
+                token = self.security_service.generate_totp()
+            else:
+                token = self.security_service.generate_email_verification_token(fid=fid)
+
+            assert token is not None, "Token generation failed"
+
+            await self.account_service.update_account(
+                id=account.id,
+                account_update={
+                    "confirmation_token": token,
+                    "confirmation_token_sent_at": datetime.now(UTC),
+                },
+            )
+
+            send_email_task.delay(
+                payload=MailerRequest(
+                    subject="Verify Your Email Address",
+                    sender=settings.MAILER_DEFAULT_SENDER,
+                    recipients=[account.email],
+                    template_name="email_verification.html",
+                    template_context={
+                        "display_name": account.display_name,
+                        "token": token,
+                        "mode": mode.value,
+                        "validity_minutes": (
+                            (settings.AUTH_VERIFICATION_TOKEN_MAX_AGE // 60)
+                            if mode == TokenVerificationRequestTypeEnum.STATE_KEY
+                            else (settings.AUTH_OTP_MAX_AGE // 60)
+                        ),
+                        "frontend_url": settings.FRONTEND_URL,
+                    },
+                )
+            )
+        except errors.ServiceError as se:
+            logger.error(
+                f"src.domain.services.auth_service.request_email_verification:: ServiceError: {se.detail}",
+                exc_info=True,
+            )
+            raise se
+        except AssertionError as ae:
+            logger.error(
+                f"src.domain.services.auth_service.request_email_verification:: AssertionError: {str(ae)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Failed to generate verification token",
+                status=500,
+            ) from ae
+        except Exception as e:
+            logger.error(
+                f"src.domain.services.auth_service.request_email_verification:: Unexpected error: {str(e)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Failed to request email verification",
+                status=500,
+            ) from e
+
+    async def verify_email(
+        self,
+        *,
+        token: str,
+        mode: TokenVerificationRequestTypeEnum,
+    ) -> None:
+        """
+        Verify the email address using the provided token.
+
+        Args:
+            token (str): The verification token received by the user.
+            mode (TokenVerificationRequestTypeEnum): The mode of verification (OTP or STATE_KEY).
+
+        Raises:
+            VerificationError: If the token is invalid or verification fails.
+            ServiceError: If there is an error during the process.
+        """
+
+        try:
+            if mode == TokenVerificationRequestTypeEnum.STATE_KEY:
+                fid = self.security_service.verify_email_verification_token(token=token)
+
+                account = await self.account_service.get_account_by(friendly_id=fid)
+                if not account:
+                    raise errors.AccountNotFoundError()
+
+                if account.is_verified:
+                    return
+                if account.confirmation_token != token:
+                    raise errors.InvalidVerificationLinkError()
+            else:
+                otp = self.security_service.verify_totp(token=token)
+
+                if not otp:
+                    raise errors.InvalidOTPError()
+
+                account = await self.account_service.get_account_by(confirmation_token=token)
+                if not account:
+                    raise errors.AccountNotFoundError()
+
+                if account.is_verified:
+                    return
+                if (
+                    not account.confirmation_token_sent_at
+                    or (datetime.now(UTC) - account.confirmation_token_sent_at).total_seconds()
+                    > settings.AUTH_OTP_MAX_AGE
+                ):
+                    raise errors.InvalidOTPError()
+
+            await self.account_service.update_account(
+                id=account.id,
+                account_update={
+                    "is_verified": True,
+                    "confirmation_token": None,
+                    "confirmation_token_sent_at": None,
+                    "email_confirmed": True,
+                    "is_active": True,
+                    "confirmed_at": datetime.now(UTC),
+                },
+            )
+
+            await self._cache_verified_account(account)
+        except errors.ServiceError as se:
+            logger.error(
+                f"src.domain.services.auth_service.verify_email:: ServiceError: {se.detail}",
+                exc_info=True,
+            )
+            raise se
+        except Exception as e:
+            logger.error(
+                f"src.domain.services.auth_service.verify_email:: Unexpected error: {str(e)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Failed to verify email",
+                status=500,
+            ) from e
+
+    async def logout(
+        self,
+        *,
+        access_token: str,
+        refresh_token: str,
+    ) -> None:
+        """
+        Logout a user by revoking their access and refresh tokens.
+
+        Args:
+            access_token (str): The access token to revoke
+            refresh_token (str): The refresh token to revoke
+
+        Raises:
+            ServiceError: If there is an error during the logout process
+        """
+        try:
+            access_revoked = await self.token_service.revoke_token(token=access_token)
+            refresh_revoked = await self.token_service.revoke_token(token=refresh_token)
+
+            if not access_revoked and not refresh_revoked:
+                logger.warning("src.domain.services.auth_service.logout:: No tokens were revoked during logout")
+                # We still consider it successful as the user wanted to logout
+
+            logger.debug(
+                f"src.domain.services.auth_service.logout:: Logout successful - "
+                f"access_token_revoked: {access_revoked}, refresh_token_revoked: {refresh_revoked}"
+            )
+        except Exception as e:
+            logger.error(
+                f"src.domain.services.auth_service.logout:: Unexpected error during logout: {str(e)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Logout failed due to an unexpected error",
+                status=500,
+            ) from e
+
+    async def pre_check(
+        self,
+        *,
+        type_check: AuthPreCheckTypeEnum,
+        value: str,
+        mode: Literal["register", "login"],
+    ) -> AuthPreCheckResponse:
+        """
+        Pre-check if an email or username exists for registration or login purposes.
+
+        Args:
+            type_check (AuthPreCheckTypeEnum): The type of check to perform ("email" or "username")
+            value (str): The email or username value to check
+            mode (Literal["register", "login"]): The mode of operation ("register" or "login")
+
+        Returns:
+            AuthPreCheckResponse: the data containing pre-check results
+        """
+        try:
+            if mode == "register":
+                cache_key = f"accounts:verified:{type_check}:{value}"
+                cached_data = await self.cache_service.get(cache_key)
+
+                if cached_data:
+                    return AuthPreCheckResponse(exists=True, is_verified=True, source="cache", can_login=True)
+
+                kwargs = {f"{type_check.value}": value}
+                account = await self.account_service.get_account_by(**kwargs)
+
+                if account:
+                    if account.is_verified:
+                        await self._cache_verified_account(account)
+
+                    return AuthPreCheckResponse(
+                        exists=True, is_verified=account.is_verified, source="database", can_login=account.is_verified
+                    )
+
+                return AuthPreCheckResponse(exists=False, is_verified=False, source="database", can_login=False)
+
+            elif mode == "login":
+                cache_key = f"accounts:verified:{type_check}:{value}"
+                cached_data = await self.cache_service.get(cache_key)
+
+                if cached_data:
+                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, source="cache")
+
+                kwargs = {f"{type_check.value}": value, "is_verified": True}
+                account = await self.account_service.get_account_by(**kwargs)
+
+                if account:
+                    await self._cache_verified_account(account)
+
+                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, source="database")
+
+                kwargs = {f"{type_check.value}": value, "is_verified": True}
+                account = await self.account_service.get_account_by(**kwargs)
+
+                if account:
+                    await self._cache_verified_account(account)
+
+                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, source="database")
+
+                kwargs = {f"{type_check.value}": value}
+                account = await self.account_service.get_account_by(**kwargs)
+
+                if account:
+                    return AuthPreCheckResponse(
+                        exists=True,
+                        is_verified=False,
+                        can_login=False,
+                        source="database",
+                    )
+
+                return AuthPreCheckResponse(exists=False, is_verified=False, can_login=False, source="database")
+
+            else:
+                raise ValueError(f"Invalid mode: {mode}")
+
+        except (Exception, ValueError) as e:
+            logger.error(
+                f"src.domain.services.auth_service.pre_check:: Pre-check failed for {type_check}={value}, mode={mode}: {str(e)}"
+            )
+            raise errors.ServiceError(
+                detail="Pre-check operation failed",
+                status=500,
+            ) from e
+
+    async def _cache_verified_account(self, account) -> None:
+        """
+        Cache verified account data for pre-check functionality.
+
+        Args:
+            account: The verified account to cache
+        """
+        try:
+            cached_data = CachedAccountData(email=account.email, username=account.username)
+
+            email_key = f"accounts:verified:email:{account.email}"
+            await self.cache_service.set(
+                key=email_key,
+                value=cached_data.model_dump(),
+                ttl=3600 * 24 * 7,  # Cache for 7 days
+            )
+
+            # Cache by username if it exists
+            if account.username:
+                username_key = f"accounts:verified:username:{account.username}"
+                await self.cache_service.set(
+                    key=username_key,
+                    value=cached_data.model_dump(),
+                    ttl=3600 * 24 * 7,  # Cache for 7 days
+                )
+
+            logger.debug(f"Cached verified account data for email: {account.email}")
+
+        except Exception as e:
+            logger.error(f"Failed to cache verified account data: {str(e)}")
+
+    async def _invalidate_account_cache(self, account) -> None:
+        """
+        Invalidate cached account data.
+
+        Args:
+            account: The account to invalidate cache for
+        """
+        try:
+            email_key = f"accounts:verified:email:{account.email}"
+            await self.cache_service.delete(email_key)
+
+            if account.username:
+                username_key = f"accounts:verified:username:{account.username}"
+                await self.cache_service.delete(username_key)
+
+            logger.debug(f"Invalidated cache for account: {account.email}")
+
+        except Exception as e:
+            logger.error(f"Failed to invalidate account cache: {str(e)}")

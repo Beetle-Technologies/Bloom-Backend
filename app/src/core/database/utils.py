@@ -12,6 +12,9 @@ from src.core.database.triggers import (
     PRODUCT_ITEM_PRICE_UPDATE_VIA_PRODUCT_TRIGGER,
     PRODUCT_ITEM_TRIGGER,
     PRODUCT_ITEM_TRIGGER_FUNCTION,
+    TOKEN_CLEANUP_SCHEDULED_TRIGGER,
+    TOKEN_CLEANUP_TRIGGER,
+    TOKEN_CLEANUP_TRIGGER_FUNCTION,
 )
 
 max_tries = 60 * 5  # 5 minutes
@@ -88,6 +91,27 @@ async def _drop_audit_log_triggers(session: AsyncSession) -> None:
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_audit_log ON products;"))  # type: ignore
 
 
+async def _setup_token_cleanup_triggers(session: AsyncSession) -> None:
+    """
+    Set up database triggers for Token cleanup.
+    """
+    # Create the trigger functions
+    await session.exec(TOKEN_CLEANUP_TRIGGER_FUNCTION)  # type: ignore
+    await session.exec(TOKEN_CLEANUP_SCHEDULED_TRIGGER)  # type: ignore
+
+    # Create the triggers
+    await session.exec(TOKEN_CLEANUP_TRIGGER)  # type: ignore
+
+
+async def _drop_token_cleanup_triggers(session: AsyncSession) -> None:
+    """
+    Drop database triggers for Token cleanup.
+    """
+    await session.exec(DDL("DROP TRIGGER IF EXISTS token_cleanup_trigger ON tokens;"))  # type: ignore
+    await session.exec(DDL("DROP FUNCTION IF EXISTS cleanup_expired_tokens();"))  # type: ignore
+    await session.exec(DDL("DROP FUNCTION IF EXISTS scheduled_token_cleanup();"))  # type: ignore
+
+
 async def register_triggers() -> None:
     """
     Register all database triggers.
@@ -95,6 +119,7 @@ async def register_triggers() -> None:
     async with db_context_manager() as session:
         await _setup_product_item_triggers(session)
         await _setup_audit_log_triggers(session)
+        await _setup_token_cleanup_triggers(session)
 
         await session.commit()
 
@@ -106,5 +131,6 @@ async def drop_triggers() -> None:
     async with db_context_manager() as session:
         await _drop_product_item_triggers(session)
         await _drop_audit_log_triggers(session)
+        await _drop_token_cleanup_triggers(session)
 
         await session.commit()

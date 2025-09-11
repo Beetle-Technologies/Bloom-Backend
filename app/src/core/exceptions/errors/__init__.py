@@ -12,7 +12,13 @@ from .account import (  # noqa: F401
     AccountUpdateError,
     AccountVerificationError,
 )
-from .auth import AuthenticationError, InvalidPasswordResetTokenError, InvalidTokenError  # noqa: F401
+from .auth import (  # noqa: F401
+    AuthenticationError,
+    InvalidOTPError,
+    InvalidPasswordResetTokenError,
+    InvalidTokenError,
+    InvalidVerificationLinkError,
+)
 from .authz import AuthorizationError, InvalidPermissionError  # noqa: F401
 from .base import (  # noqa: F401
     InternalServerError,

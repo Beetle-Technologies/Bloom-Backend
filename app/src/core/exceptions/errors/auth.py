@@ -30,3 +30,23 @@ class InvalidPasswordResetTokenError(AuthenticationError):
     title = "Invalid or expired password reset token"
     detail = "The password reset token is invalid or has expired. Please request a new password reset."
     status = status.HTTP_400_BAD_REQUEST
+
+
+class InvalidOTPError(AuthenticationError):
+    """
+    An error indicating that the provided OTP is invalid or expired.
+    """
+
+    title = "Invalid or expired OTP"
+    detail = "The OTP is invalid or has expired. Please request a new OTP."
+    status = status.HTTP_400_BAD_REQUEST
+
+
+class InvalidVerificationLinkError(AuthenticationError):
+    """
+    An error indicating that the provided verification link is invalid or expired.
+    """
+
+    title = "Invalid or expired verification link"
+    detail = "The verification link is invalid or has expired. Please request a new verification email."
+    status = status.HTTP_400_BAD_REQUEST

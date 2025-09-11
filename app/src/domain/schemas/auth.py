@@ -54,14 +54,26 @@ class AuthRegisterRequest(BaseModel):
     type_attributes: JsonValue | None = None
 
 
-class AuthVerificationTokenRequest(BaseModel):
+class AuthVerificationRequest(BaseModel):
     """
     Represents a request to generate an authentication token.
     """
 
-    email: EmailStr
+    fid: str = Field(..., description="The friendly identifier for the account")
     mode: TokenVerificationRequestTypeEnum = TokenVerificationRequestTypeEnum.OTP
-    is_resend: bool = False
+
+
+class AuthTokenVerificationRequest(BaseModel):
+    """
+    Represents a request to verify an authentication token.
+
+    Attributes:
+        token (str): The authentication token to verify.
+        mode (TokenVerificationRequestTypeEnum): The mode of the token verification, either "OTP" or "STATE_KEY".
+    """
+
+    token: str = Field(..., description="The authentication token to verify")
+    mode: TokenVerificationRequestTypeEnum = TokenVerificationRequestTypeEnum.OTP
 
 
 class AuthSessionToken(BaseModel):
@@ -116,3 +128,33 @@ class AuthSessionState(BaseModel):
     id: GUID
     type_info_id: GUID
     type: AccountTypeEnum
+
+
+class AuthPreCheckResponse(BaseModel):
+    """
+    Represents the response for a pre-check request.
+
+    Attributes:
+        exists (bool): Whether the email/username exists in the system.
+        is_verified (bool): Whether the account is verified (if exists).
+        can_login (bool): Whether the account can login (only for login mode).
+        source (str): The source of the data ("cache" or "database").
+    """
+
+    exists: bool
+    is_verified: bool
+    can_login: bool = Field(..., description="Whether the account can login (only for login mode)")
+    source: Literal["cache", "database"]
+
+
+class AuthLogoutRequest(BaseModel):
+    """
+    Represents a request to logout an account.
+
+    Attributes:
+        access_token (str): The access token to be invalidated.
+        refresh_token (str): The refresh token to be invalidated.
+    """
+
+    access_token: str = Field(..., description="The access token to be invalidated")
+    refresh_token: str = Field(..., description="The refresh token to be invalidated")
