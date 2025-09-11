@@ -78,7 +78,7 @@ async def pre_check(
 )
 async def request_email_verification(
     request: Request,  # noqa: ARG001
-    request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
+    request_client: Annotated[BloomClientInfo, is_bloom_client],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     body: Annotated[
         AuthVerificationRequest,
@@ -92,6 +92,7 @@ async def request_email_verification(
         auth_service = AuthService(session=session)
 
         await auth_service.request_email_verification(
+            client_type=request_client.app,
             fid=body.fid,
             mode=body.mode,
         )
@@ -282,12 +283,16 @@ async def refresh(
             refresh_token=body.refresh_token,
         )
 
+        assert isinstance(data, AuthSessionResponse)
+
         return build_json_response(
             data=data,
             message="Token refresh successful",
         )
     except errors.ServiceError as se:
         raise se
+    except AssertionError:
+        raise errors.ServiceError(detail="Failed to refresh tokens", status=500)
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to refresh tokens",
@@ -302,7 +307,7 @@ async def refresh(
 )
 async def forgot_password(
     request: Request,  # noqa: ARG001
-    request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
+    request_client: Annotated[BloomClientInfo, is_bloom_client],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     body: Annotated[AuthForgotPasswordRequest, Body(..., description="Forgot password request body")],
 ) -> IResponseBase[None]:
@@ -312,7 +317,7 @@ async def forgot_password(
     try:
         auth_service = AuthService(session=session)
 
-        await auth_service.request_password_reset(email=body.email)
+        await auth_service.request_password_reset(client_type=request_client.app, email=body.email)
 
         return build_json_response(
             data=None,

@@ -257,6 +257,7 @@ class AuthService:
     async def request_email_verification(
         self,
         *,
+        client_type: ClientType,
         fid: str,
         mode: TokenVerificationRequestTypeEnum,
     ) -> None:
@@ -301,17 +302,18 @@ class AuthService:
                     subject="Verify Your Email Address",
                     sender=settings.MAILER_DEFAULT_SENDER,
                     recipients=[account.email],
-                    template_name="email_verification.html",
+                    template_name="v1/auth/email_verification.mjml.html",
                     template_context={
-                        "display_name": account.display_name,
+                        "first_name": account.first_name,
+                        "email": account.email,
                         "token": token,
                         "mode": mode.value,
-                        "validity_minutes": (
-                            (settings.AUTH_VERIFICATION_TOKEN_MAX_AGE // 60)
+                        "validity_time": (
+                            (settings.AUTH_VERIFICATION_TOKEN_MAX_AGE // 3600)
                             if mode == TokenVerificationRequestTypeEnum.STATE_KEY
                             else (settings.AUTH_OTP_MAX_AGE // 60)
                         ),
-                        "frontend_url": settings.FRONTEND_URL,
+                        "client_type": client_type.value,
                     },
                 )
             )
@@ -546,6 +548,7 @@ class AuthService:
                 status=500,
             ) from e
 
+    @transactional
     async def refresh_tokens(
         self,
         *,
@@ -566,28 +569,22 @@ class AuthService:
             ServiceError: If token refresh fails
         """
         try:
-            # Verify that refresh token is valid and decode it
             decoded_refresh_token = self.security_service.decode_jwt_token(refresh_token)
             auth_data = self.security_service.get_token_data(decoded_refresh_token, AuthSessionState)
 
-            # Check if refresh token exists in database and is valid
             is_refresh_valid = await self.token_service.is_token_valid(token=refresh_token)
             if not is_refresh_valid:
                 raise errors.InvalidTokenError(detail="Refresh token is invalid or expired")
 
-            # Verify the account still exists and is eligible
             account = await self.account_service.get_account_by(id=auth_data.id)
             if not account or not account.is_eligible():
                 raise errors.AccountIneligibleError(detail="Account is not eligible for token refresh")
 
-            # Revoke the old tokens
             await self.token_service.revoke_token(token=access_token)
             await self.token_service.revoke_token(token=refresh_token)
 
-            # Generate new tokens
             new_auth_tokens = self.security_service.generate_auth_tokens(auth_data)
 
-            # Store new tokens in database
             await self.token_service.bulk_create_if_not_exists(
                 tokens=[
                     TokenCreate(
@@ -598,9 +595,7 @@ class AuthService:
                 ]
             )
 
-            logger.info(f"Successfully refreshed tokens for account {auth_data.id}")
             return AuthSessionResponse(tokens=new_auth_tokens)
-
         except errors.InvalidTokenError as ite:
             logger.warning(f"Invalid token during refresh: {ite.detail}")
             raise ite
@@ -617,6 +612,7 @@ class AuthService:
     async def request_password_reset(
         self,
         *,
+        client_type: ClientType,
         email: EmailStr,
     ) -> None:
         """
@@ -642,12 +638,12 @@ class AuthService:
                     subject="Password Reset Request",
                     sender=settings.MAILER_DEFAULT_SENDER,
                     recipients=[account.email],
-                    template_name="password_reset.html",
+                    template_name="v1/auth/password_reset.mjml.html",
                     template_context={
-                        "display_name": account.display_name,
+                        "first_name": account.first_name,
+                        "email": account.email,
                         "token": password_reset_token,
-                        "validity_hours": settings.MAX_PASSWORD_RESET_TIME,
-                        "frontend_url": settings.FRONTEND_URL,
+                        "client_type": client_type.value,
                     },
                 )
             )
