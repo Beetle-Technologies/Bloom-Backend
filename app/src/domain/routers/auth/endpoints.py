@@ -16,13 +16,17 @@ from src.core.helpers.request import get_request_info
 from src.core.helpers.response import IResponseBase, build_json_response
 from src.core.types import BloomClientInfo, Password
 from src.domain.schemas import (
+    AuthForgotPasswordRequest,
     AuthLogoutRequest,
+    AuthPasswordChangeRequest,
+    AuthPasswordResetRequest,
     AuthPreCheckRequest,
     AuthPreCheckResponse,
     AuthRegisterRequest,
     AuthRegisterResponse,
     AuthSessionResponse,
     AuthSessionState,
+    AuthTokenRefreshRequest,
     AuthTokenVerificationRequest,
     AuthVerificationRequest,
 )
@@ -256,33 +260,138 @@ async def logout(
         ) from e
 
 
-@router.post("/refresh", dependencies=[auth_rate_limit])
-async def refresh():
+@router.post(
+    "/refresh",
+    dependencies=[auth_rate_limit],
+    response_model=IResponseBase[AuthSessionResponse],
+)
+async def refresh(
+    request: Request,  # noqa: ARG001
+    request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    body: Annotated[AuthTokenRefreshRequest, Body(..., description="Token refresh request body")],
+) -> IResponseBase[AuthSessionResponse]:
     """
-    Refresh access token using refresh token
+    Refresh access token using access and refresh token
     """
-    pass
+    try:
+        auth_service = AuthService(session=session)
+
+        data = await auth_service.refresh_tokens(
+            access_token=body.access_token,
+            refresh_token=body.refresh_token,
+        )
+
+        return build_json_response(
+            data=data,
+            message="Token refresh successful",
+        )
+    except errors.ServiceError as se:
+        raise se
+    except Exception as e:
+        raise errors.ServiceError(
+            detail="Failed to refresh tokens",
+            status=500,
+        ) from e
 
 
-@router.post("/forgot_password", dependencies=[auth_rate_limit])
-async def forgot_password():
+@router.post(
+    "/request_forgot_password",
+    dependencies=[auth_rate_limit],
+    response_model=IResponseBase[None],
+)
+async def forgot_password(
+    request: Request,  # noqa: ARG001
+    request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    body: Annotated[AuthForgotPasswordRequest, Body(..., description="Forgot password request body")],
+) -> IResponseBase[None]:
     """
     Request password reset
     """
-    pass
+    try:
+        auth_service = AuthService(session=session)
+
+        await auth_service.request_password_reset(email=body.email)
+
+        return build_json_response(
+            data=None,
+            message="If the email is registered, a password reset link has been sent",
+        )
+    except errors.ServiceError as se:
+        raise se
+    except Exception as e:
+        raise errors.ServiceError(
+            detail="Failed to request password reset",
+            status=500,
+        ) from e
 
 
-@router.post("/reset_password", dependencies=[auth_rate_limit])
-async def reset_password():
+@router.post(
+    "/verify_password_reset",
+    dependencies=[auth_rate_limit],
+    response_model=IResponseBase[None],
+)
+async def reset_password(
+    request: Request,  # noqa: ARG001
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    body: Annotated[AuthPasswordResetRequest, Body(..., description="Password reset request body")],
+) -> IResponseBase[None]:
     """
     Reset user password using reset token
     """
-    pass
+    try:
+        auth_service = AuthService(session=session)
+
+        await auth_service.reset_password(
+            token=body.token,
+            new_password=body.new_password,
+        )
+
+        return build_json_response(
+            data=None,
+            message="Password reset successful",
+        )
+    except errors.ServiceError as se:
+        raise se
+    except Exception as e:
+        raise errors.ServiceError(
+            detail="Failed to reset password",
+            status=500,
+        ) from e
 
 
-@router.put("/change_password", dependencies=[auth_rate_limit])
-async def change_password():
+@router.put(
+    "/request_password_change",
+    dependencies=[auth_rate_limit],
+    response_model=IResponseBase[None],
+)
+async def change_password(
+    request: Request,  # noqa: ARG001
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    token_data: Annotated[AuthSessionState, Depends(requires_eligible_account)],
+    body: Annotated[AuthPasswordChangeRequest, Body(..., description="Password change request body")],
+) -> IResponseBase[None]:
     """
     Change current user password
     """
-    pass
+    try:
+        auth_service = AuthService(session=session)
+
+        await auth_service.change_password(
+            account_id=token_data.id,
+            current_password=body.current_password,
+            new_password=body.new_password,
+        )
+
+        return build_json_response(
+            data=None,
+            message="Password changed successfully",
+        )
+    except errors.ServiceError as se:
+        raise se
+    except Exception as e:
+        raise errors.ServiceError(
+            detail="Failed to change password",
+            status=500,
+        ) from e

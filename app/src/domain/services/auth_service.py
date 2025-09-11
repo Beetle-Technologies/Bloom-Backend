@@ -490,7 +490,10 @@ class AuthService:
                         await self._cache_verified_account(account)
 
                     return AuthPreCheckResponse(
-                        exists=True, is_verified=account.is_verified, source="database", can_login=account.is_verified
+                        exists=True,
+                        is_verified=account.is_verified,
+                        source="database",
+                        can_login=account.is_verified,
                     )
 
                 return AuthPreCheckResponse(exists=False, is_verified=False, source="database", can_login=False)
@@ -540,6 +543,216 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Pre-check operation failed",
+                status=500,
+            ) from e
+
+    async def refresh_tokens(
+        self,
+        *,
+        access_token: str,
+        refresh_token: str,
+    ) -> AuthSessionResponse:
+        """
+        Refresh authentication tokens using a valid refresh token.
+
+        Args:
+            access_token (str): The current access token (for validation)
+            refresh_token (str): The refresh token to use for generating new tokens
+
+        Returns:
+            AuthSessionResponse: New authentication tokens
+
+        Raises:
+            ServiceError: If token refresh fails
+        """
+        try:
+            # Verify that refresh token is valid and decode it
+            decoded_refresh_token = self.security_service.decode_jwt_token(refresh_token)
+            auth_data = self.security_service.get_token_data(decoded_refresh_token, AuthSessionState)
+
+            # Check if refresh token exists in database and is valid
+            is_refresh_valid = await self.token_service.is_token_valid(token=refresh_token)
+            if not is_refresh_valid:
+                raise errors.InvalidTokenError(detail="Refresh token is invalid or expired")
+
+            # Verify the account still exists and is eligible
+            account = await self.account_service.get_account_by(id=auth_data.id)
+            if not account or not account.is_eligible():
+                raise errors.AccountIneligibleError(detail="Account is not eligible for token refresh")
+
+            # Revoke the old tokens
+            await self.token_service.revoke_token(token=access_token)
+            await self.token_service.revoke_token(token=refresh_token)
+
+            # Generate new tokens
+            new_auth_tokens = self.security_service.generate_auth_tokens(auth_data)
+
+            # Store new tokens in database
+            await self.token_service.bulk_create_if_not_exists(
+                tokens=[
+                    TokenCreate(
+                        token=auth_token.token,
+                        deleted_datetime=datetime.now(UTC) + timedelta(seconds=auth_token.expires_in),
+                    )
+                    for auth_token in new_auth_tokens
+                ]
+            )
+
+            logger.info(f"Successfully refreshed tokens for account {auth_data.id}")
+            return AuthSessionResponse(tokens=new_auth_tokens)
+
+        except errors.InvalidTokenError as ite:
+            logger.warning(f"Invalid token during refresh: {ite.detail}")
+            raise ite
+        except errors.ServiceError as se:
+            logger.error(f"Service error during token refresh: {se.detail}", exc_info=True)
+            raise se
+        except Exception as e:
+            logger.error(f"Unexpected error during token refresh: {str(e)}", exc_info=True)
+            raise errors.ServiceError(
+                detail="Token refresh failed",
+                status=500,
+            ) from e
+
+    async def request_password_reset(
+        self,
+        *,
+        email: EmailStr,
+    ) -> None:
+        """
+        Request a password reset for an account.
+
+        Args:
+            email (EmailStr): The email address of the account
+
+        Raises:
+            ServiceError: If the password reset request fails
+        """
+        try:
+            # To prevent user enumeration, we don't reveal if the email exists
+            account = await self.account_service.get_account_by(email=email)
+            if not account:
+                logger.debug(f"Password reset requested for non-existent email: {email}")
+                return
+
+            password_reset_token = await self.account_service.request_password_reset(email=email)
+
+            send_email_task.delay(
+                payload=MailerRequest(
+                    subject="Password Reset Request",
+                    sender=settings.MAILER_DEFAULT_SENDER,
+                    recipients=[account.email],
+                    template_name="password_reset.html",
+                    template_context={
+                        "display_name": account.display_name,
+                        "token": password_reset_token,
+                        "validity_hours": settings.MAX_PASSWORD_RESET_TIME,
+                        "frontend_url": settings.FRONTEND_URL,
+                    },
+                )
+            )
+
+        except errors.ServiceError as se:
+            logger.error(
+                f"Service error during password reset request: {se.detail}",
+                exc_info=True,
+            )
+            raise se
+        except Exception as e:
+            logger.error(
+                f"Unexpected error during password reset request: {str(e)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Failed to process password reset request",
+                status=500,
+            ) from e
+
+    async def reset_password(
+        self,
+        *,
+        token: str,
+        new_password: Password,
+    ) -> None:
+        """
+        Reset account password using a password reset token.
+
+        Args:
+            token (str): The password reset token
+            new_password (Password): The new password
+
+        Raises:
+            ServiceError: If password reset fails
+        """
+        try:
+            success = await self.account_service.reset_account_password(
+                password_reset_token=token,
+                new_password=new_password,
+            )
+
+            if not success:
+                raise errors.ServiceError(
+                    detail="Password reset failed",
+                    status=400,
+                )
+
+        except errors.InvalidPasswordResetTokenError as iprt:
+            logger.warning(f"Invalid password reset token used: {iprt.detail}")
+            raise iprt
+        except errors.ServiceError as se:
+            logger.error(f"Service error during password reset: {se.detail}", exc_info=True)
+            raise se
+        except Exception as e:
+            logger.error(f"Unexpected error during password reset: {str(e)}", exc_info=True)
+            raise errors.ServiceError(
+                detail="Failed to reset password",
+                status=500,
+            ) from e
+
+    async def change_password(
+        self,
+        *,
+        account_id: str,
+        current_password: Password,
+        new_password: Password,
+    ) -> None:
+        """
+        Change password for an authenticated account.
+
+        Args:
+            account_id (str): The ID of the account
+            current_password (Password): The current password
+            new_password (Password): The new password
+
+        Raises:
+            ServiceError: If password change fails
+        """
+        try:
+            updated_account = await self.account_service.update_password(
+                id=account_id,
+                current_password=current_password,
+                new_password=new_password,
+            )
+
+            if not updated_account:
+                raise errors.ServiceError(
+                    detail="Failed to update password",
+                    status=500,
+                )
+
+        except errors.AccountInvalidPasswordError as aip:
+            logger.warning(f"Invalid current password for account {account_id}")
+            raise aip
+        except errors.AccountChangePasswordMismatchError as acpm:
+            logger.warning(f"New password same as current for account {account_id}")
+            raise acpm
+        except errors.ServiceError as se:
+            logger.error(f"Service error during password change: {se.detail}", exc_info=True)
+            raise se
+        except Exception as e:
+            logger.error(f"Unexpected error during password change: {str(e)}", exc_info=True)
+            raise errors.ServiceError(
+                detail="Failed to change password",
                 status=500,
             ) from e
 

@@ -158,3 +158,68 @@ class AuthLogoutRequest(BaseModel):
 
     access_token: str = Field(..., description="The access token to be invalidated")
     refresh_token: str = Field(..., description="The refresh token to be invalidated")
+
+
+class AuthTokenRefreshRequest(AuthLogoutRequest):
+    """
+    Represents a request to refresh authentication tokens.
+
+    Attributes:
+        access_token (str): The current access token.
+        refresh_token (str): The current refresh token.
+    """
+
+    pass
+
+
+class AuthForgotPasswordRequest(BaseModel):
+    """
+    Represents a request to initiate a password reset process.
+
+    Attributes:
+        email (EmailStr): The email address associated with the account.
+    """
+
+    email: EmailStr = Field(..., description="The email address associated with the account")
+
+
+class AuthPasswordResetRequest(BaseModel):
+    """
+    Represents a request to reset the password of an account.
+
+    Attributes:
+        token (str): The password reset token.
+        new_password (Password): The new password for the account.
+        confirm_new_password (Password): Confirmation of the new password.
+    """
+
+    token: str = Field(..., description="The password reset token")
+    new_password: Password = Field(..., description="The new password for the account")
+    confirm_new_password: Password = Field(..., description="Confirmation of the new password")
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> Self:
+        if self.new_password != self.confirm_new_password:
+            raise ValueError("New password and confirmation do not match.")
+        return self
+
+
+class AuthPasswordChangeRequest(BaseModel):
+    """
+    Represents a request to change the password of an authenticated account.
+
+    Attributes:
+        current_password (Password): The current password of the account.
+        new_password (Password): The new password for the account.
+        confirm_new_password (Password): Confirmation of the new password.
+    """
+
+    current_password: Password = Field(..., description="The current password of the account")
+    new_password: Password = Field(..., description="The new password for the account")
+    confirm_new_password: Password = Field(..., description="Confirmation of the new password")
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> Self:
+        if self.new_password != self.confirm_new_password:
+            raise ValueError("New password and confirmation do not match.")
+        return self

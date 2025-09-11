@@ -13,7 +13,10 @@ from .account_type_info_permission import (  # noqa: F401
     AccountTypeInfoPermissionUpdate,
 )
 from .auth import (  # noqa: F401
+    AuthForgotPasswordRequest,
     AuthLogoutRequest,
+    AuthPasswordChangeRequest,
+    AuthPasswordResetRequest,
     AuthPreCheckRequest,
     AuthPreCheckResponse,
     AuthRegisterRequest,
@@ -21,6 +24,7 @@ from .auth import (  # noqa: F401
     AuthSessionResponse,
     AuthSessionState,
     AuthSessionToken,
+    AuthTokenRefreshRequest,
     AuthTokenVerificationRequest,
     AuthVerificationRequest,
 )
