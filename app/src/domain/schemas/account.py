@@ -34,7 +34,7 @@ class AccountBase(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=255)
     last_name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr
-    username: str = Field(..., min_length=3, max_length=255, pattern=r"^[a-zA-Z0-9_.-]+$")
+    username: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-zA-Z0-9_.-]+$")
     phone_number: PhoneNumber | None = None
 
 

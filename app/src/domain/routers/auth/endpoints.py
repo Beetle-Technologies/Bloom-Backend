@@ -11,10 +11,17 @@ from src.core.dependencies import (
     requires_authenticated_account,
     strict_rate_limit,
 )
+from src.core.exceptions import errors
 from src.core.helpers.request import get_request_info
 from src.core.helpers.response import IResponseBase, build_json_response
 from src.core.types import BloomClientInfo, Password
-from src.domain.schemas import AuthPreCheckRequest, AuthSessionResponse, AuthSessionState
+from src.domain.schemas import (
+    AuthPreCheckRequest,
+    AuthRegisterRequest,
+    AuthRegisterResponse,
+    AuthSessionResponse,
+    AuthSessionState,
+)
 from src.domain.services import AuthService
 
 router = APIRouter()
@@ -42,12 +49,43 @@ async def verify_email(
     pass
 
 
-@router.post("/register", dependencies=[auth_rate_limit])
-async def register():
+@router.post("/register", dependencies=[auth_rate_limit], response_model=IResponseBase[AuthRegisterResponse])
+async def register(
+    request: Request,
+    request_client: Annotated[BloomClientInfo, is_bloom_client],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    body: Annotated[AuthRegisterRequest, Body(..., description="User registration request body")],
+) -> IResponseBase[AuthRegisterResponse]:
     """
     Register a new user account
     """
-    pass
+
+    try:
+        auth_service = AuthService(session=session)
+        request_info = get_request_info(request, keys=["ip_address", "user_agent"])
+
+        data = await auth_service.register(
+            first_name=body.first_name,
+            last_name=body.last_name,
+            email=body.email,
+            password=body.password,
+            phone_number=body.phone_number,
+            client_type=request_client.app,
+            type_attributes=body.type_attributes,
+            ip_address=request_info["ip_address"],
+            user_agent=request_info["user_agent"],
+        )
+
+        assert isinstance(data, AuthRegisterResponse)
+
+        return build_json_response(
+            data=data,
+            message="Registration successful",
+        )
+    except errors.ServiceError as se:
+        raise se
+    except AssertionError:
+        raise errors.ServiceError(detail="Internal server error", status=500)
 
 
 @router.post("/login", dependencies=[auth_rate_limit], response_model=IResponseBase[AuthSessionResponse])
@@ -61,21 +99,24 @@ async def login(
     Login user via Oauth2 password flow
     """
 
-    auth_service = AuthService(session=session)
-    request_info = get_request_info(request, keys=["ip_address", "user_agent"])
+    try:
+        auth_service = AuthService(session=session)
+        request_info = get_request_info(request, keys=["ip_address", "user_agent"])
 
-    data = await auth_service.login(
-        email=body.username,
-        password=Password(body.password),
-        client_type=request_client.app,
-        ip_address=request_info["ip_address"],
-        user_agent=request_info["user_agent"],
-    )
+        data = await auth_service.login(
+            email=body.username,
+            password=Password(body.password),
+            client_type=request_client.app,
+            ip_address=request_info["ip_address"],
+            user_agent=request_info["user_agent"],
+        )
 
-    return build_json_response(
-        data=data,
-        message="Login successful",
-    )
+        return build_json_response(
+            data=data,
+            message="Login successful",
+        )
+    except errors.ServiceError as se:
+        raise se
 
 
 @router.post("/logout", dependencies=[auth_rate_limit])

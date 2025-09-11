@@ -9,7 +9,7 @@ class AccountNotFoundError(ServiceError):
     """
 
     title = "Account Not Found"
-    detail = "The requested account does not exist."
+    detail = "The requested account does not exist"
     status = status.HTTP_404_NOT_FOUND
 
 
@@ -19,7 +19,7 @@ class AccountAlreadyExistsError(ServiceError):
     """
 
     title = "Account Already Exists"
-    detail = "An account with the provided details already exists."
+    detail = "An account with the provided details already exists"
     status = status.HTTP_409_CONFLICT
 
 
@@ -29,7 +29,7 @@ class AccountCreationError(ServiceError):
     """
 
     title = "Account Registration Failed"
-    detail = "An error occurred while trying to register an account."
+    detail = "An error occurred while trying to register an account"
     status = status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
@@ -39,7 +39,7 @@ class AccountUpdateError(ServiceError):
     """
 
     title = "Account Update Failed"
-    detail = "An error occurred while trying to update the account."
+    detail = "An error occurred while trying to update the account"
     status = status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
@@ -105,7 +105,7 @@ class AccountInvalidPasswordError(ServiceError):
     """
 
     title = "Invalid Password"
-    detail = "The provided password is incorrect."
+    detail = "The provided password is incorrect"
     status = status.HTTP_403_FORBIDDEN
 
 
@@ -115,5 +115,5 @@ class AccountIneligibleForLoginError(ServiceError):
     """
 
     title = "Account Ineligible for Login"
-    detail = "This account is not eligible to log in."
+    detail = "This account is not eligible to log in"
     status = status.HTTP_403_FORBIDDEN

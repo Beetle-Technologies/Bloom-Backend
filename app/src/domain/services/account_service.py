@@ -8,10 +8,10 @@ from pydantic import EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
 from src.core.exceptions import errors
-from src.core.types import IDType, Password
+from src.core.types import IDType, Password, PhoneNumber
 from src.domain.models import Account
 from src.domain.repositories import AccountRepository
-from src.domain.schemas import AccountUpdate
+from src.domain.schemas import AccountCreate, AccountUpdate
 from src.domain.services.security_service import security_service
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,55 @@ class AccountService:
             Account | None: The account if found, otherwise None.
         """
         return await self.account_repository.find_one_by_or_none(**kwargs)
+
+    async def create_account(
+        self,
+        *,
+        first_name: str,
+        last_name: str,
+        email: EmailStr,
+        password: Password,
+        username: str | None,
+        phone_number: PhoneNumber | None,
+    ) -> Account:
+        """
+        Create a new user account.
+
+        Args:
+            first_name (str): The first name of the user.
+            last_name (str): The last name of the user.
+            username (str | None): The username of the user (optional).
+            email (EmailStr): The email address of the user.
+            password (Password): The password of the user.
+            phone_number (PhoneNumber | None): The phone number of the user (optional).
+
+        Returns:
+            Account: The created account.
+        """
+        try:
+            existing_account = await self.account_repository.find_one_by_and_none(email=email, username=username)
+
+            if existing_account:
+                raise errors.AccountAlreadyExistsError()
+
+            account_data = AccountCreate(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                username=username,
+                password=password,
+                phone_number=phone_number,
+            )
+            return await self.account_repository.create(account_data)
+        except errors.DatabaseError as de:
+            logger.exception(
+                f"src.domain.services.account_service.create_account:: error while creating account for {email}: {de!s}",
+            )
+            raise errors.AccountCreationError(
+                detail="Failed to create account",
+            ) from de
+        except errors.ServiceError as se:
+            raise se
 
     async def authenticate(
         self,
@@ -243,6 +292,46 @@ class AccountService:
             )
             raise se
 
+    async def record_tracking_activity(
+        self, *, account_id: IDType, ip_address: str | None, user_agent: str | None
+    ) -> None:
+        """
+        Record meta activity for an account.
+
+        Args:
+            account_id (IDType): The ID of the account.
+            ip_address (str | None): The IP address of the login activity.
+            user_agent (str | None): The user agent of the login activity.
+
+        Returns:
+            None
+        """
+
+        try:
+            account = await self.get_account_by(id=account_id)
+            if not account:
+                raise errors.AccountNotFoundError()
+
+            account.last_sign_in_at = account.current_sign_in_at
+            account.last_sign_in_ip = account.current_sign_in_ip
+            account.last_sign_in_user_agent = user_agent
+            account.current_sign_in_ip = ip_address
+            account.sign_in_count += 1
+
+            await self.account_repository.update(account.id, account)
+        except errors.DatabaseError as e:
+            logger.exception(
+                f"src.domain.services.account_service.record_tracking_activity:: error while recording tracking activity for account {account_id}: {e}",
+            )
+            raise errors.AccountUpdateError(
+                detail="Failed to record login activity",
+            ) from e
+        except errors.ServiceError as se:
+            logger.exception(
+                f"src.domain.services.account_service.record_tracking_activity:: error while recording tracking activity for account {account_id}: {se}",
+            )
+            raise se
+
     async def verify_account(self, id: IDType) -> bool:
         """
         Mark an account as verified.
@@ -261,7 +350,7 @@ class AccountService:
 
             await self.account_repository.update(
                 account.id,
-                AccountUpdate(is_verified=True, verified_at=datetime.now(UTC)),
+                AccountUpdate(is_verified=True, email_confirmed=True, verified_at=datetime.now(UTC)),
             )
             return True
         except errors.DatabaseError as e:

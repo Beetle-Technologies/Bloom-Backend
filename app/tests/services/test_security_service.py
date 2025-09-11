@@ -8,26 +8,25 @@ from src.core.exceptions import errors
 from src.core.types import GUID
 from src.domain.enums import AccountTypeEnum
 from src.domain.schemas import AuthSessionState
+from src.domain.services.security_service import SecurityService, security_service
 
-from app.src.domain.services.security_service import SecurityService, security_service
 
-
-class TestTokenService:
-    """Test cases for TokenService"""
+class TestSecurityService:
+    """Test cases for SecurityService"""
 
     def setup_method(self):
         """Setup method to create a fresh TokenService instance for each test."""
-        self.token_service = SecurityService()
+        self.security_service = SecurityService()
 
-    def test_token_service_singleton(self):
-        """Test that the global token_service instance works correctly."""
+    def test_security_service_singleton(self):
+        """Test that the global security_service instance works correctly."""
         assert security_service is not None
         assert isinstance(security_service, SecurityService)
 
     def test_create_jwt_token(self):
         """Test JWT token creation."""
         subject = "user123"
-        token = self.token_service.create_jwt_token(subject)
+        token = self.security_service.create_jwt_token(subject)
 
         assert token is not None
         assert isinstance(token, str)
@@ -40,18 +39,18 @@ class TestTokenService:
         """Test JWT token creation with custom expiry time."""
         subject = "user123"
         custom_expiry = timedelta(minutes=30)
-        token = self.token_service.create_jwt_token(subject=subject, expiry_time_in_secs=custom_expiry)
+        token = self.security_service.create_jwt_token(subject=subject, expiry_time_in_secs=custom_expiry)
 
         assert token is not None
-        payload = self.token_service.decode_jwt_token(token)
+        payload = self.security_service.decode_jwt_token(token)
         assert payload["sub"] == str(subject)
 
     def test_decode_valid_token(self):
         """Test decoding a valid JWT token."""
         subject = "user123"
-        token = self.token_service.create_jwt_token(subject)
+        token = self.security_service.create_jwt_token(subject)
 
-        payload = self.token_service.decode_jwt_token(token)
+        payload = self.security_service.decode_jwt_token(token)
 
         assert payload["sub"] == str(subject)
         assert "exp" in payload
@@ -63,18 +62,18 @@ class TestTokenService:
         invalid_token = "invalid.jwt.token"
 
         with pytest.raises(errors.InvalidTokenError):
-            self.token_service.decode_jwt_token(invalid_token)
+            self.security_service.decode_jwt_token(invalid_token)
 
     def test_decode_malformed_token(self):
         """Test decoding a malformed token."""
         malformed_token = "not-a-jwt"
 
         with pytest.raises(errors.InvalidTokenError):
-            self.token_service.decode_jwt_token(malformed_token)
+            self.security_service.decode_jwt_token(malformed_token)
 
     def test_generate_otp_secret(self):
         """Test OTP secret generation."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
 
         assert secret is not None
         assert isinstance(secret, str)
@@ -87,8 +86,8 @@ class TestTokenService:
 
     def test_generate_totp(self):
         """Test TOTP generation."""
-        secret = self.token_service.generate_otp_secret()
-        totp_code = self.token_service.generate_totp(secret)
+        secret = self.security_service.generate_otp_secret()
+        totp_code = self.security_service.generate_totp(secret)
 
         assert totp_code is not None
         assert isinstance(totp_code, str)
@@ -97,25 +96,25 @@ class TestTokenService:
 
     def test_verify_totp_valid(self):
         """Test TOTP verification with valid code."""
-        secret = self.token_service.generate_otp_secret()
-        totp_code = self.token_service.generate_totp(secret)
+        secret = self.security_service.generate_otp_secret()
+        totp_code = self.security_service.generate_totp(secret)
 
-        is_valid = self.token_service.verify_totp(totp_code, secret)
+        is_valid = self.security_service.verify_totp(totp_code, secret)
         assert is_valid is True
 
     def test_verify_totp_invalid(self):
         """Test TOTP verification with invalid code."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
         invalid_code = "000000"
 
-        is_valid = self.token_service.verify_totp(invalid_code, secret)
+        is_valid = self.security_service.verify_totp(invalid_code, secret)
         assert is_valid is False
 
     def test_generate_hotp(self):
         """Test HOTP generation."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
         counter = 1
-        hotp_code = self.token_service.generate_hotp(secret, counter)
+        hotp_code = self.security_service.generate_hotp(secret, counter)
 
         assert hotp_code is not None
         assert isinstance(hotp_code, str)
@@ -124,29 +123,29 @@ class TestTokenService:
 
     def test_verify_hotp_valid(self):
         """Test HOTP verification with valid code."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
         counter = 1
-        hotp_code = self.token_service.generate_hotp(secret, counter)
+        hotp_code = self.security_service.generate_hotp(secret, counter)
 
-        is_valid = self.token_service.verify_hotp(hotp_code, secret, counter)
+        is_valid = self.security_service.verify_hotp(hotp_code, secret, counter)
         assert is_valid is True
 
     def test_verify_hotp_invalid(self):
         """Test HOTP verification with invalid code."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
         counter = 1
         invalid_code = "000000"
 
-        is_valid = self.token_service.verify_hotp(invalid_code, secret, counter)
+        is_valid = self.security_service.verify_hotp(invalid_code, secret, counter)
         assert is_valid is False
 
     def test_get_totp_provisioning_uri(self):
         """Test TOTP provisioning URI generation."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
         account_name = "test@example.com"
         issuer_name = "Test App"
 
-        uri = self.token_service.get_otp_provisioning_uri(
+        uri = self.security_service.get_otp_provisioning_uri(
             secret=secret,
             account_name=account_name,
             issuer_name=issuer_name,
@@ -162,12 +161,12 @@ class TestTokenService:
 
     def test_get_hotp_provisioning_uri(self):
         """Test HOTP provisioning URI generation."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
         account_name = "test@example.com"
         issuer_name = "Test App"
         counter = 0
 
-        uri = self.token_service.get_otp_provisioning_uri(
+        uri = self.security_service.get_otp_provisioning_uri(
             secret=secret,
             account_name=account_name,
             issuer_name=issuer_name,
@@ -184,24 +183,24 @@ class TestTokenService:
 
     def test_get_hotp_provisioning_uri_without_counter_raises_error(self):
         """Test HOTP provisioning URI generation without counter raises error."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
         account_name = "test@example.com"
 
         with pytest.raises(ValueError, match="Counter is required for HOTP"):
-            self.token_service.get_otp_provisioning_uri(secret=secret, account_name=account_name, otp_type="hotp")
+            self.security_service.get_otp_provisioning_uri(secret=secret, account_name=account_name, otp_type="hotp")
 
     def test_unsupported_otp_type_raises_error(self):
         """Test unsupported OTP type raises error."""
-        secret = self.token_service.generate_otp_secret()
+        secret = self.security_service.generate_otp_secret()
         account_name = "test@example.com"
 
         with pytest.raises(ValueError, match="Unsupported OTP type"):
-            self.token_service.get_otp_provisioning_uri(secret=secret, account_name=account_name, otp_type="invalid")
+            self.security_service.get_otp_provisioning_uri(secret=secret, account_name=account_name, otp_type="invalid")
 
     def test_get_cryptographic_signer(self):
         """Test cryptographic signer creation."""
         context = "test_context"
-        signer = self.token_service.get_cryptographic_signer(context)
+        signer = self.security_service.get_cryptographic_signer(context)
 
         assert signer is not None
 
@@ -215,8 +214,8 @@ class TestTokenService:
     def test_cryptographic_signer_context_consistency(self):
         """Test that same context produces same signer."""
         context = "test_context"
-        signer1 = self.token_service.get_cryptographic_signer(context)
-        signer2 = self.token_service.get_cryptographic_signer(context)
+        signer1 = self.security_service.get_cryptographic_signer(context)
+        signer2 = self.security_service.get_cryptographic_signer(context)
 
         # Test that both signers can decrypt each other's data
         test_data = "test message"
@@ -227,7 +226,7 @@ class TestTokenService:
 
     def test_generate_random_token_default(self):
         """Test random token generation with default rounds."""
-        token = self.token_service.generate_random_token()
+        token = self.security_service.generate_random_token()
 
         assert token is not None
         assert isinstance(token, str)
@@ -236,7 +235,7 @@ class TestTokenService:
     def test_generate_random_token_custom_rounds(self):
         """Test random token generation with custom rounds."""
         rounds = 16
-        token = self.token_service.generate_random_token(rounds=rounds)
+        token = self.security_service.generate_random_token(rounds=rounds)
 
         assert token is not None
         assert isinstance(token, str)
@@ -244,24 +243,24 @@ class TestTokenService:
 
     def test_multiple_tokens_are_different(self):
         """Test that multiple generated tokens are different."""
-        token1 = self.token_service.generate_random_token()
-        token2 = self.token_service.generate_random_token()
+        token1 = self.security_service.generate_random_token()
+        token2 = self.security_service.generate_random_token()
 
         assert token1 != token2
 
-    @patch("src.domain.services.token_service.logger")
+    @patch("src.domain.services.security_service.logger")
     def test_verify_totp_with_exception_logs_error(self, mock_logger):
         """Test that TOTP verification logs errors when exceptions occur."""
         # Use invalid secret to trigger an exception
         invalid_secret = "invalid"
         token = "123456"
 
-        result = self.token_service.verify_totp(token, invalid_secret)
+        result = self.security_service.verify_totp(token, invalid_secret)
 
         assert result is False
         mock_logger.error.assert_called_once()
 
-    @patch("src.domain.services.token_service.logger")
+    @patch("src.domain.services.security_service.logger")
     def test_verify_hotp_with_exception_logs_error(self, mock_logger):
         """Test that HOTP verification logs errors when exceptions occur."""
         # Use invalid secret to trigger an exception
@@ -269,7 +268,7 @@ class TestTokenService:
         token = "123456"
         counter = 1
 
-        result = self.token_service.verify_hotp(token, invalid_secret, counter)
+        result = self.security_service.verify_hotp(token, invalid_secret, counter)
 
         assert result is False
         mock_logger.error.assert_called_once()
@@ -284,13 +283,13 @@ class TestTokenService:
         )
 
         # Create token with the session state
-        token = self.token_service.create_jwt_token(session_state)
+        token = self.security_service.create_jwt_token(session_state)
 
         # Decode token
-        decoded_token = self.token_service.decode_jwt_token(token)
+        decoded_token = self.security_service.decode_jwt_token(token)
 
         # Parse token data back into AuthSessionState
-        parsed_session_state = self.token_service.get_token_data(decoded_token, AuthSessionState)
+        parsed_session_state = self.security_service.get_token_data(decoded_token, AuthSessionState)
 
         # Verify the parsed data matches the original
         assert isinstance(parsed_session_state, AuthSessionState)
@@ -303,13 +302,13 @@ class TestTokenService:
         subject = "user123"
 
         # Create token with string subject
-        token = self.token_service.create_jwt_token(subject)
+        token = self.security_service.create_jwt_token(subject)
 
         # Decode token
-        decoded_token = self.token_service.decode_jwt_token(token)
+        decoded_token = self.security_service.decode_jwt_token(token)
 
         # Parse token data back to string
-        parsed_subject = self.token_service.get_token_data(decoded_token, str)
+        parsed_subject = self.security_service.get_token_data(decoded_token, str)
 
         # Verify the parsed data matches the original
         assert isinstance(parsed_subject, str)
@@ -321,7 +320,7 @@ class TestTokenService:
         decoded_token = {"exp": 1234567890, "iat": 1234567800}
 
         with pytest.raises(errors.InvalidTokenError):
-            self.token_service.get_token_data(decoded_token, str)
+            self.security_service.get_token_data(decoded_token, str)
 
     def test_get_token_data_with_validation_error(self):
         """Test get_token_data with Pydantic validation error."""
@@ -333,7 +332,7 @@ class TestTokenService:
         }
 
         with pytest.raises(errors.InvalidTokenError):
-            self.token_service.get_token_data(decoded_token, AuthSessionState)
+            self.security_service.get_token_data(decoded_token, AuthSessionState)
 
 
 class TestTokenServiceIntegration:

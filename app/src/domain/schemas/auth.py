@@ -1,7 +1,7 @@
 from typing import Annotated, Literal, Self
 
 import email_validator
-from pydantic import BaseModel, EmailStr, JsonValue, StringConstraints, model_validator
+from pydantic import BaseModel, EmailStr, Field, JsonValue, StringConstraints, model_validator
 from src.core.types import GUID, Password, PhoneNumber
 from src.domain.enums import AccountTypeEnum, AuthPreCheckTypeEnum, TokenVerificationRequestTypeEnum
 
@@ -44,7 +44,6 @@ class AuthRegisterRequest(BaseModel):
         phone_number (PhoneNumber | None): The phone number of the account holder.
         email (EmailStr): The email address of the account.
         password (Password): The password for the account.
-        type (AccountTypeEnum | None): The type of the account (e.g., ADMIN, USER).
     """
 
     first_name: Annotated[str, StringConstraints(min_length=1, max_length=255, strip_whitespace=True)]
@@ -52,7 +51,6 @@ class AuthRegisterRequest(BaseModel):
     email: EmailStr
     password: Password
     phone_number: PhoneNumber | None = None
-    type: AccountTypeEnum | None = None
     type_attributes: JsonValue | None = None
 
 
@@ -79,6 +77,19 @@ class AuthSessionToken(BaseModel):
     scope: Literal["access", "refresh"]
     token: str
     expires_in: int
+
+
+class AuthRegisterResponse(BaseModel):
+    """
+    Represents the response returned after a successful registration.
+
+    Attributes:
+        fid (str): The friendly identifier for the account.
+        is_verified (bool): Indicates if the account is verified.
+    """
+
+    fid: str = Field(..., description="The friendly identifier for the account")
+    is_verified: bool = Field(False, description="Indicates if the account is verified")
 
 
 class AuthSessionResponse(BaseModel):
