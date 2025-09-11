@@ -7,8 +7,8 @@ def get_limiter_storage(environment: str) -> Storage:
     """Get appropriate storage backend based on environment"""
     storage_map: dict[str, str] = {
         "local": "async+memory://",
-        "staging": f"async+{settings.REDIS_URL}",
-        "production": f"async+{settings.REDIS_URL}",
+        "staging": f"async+{settings.THROTTLER_REDIS_URL}",
+        "production": f"async+{settings.THROTTLER_REDIS_URL}",
     }
 
     if environment not in storage_map:

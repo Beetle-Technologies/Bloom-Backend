@@ -149,6 +149,25 @@ class Settings(BaseSettings):
             path=f"{self.REDIS_DB}",
         )
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def THROTTLER_REDIS_URL(self) -> RedisDsn:
+        if self.REDIS_PASSWORD:
+            return RedisDsn.build(
+                scheme="redis",
+                host=self.REDIS_HOST,
+                port=self.REDIS_PORT,
+                password=self.REDIS_PASSWORD,
+                path="2",
+            )
+
+        return RedisDsn.build(
+            scheme="redis",
+            host=self.REDIS_HOST,
+            port=self.REDIS_PORT,
+            path="2",
+        )
+
     CELERY_DEFAULT_TASKS_QUEUE: str = "bloom_default_tasks"
     CELERY_RECURRING_TASKS_QUEUE: str = "bloom_recurring_tasks"
 
