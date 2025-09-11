@@ -21,6 +21,7 @@ from src.domain.schemas import (
 from src.domain.services.account_service import AccountService
 from src.domain.services.account_type_info_service import AccountTypeInfoService
 from src.domain.services.permission_service import PermissionService
+from src.domain.services.request_service import request_service
 from src.domain.services.security_service import security_service
 from src.domain.services.token_service import TokenService
 from src.domain.tasks.mailer import send_email_task
@@ -41,6 +42,7 @@ class AuthService:
         self.token_service = TokenService(session=self.session)
         self.security_service = security_service
         self.cache_service = get_cache_service()
+        self.request_service = request_service
 
     CLIENT_TYPE_TO_ACCOUNT_TYPE_MAPPING: ClassVar[dict[ClientType, AccountTypeEnum]] = {
         ClientType.BLOOM_MAIN: AccountTypeEnum.USER,
@@ -144,6 +146,15 @@ class AuthService:
             raise errors.AccountCreationError(
                 detail=se.detail, status=se.status, meta=getattr(se, "meta", None)
             ) from se
+        except AssertionError as ae:
+            logger.error(
+                f"src.domain.services.auth_service.register:: AssertionError during registration for email {email}: {str(ae)}",
+                exc_info=True,
+            )
+            raise errors.AccountCreationError(
+                detail="Registration failed due to an unexpected error",
+                status=500,
+            ) from ae
         except Exception as e:
             logger.error(
                 f"src.domain.services.auth_service.register:: Unexpected error during registration for email {email}: {str(e)}",
@@ -189,6 +200,17 @@ class AuthService:
                 ip_address=ip_address,
                 user_agent=user_agent,
             )
+
+            # Check for suspicious login (IP address change) and send notification
+            if ip_address and account.last_sign_in_ip:
+                await self._send_suspicious_login_notification(
+                    account=account,
+                    client_type=client_type,
+                    current_ip_address=ip_address,
+                    previous_ip_address=account.last_sign_in_ip,
+                    user_agent=user_agent,
+                    login_time=datetime.now(UTC),
+                )
 
             expected_account_type = self.CLIENT_TYPE_TO_ACCOUNT_TYPE_MAPPING.get(client_type)
 
@@ -802,3 +824,55 @@ class AuthService:
 
         except Exception as e:
             logger.error(f"Failed to invalidate account cache: {str(e)}")
+
+    async def _send_suspicious_login_notification(
+        self,
+        *,
+        account,
+        client_type: ClientType,
+        current_ip_address: str | None,
+        previous_ip_address: str | None,
+        user_agent: str | None,
+        login_time: datetime,
+    ) -> None:
+        """
+        Send a suspicious login notification email when login is detected from a new IP address.
+
+        Args:
+            account: The account that was logged in to
+            client_type (ClientType): The type of client making the request
+            current_ip_address (str | None): The current IP address used for login
+            previous_ip_address (str | None): The previous IP address on record
+            user_agent (str | None): The user agent string
+            login_time (datetime): The time of the login attempt
+        """
+        try:
+            # Only send notification if we have both IP addresses and they're different
+            if not current_ip_address or not previous_ip_address or current_ip_address == previous_ip_address:
+                return
+
+            template_context = {
+                "first_name": account.first_name,
+                "email": account.email,
+                "client_type": client_type.value,
+                "current_ip_address": current_ip_address,
+                "previous_ip_address": previous_ip_address,
+                "user_agent": user_agent,
+                "login_time": login_time,
+                "location": await self.request_service.get_location(current_ip_address),
+            }
+
+            mailer_request = MailerRequest(
+                template_name="v1/auth/suspicious_login_notification.mjml.html",
+                template_context=template_context,
+                sender=settings.MAILER_DEFAULT_SENDER,
+                recipients=[account.email],
+                subject=f"Security Alert: New login to your {settings.APP_NAME} account",
+            )
+
+            send_email_task.delay(mailer_request)
+        except Exception as e:
+            logger.error(
+                f"Failed to send suspicious login notification for account {account.id}: {str(e)}",
+                exc_info=True,
+            )
