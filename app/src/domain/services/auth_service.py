@@ -9,7 +9,7 @@ from src.core.database.decorators import transactional
 from src.core.enums import ClientType
 from src.core.exceptions import errors
 from src.core.types import Password, PhoneNumber
-from src.domain.enums import AccountTypeEnum, TokenVerificationRequestTypeEnum
+from src.domain.enums import AccountTypeEnum, AuthPreCheckTypeEnum, TokenVerificationRequestTypeEnum
 from src.domain.schemas import (
     AuthPreCheckResponse,
     AuthRegisterResponse,
@@ -27,8 +27,6 @@ from src.domain.services.token_service import TokenService
 from src.domain.tasks.mailer import send_email_task
 from src.libs.cache import get_cache_service
 from src.libs.mailer import MailerRequest
-
-from app.src.domain.enums.auth import AuthPreCheckTypeEnum
 
 logger = logging.getLogger(__name__)
 

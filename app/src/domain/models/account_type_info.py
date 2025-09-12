@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, ClassVar, Dict
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, Optional
 
 from sqlalchemy import Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from src.domain.models import (
         Account,
         AccountTypeInfoPermission,
+        Address,
+        Attachment,
         BankingInfo,
         Cart,
         Notification,
@@ -55,6 +57,7 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
         "id",
         "account_id",
         "account_type_id",
+        "attachment_id",
         "attributes",
         "created_datetime",
         "updated_datetime",
@@ -62,6 +65,7 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
 
     account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
     account_type_id: GUID = Field(foreign_key="account_types.id", nullable=False, index=True)
+    attachment_id: Optional[GUID] = Field(foreign_key="attachments.id", nullable=True, index=True)
 
     attributes: Dict[str, Any] = Field(
         sa_column=Column(
@@ -82,6 +86,15 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
 
     account_type: "AccountType" = Relationship(back_populates="type_infos")
 
+    attachment: Optional["Attachment"] = Relationship(
+        sa_relationship_kwargs={
+            "lazy": "selectin",
+            "primaryjoin": "Attachment.id == AccountTypeInfo.attachment_id",
+            "foreign_keys": "[AccountTypeInfo.attachment_id]",
+            "uselist": False,
+        }
+    )
+
     permissions: list["AccountTypeInfoPermission"] = Relationship(
         sa_relationship_kwargs={
             "foreign_keys": "[AccountTypeInfoPermission.account_type_info_id]",
@@ -95,7 +108,10 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
 
     carts: list["Cart"] = Relationship(
         back_populates="account_type_info",
-        sa_relationship_kwargs={"foreign_keys": "[Cart.account_type_info_id]", "lazy": "selectin"},
+        sa_relationship_kwargs={
+            "foreign_keys": "[Cart.account_type_info_id]",
+            "lazy": "selectin",
+        },
     )
 
     notifications: list["Notification"] = Relationship(
@@ -120,6 +136,13 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
     )
 
     reviews: list["Review"] = Relationship(back_populates="account_type_info")
+
+    addresses: list["Address"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "Address.addressable_type == 'AccountTypeInfo' and Address.addressable_id == AccountTypeInfo.id",
+            "lazy": "selectin",
+        }
+    )
 
     def get_attribute(self, key: str, default: Any = None) -> Any:
         """

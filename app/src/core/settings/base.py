@@ -187,8 +187,8 @@ class Settings(BaseSettings):
 
     EMAILS_FROM_NAME: str | None = None
 
-    MAILER_DEFAULT_SENDER: EmailStr = "noreply@localhost"
-    SUPPORT_EMAIL: EmailStr = "support@localhost"
+    MAILER_DEFAULT_SENDER: EmailStr = "noreply@localhost.com"
+    SUPPORT_EMAIL: EmailStr = "support@localhost.com"
 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:

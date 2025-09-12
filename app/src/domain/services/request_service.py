@@ -1,10 +1,8 @@
-from functools import lru_cache
 from typing import Literal, Optional
 
 import httpx
 
 
-@lru_cache(maxsize=1)
 class RequestService:
     _instance: Optional["RequestService"] = None
 

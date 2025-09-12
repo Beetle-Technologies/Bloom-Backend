@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.exceptions import errors
-from src.domain.models import Token
+from src.domain.models.token import Token
 from src.domain.repositories import TokenRepository
 from src.domain.schemas import TokenCreate
 

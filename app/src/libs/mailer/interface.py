@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from src.libs.mailer.schemas import MailerRequest, MailerResponse
+from src.libs.mailer.schemas import MailerRequest, MailerResponse
 
 
 class EmailProvider(ABC):

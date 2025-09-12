@@ -103,7 +103,7 @@ def validate_bloom_client_header(
 
 
 auth_rate_limit = Depends(create_rate_limit_dependency("bloom_auth", "10/minute"))
-api_rate_limit = Depends(create_rate_limit_dependency("bloom_api", "100/minute"))
+api_rate_limit = Depends(create_rate_limit_dependency("bloom_api", "80/minute"))
 upload_rate_limit = Depends(create_rate_limit_dependency("bloom_uploads", "5/minute"))
 strict_rate_limit = Depends(create_rate_limit_dependency("bloom_strict", "5/minute"))
 per_minute_rate_limit = Depends(create_rate_limit_dependency("bloom_per_minute", "1/minute"))

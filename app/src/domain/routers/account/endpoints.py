@@ -1,11 +1,22 @@
-from fastapi import APIRouter
-from src.core.dependencies import api_rate_limit, is_bloom_client
+from typing import Annotated
 
-router = APIRouter(dependencies=[is_bloom_client])
+from fastapi import APIRouter, Depends, Request
+from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.database.session import get_db_session
+from src.core.dependencies import api_rate_limit, is_bloom_client, requires_eligible_account
+from src.core.types import BloomClientInfo
+from src.domain.schemas import AuthSessionState
+
+router = APIRouter()
 
 
 @router.get("/me", dependencies=[api_rate_limit])
-async def me():
+async def me(
+    request: Request,  # noqa: ARG001
+    request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
+    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
     """
     Get current user information
     """
