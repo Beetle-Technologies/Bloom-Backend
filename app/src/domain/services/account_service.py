@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -8,20 +7,25 @@ from fastapi import status
 from pydantic import EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
+from src.core.database.decorators import transactional
 from src.core.exceptions import errors
+from src.core.helpers.misc import call
+from src.core.logging import get_logger
 from src.core.types import IDType, Password, PhoneNumber
 from src.domain.models import Account
-from src.domain.repositories import AccountRepository
-from src.domain.schemas import AccountCreate, AccountUpdate
+from src.domain.repositories import AccountRepository, AccountTypeInfoRepository
+from src.domain.schemas import AccountBasicProfileResponse, AccountCreate, AccountUpdate
 from src.domain.services.security_service import security_service
+from src.libs.query_engine.schemas import BaseQueryEngineParams
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AccountService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.account_repository = AccountRepository(session=self.session)
+        self.account_type_info_repository = AccountTypeInfoRepository(session=self.session)
 
     async def get_account_by(self, **kwargs) -> Account | None:
         """
@@ -423,4 +427,140 @@ class AccountService:
             logger.exception(
                 f"src.domain.services.account_service.delete_account:: error while deleting account {id}: {se}",
             )
+            raise se
+
+    async def get_profile_by(self, id: IDType, type_info_id: IDType) -> AccountBasicProfileResponse:
+        """
+        Get account profile by ID.
+
+        Args:
+            id (IDType): The ID of the account.
+            type_info_id (IDType): The ID of the account type info.
+
+        Returns:
+            Account | None: The account if found, otherwise None.
+        """
+        try:
+            existing_account = await self.account_repository.find_one_by(id=id)
+            if not existing_account:
+                raise errors.AccountNotFoundError()
+
+            attachment = None
+            type_attributes = {}
+
+            type_info = await self.account_type_info_repository.find_one_by(
+                id=type_info_id,
+                params=BaseQueryEngineParams(
+                    include=["attachment"],
+                ),
+            )
+            if type_info and type_info.attributes:
+                type_attributes = type_info.attributes
+
+            if type_info and type_info.attachment:
+                attachment = type_info.attachment.get_presigned_url()  # type: ignore
+
+            assert existing_account.friendly_id is not None
+
+            return AccountBasicProfileResponse(
+                fid=existing_account.friendly_id,
+                first_name=existing_account.first_name,
+                last_name=existing_account.last_name,
+                email=existing_account.email,
+                username=existing_account.username,
+                phone_number=existing_account.phone_number,
+                attachment=attachment,
+                is_active=existing_account.is_active,
+                is_verified=existing_account.is_verified,
+                is_suspended=existing_account.is_suspended,
+                locked_at=existing_account.locked_at,
+                type_attributes=type_attributes,
+            )
+        except errors.ServiceError as se:
+            raise se
+        except AssertionError as ae:
+            logger.exception(
+                f"src.domain.services.account_service.get_profile_by:: assertion error while fetching profile for account {id}: {ae}",
+            )
+            raise errors.DatabaseError(detail="Failed to fetch account profile") from ae
+        except errors.DatabaseError as e:
+            logger.exception(
+                f"src.domain.services.account_service.get_profile_by:: error while fetching profile for account {id}: {e}",
+            )
+            raise errors.DatabaseError(detail="Failed to fetch account profile") from e
+
+    @transactional
+    async def update_profile_by(
+        self, id: IDType, type_info_id: IDType, profile_update: AccountUpdate | dict[str, Any]
+    ) -> AccountBasicProfileResponse:
+        """
+        Update account profile details.
+
+        Args:
+            id (IDType): The ID of the account to update.
+            type_info_id (IDType): The ID of the account type info.
+            profile_update (AccountUpdate): The account update data.
+
+        Returns:
+            AccountBasicProfileResponse: The updated account profile.
+        """
+
+        try:
+            account = await self.account_repository.find_one_by_or_none(id=id)
+            if not account:
+                raise errors.AccountNotFoundError()
+
+            update_account = await self.account_repository.update(id, profile_update)
+            if not update_account:
+                raise errors.AccountUpdateError(detail="Failed to update account profile")
+
+            type_attributes = call(profile_update, "type_attributes")
+            updated_type_attributes = {}
+            attachment = None
+
+            if type_attributes is not None:
+                type_info = await self.account_type_info_repository.find_one_by(
+                    id=type_info_id,
+                    params=BaseQueryEngineParams(
+                        include=["attachment"],
+                    ),
+                )
+
+                if type_info:
+                    updated_type_info_attributes = type_info.attributes or {}
+                    updated_type_info_attributes.update(type_attributes)
+
+                    updated_type_attributes.update(updated_type_info_attributes.copy())
+
+                    if type_info.attachment:
+                        attachment = type_info.attachment.get_presigned_url()  # type: ignore
+
+                    await self.account_type_info_repository.update(
+                        type_info.id,
+                        {"attributes": updated_type_info_attributes},
+                    )
+
+            return AccountBasicProfileResponse(
+                fid=update_account.friendly_id,  # type: ignore
+                first_name=update_account.first_name,
+                last_name=update_account.last_name,
+                email=update_account.email,
+                attachment=attachment,
+                username=update_account.username,
+                phone_number=update_account.phone_number,
+                is_active=update_account.is_active,
+                is_verified=update_account.is_verified,
+                is_suspended=update_account.is_suspended,
+                locked_at=update_account.locked_at,
+                type_attributes=updated_type_attributes,
+            )
+
+        except errors.DatabaseError as de:
+            logger.exception(
+                f"src.domain.services.account_service.update_profile_by:: error while updating profile for account {id}: {de!s}",
+            )
+            raise errors.AccountUpdateError(
+                detail="Failed to update account profile",
+            ) from de
+        except errors.ServiceError as se:
             raise se

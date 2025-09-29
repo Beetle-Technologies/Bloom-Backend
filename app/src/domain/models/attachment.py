@@ -16,7 +16,7 @@ class Attachment(GUIDMixin, FriendlyMixin, CreatedDateTimeMixin, DeletableMixin,
         id (GUID): The unique identifier for the attachment.
         friendly_id (str): A human-readable identifier for the attachment.
         name (str): The name identifier for the attachment (e.g., "avatar", "document").
-        record_type (str): The type of entity this attachment is associated with (e.g., account, product, etc.).
+        record_type (str): The type of entity this attachment is associated with (e.g., Account, Product, ProductItem etc.).
         record_id (UUID): The ID of the entity this attachment is associated with.
         blob_id (UUID): The ID of the blob containing the actual file data.
         created_datetime (datetime): When the attachment was created.

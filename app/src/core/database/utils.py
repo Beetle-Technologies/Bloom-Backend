@@ -1,5 +1,3 @@
-import logging
-
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 from sqlmodel import DDL, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -16,11 +14,12 @@ from src.core.database.triggers import (
     TOKEN_CLEANUP_TRIGGER,
     TOKEN_CLEANUP_TRIGGER_FUNCTION,
 )
+from src.core.logging import get_logger
 
 max_tries = 60 * 5  # 5 minutes
 wait_seconds = 1
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def init_db(db_engine: AsyncEngine) -> None:

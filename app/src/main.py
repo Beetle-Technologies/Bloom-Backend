@@ -6,34 +6,94 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi_problem.handler import add_exception_handler
 from src.core.config import settings
 from src.core.database.session import engine
 from src.core.database.utils import register_triggers
 from src.core.exceptions.handler import eh
-from src.core.middlewares import (
-    RequestThrottlerMiddleware,
-    RequestUtilsMiddleware,
-)
+from src.core.logging import get_logger, setup_exception_logging, setup_logging
+from src.core.middlewares import RequestThrottlerMiddleware, RequestUtilsMiddleware
 from src.core.openapi import OpenAPI
-from src.domain.routers import account_router, auth_router
+from src.domain.routers import account_router, attachment_router, auth_router, catalog_router, order_router
+
+setup_logging()
+setup_exception_logging()
+
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001
+    """
+    Application lifespan manager with enhanced logging.
+    """
     try:
+        logger.info("Application startup initiated", extra={"event_type": "app_startup_start"})
+
         await register_triggers()
+        logger.info(
+            "Database triggers registered",
+            extra={"event_type": "db_triggers_registered"},
+        )
+
+        logger.info(
+            "Application startup completed successfully",
+            extra={
+                "event_type": "app_startup_complete",
+                "environment": settings.ENVIRONMENT,
+                "app_version": settings.APP_VERSION,
+            },
+        )
 
         yield
+
+    except Exception as exc:
+        logger.error(
+            "Application startup failed",
+            exc_info=True,
+            extra={
+                "event_type": "app_startup_failed",
+                "exception_type": type(exc).__name__,
+                "exception_message": str(exc),
+            },
+        )
+        raise
     finally:
         try:
+            logger.info(
+                "Application shutdown initiated",
+                extra={"event_type": "app_shutdown_start"},
+            )
+
             await engine.dispose()
+            logger.info("Database engine disposed", extra={"event_type": "db_engine_disposed"})
+
+            logger.info(
+                "Application shutdown completed",
+                extra={"event_type": "app_shutdown_complete"},
+            )
+
         except TimeoutError:
-            print("Ungraceful shutdown")
+            logger.warning(
+                "Database shutdown timeout - ungraceful shutdown",
+                extra={"event_type": "db_shutdown_timeout"},
+            )
         except asyncio.CancelledError:
-            print("Graceful shutdown")
+            logger.info(
+                "Application shutdown cancelled - graceful shutdown",
+                extra={"event_type": "app_shutdown_cancelled"},
+            )
+        except Exception as exc:
+            logger.error(
+                "Error during application shutdown",
+                exc_info=True,
+                extra={
+                    "event_type": "app_shutdown_error",
+                    "exception_type": type(exc).__name__,
+                    "exception_message": str(exc),
+                },
+            )
 
 
 app = FastAPI(
@@ -47,33 +107,34 @@ app = FastAPI(
 
 add_exception_handler(app, eh, generic_swagger_defaults=False)
 
+
 openapi = OpenAPI()
 
 
 app.mount(
     "/static",
-    StaticFiles(directory=Path.joinpath(settings.BASE_DIR, "static")),
+    StaticFiles(directory=Path(settings.BASE_DIR) / "static"),
     name="static",
 )
 
+app.mount(
+    "/media",
+    StaticFiles(directory=Path(settings.FILE_STORAGE_MEDIA_ROOT)),
+    name="media",
+)
+
+# Middlewares
 if settings.BACKEND_CORS_ORIGINS:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS
-        ],
+        allow_origins=[str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
+
 if settings.ENVIRONMENT in ["production"]:
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=[
-            str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS
-        ],
-    )
     app.add_middleware(HTTPSRedirectMiddleware)
 
 
@@ -81,10 +142,13 @@ app.add_middleware(GZipMiddleware, compresslevel=5)
 app.add_middleware(RequestUtilsMiddleware)
 app.add_middleware(RequestThrottlerMiddleware)
 
+
 # Routers (V1)
-app.include_router(
-    account_router, prefix=f"{settings.api_v1_str}/accounts", tags=["Accounts"]
-)
+app.include_router(account_router, prefix=f"{settings.api_v1_str}/accounts", tags=["Accounts"])
+app.include_router(attachment_router, prefix=f"{settings.api_v1_str}/attachments", tags=["Attachments"])
 app.include_router(auth_router, prefix=f"{settings.api_v1_str}/auth", tags=["Auth"])
+app.include_router(catalog_router, prefix=f"{settings.api_v1_str}/catalog", tags=["Catalog"])
+app.include_router(order_router, prefix=f"{settings.api_v1_str}/orders", tags=["Orders"])
+
 
 openapi.setup(app)

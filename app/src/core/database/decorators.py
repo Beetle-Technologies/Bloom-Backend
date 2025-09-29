@@ -1,13 +1,13 @@
 import functools
 import inspect
-import logging
 from collections.abc import Callable, Coroutine
 from typing import Any, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database.transaction import Transaction, in_transaction
+from src.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 

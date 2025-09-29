@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import logging
-
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.logging import get_logger
 from src.domain.models.permission import Permission
 from src.domain.repositories.base_repository import BaseRepository
 from src.domain.schemas import PermissionCreate, PermissionUpdate
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PermissionRepository(BaseRepository[Permission, PermissionCreate, PermissionUpdate]):

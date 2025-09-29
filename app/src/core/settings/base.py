@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     AUTH_SECRET_KEY: str = secrets.token_hex(64)
     FRONTEND_URL: HttpUrl | str = "http://localhost:3000"
     AUTH_OTP_SECRET_KEY: str = base64.b32encode(secrets.token_bytes(32)).decode()
-    AUTH_OTP_MAX_AGE: int = 300  # 2 minutes
+    AUTH_OTP_MAX_AGE: int = 300  # 5 minutes
     AUTH_VERIFICATION_TOKEN_MAX_AGE: int = 60 * 60 * 24  # 24 hours
     BANKING_SECRET_KEY: str = secrets.token_urlsafe(32)
     AUTH_TOKEN_MAX_AGE: int = 60 * 60 * 8  # 8 hours
@@ -110,8 +110,8 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
-    POSTGRES_PASSWORD: str = ""
-    POSTGRES_DB: str = ""
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
@@ -168,6 +168,21 @@ class Settings(BaseSettings):
             path="2",
         )
 
+    FILE_STORAGE_BACKEND: Literal["local", "s3", "cloudinary"] = "local"
+    FILE_STORAGE_MEDIA_ROOT: str = str(Path(BASE_DIR) / "uploads")
+    FILE_MAX_SIZE: int = 1024 * 1024 * 50  # 50 MB
+    FILE_STORAGE_PRESIGNGED_EXPIRY_TIME: int = 7200  # 2 hour
+    FILE_STORAGE_GENERATE_THUMBNAILS: bool = True
+    FILE_STORAGE_S3_BUCKET_NAME: str | None = None
+    FILE_STORAGE_S3_REGION_NAME: str | None = None
+    FILE_STORAGE_S3_ACCESS_KEY_ID: str | None = None
+    FILE_STORAGE_S3_SECRET_ACCESS_KEY: str | None = None
+    FILE_STORAGE_S3_ENDPOINT_URL: str | None = None
+    FILE_STORAGE_CLOUDINARY_CLOUD_NAME: str | None = None
+    FILE_STORAGE_CLOUDINARY_API_KEY: str | None = None
+    FILE_STORAGE_CLOUDINARY_API_SECRET: str | None = None
+    FILE_STORAGE_CLOUDINARY_UPLOAD_PRESET: str | None = None
+
     CELERY_DEFAULT_TASKS_QUEUE: str = "bloom_default_tasks"
     CELERY_RECURRING_TASKS_QUEUE: str = "bloom_recurring_tasks"
 
@@ -219,6 +234,31 @@ class Settings(BaseSettings):
         self._check_default_secret("SECRET_KEY", self.AUTH_SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret("OPENAPI_PASSWORD", self.OPENAPI_PASSWORD)
+
+        return self
+
+    @model_validator(mode="after")
+    def _enforce_file_storage_config(self) -> Self:
+        if self.FILE_STORAGE_BACKEND not in ["local", "s3", "cloudinary"]:
+            raise ValueError(f"Unsupported file storage backend: {self.FILE_STORAGE_BACKEND}")
+
+        if self.FILE_STORAGE_BACKEND == "local":
+            Path(self.FILE_STORAGE_MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
+        elif self.FILE_STORAGE_BACKEND == "s3":
+            if (
+                not self.FILE_STORAGE_S3_BUCKET_NAME
+                or not self.FILE_STORAGE_S3_REGION_NAME
+                or not self.FILE_STORAGE_S3_ACCESS_KEY_ID
+                or not self.FILE_STORAGE_S3_SECRET_ACCESS_KEY
+            ):
+                raise ValueError("S3 configuration is incomplete. Please check S3 settings.")
+        elif self.FILE_STORAGE_BACKEND == "cloudinary":
+            if (
+                not self.FILE_STORAGE_CLOUDINARY_CLOUD_NAME
+                or not self.FILE_STORAGE_CLOUDINARY_API_KEY
+                or not self.FILE_STORAGE_CLOUDINARY_API_SECRET
+            ):
+                raise ValueError("Cloudinary configuration is incomplete. Please check Cloudinary settings.")
 
         return self
 

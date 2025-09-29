@@ -12,8 +12,10 @@ from src.core.database.session import get_db_session
 from src.core.exceptions import errors
 from src.core.helpers.request import get_client_ip, parse_bloom_client_header
 from src.core.types import BloomClientInfo
+from src.domain.repositories import AccountTypeInfoRepository
 from src.domain.schemas import AuthSessionState
 from src.domain.services import AccountService, TokenService, security_service
+from src.libs.storage import StorageService, storage_service
 from src.libs.throttler import limiter
 
 
@@ -23,6 +25,17 @@ def get_security_schemes() -> tuple[HTTPBearer, OAuth2PasswordBearer]:
         HTTPBearer(),
         OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_str}/auth/login"),
     )
+
+
+@lru_cache(maxsize=1)
+def get_storage_service() -> StorageService:
+    """
+    Dependency to get the storage service instance.
+
+    Returns:
+        The storage service instance
+    """
+    return storage_service
 
 
 def create_rate_limit_dependency(
@@ -84,11 +97,14 @@ def create_rate_limit_dependency(
 
 
 def validate_bloom_client_header(
-    x_bloom_client: str = Header(None, alias="X-Bloom-Client", example="bloom_client")
+    x_bloom_client: str = Header(
+        None,
+        alias="X-Bloom-Client",
+        example="platform=web; version=1.0.0; app=bloom-main",
+    )
 ) -> BloomClientInfo:
     """
     Validate and parse the X-Bloom-Client header.
-    For OpenAPI docs endpoints, provides a default header value.
 
     Args:
         x_bloom_client (str): The X-Bloom-Client header value
@@ -97,17 +113,105 @@ def validate_bloom_client_header(
         BloomClientInfo: Parsed client information
     """
     if not x_bloom_client:
-        raise errors.InvalidClienTypeError(detail="X-Bloom-Client header is required")
+        raise errors.InvalidClientTypeError()
 
     return parse_bloom_client_header(x_bloom_client)
 
 
+def validate_bloom_user_client(
+    bloom_client: Annotated[BloomClientInfo, Depends(validate_bloom_client_header)],
+) -> BloomClientInfo:
+    """
+    Validate that the Bloom client is a user client.
+
+    Args:
+        bloom_client (BloomClientInfo): The parsed Bloom client information
+
+    Returns:
+        BloomClientInfo: The validated user client information
+
+    Raises:
+        InvalidClienTypeError: If the client is not a user client
+    """
+    if not bloom_client.is_user_client():
+        raise errors.InvalidClientTypeError()
+
+    return bloom_client
+
+
+def validate_is_not_bloom_user_client(
+    bloom_client: Annotated[BloomClientInfo, Depends(validate_bloom_client_header)],
+) -> BloomClientInfo:
+    """
+    Validate that the Bloom client is not a user client.
+    """
+    if bloom_client.is_user_client():
+        raise errors.InvalidClientTypeError()
+
+    return bloom_client
+
+
+def validate_is_bloom_supplier_client(
+    bloom_client: Annotated[BloomClientInfo, Depends(validate_bloom_client_header)],
+) -> BloomClientInfo:
+    """
+    Validate that the Bloom client is a supplier client.
+    """
+    if not bloom_client.is_supplier_client():
+        raise errors.InvalidClientTypeError()
+
+    return bloom_client
+
+
+def validate_is_bloom_seller_client(
+    bloom_client: Annotated[BloomClientInfo, Depends(validate_bloom_client_header)],
+) -> BloomClientInfo:
+    """
+    Validate that the Bloom client is a seller client.
+    """
+    if not bloom_client.is_seller_client():
+        raise errors.InvalidClientTypeError()
+
+    return bloom_client
+
+
+def validate_is_bloom_admin_client(
+    bloom_client: Annotated[BloomClientInfo, Depends(validate_bloom_client_header)],
+) -> BloomClientInfo:
+    """
+    Validate that the Bloom client is an admin client.
+    """
+    if not bloom_client.is_admin_client():
+        raise errors.InvalidClientTypeError()
+
+    return bloom_client
+
+
+def validate_is_either_bloom_supplier_or_seller_client(
+    bloom_client: Annotated[BloomClientInfo, Depends(validate_bloom_client_header)],
+) -> BloomClientInfo:
+    """
+    Validate that the Bloom client is either a supplier or seller client.
+    """
+    if not (bloom_client.is_supplier_client() or bloom_client.is_seller_client()):
+        raise errors.InvalidClientTypeError()
+
+    return bloom_client
+
+
 auth_rate_limit = Depends(create_rate_limit_dependency("bloom_auth", "10/minute"))
 api_rate_limit = Depends(create_rate_limit_dependency("bloom_api", "80/minute"))
+medium_api_rate_limit = Depends(create_rate_limit_dependency("bloom_medium_api", "20/minute"))
 upload_rate_limit = Depends(create_rate_limit_dependency("bloom_uploads", "5/minute"))
 strict_rate_limit = Depends(create_rate_limit_dependency("bloom_strict", "5/minute"))
 per_minute_rate_limit = Depends(create_rate_limit_dependency("bloom_per_minute", "1/minute"))
 is_bloom_client = Depends(validate_bloom_client_header)
+is_bloom_user_client = Depends(validate_bloom_user_client)
+is_bloom_supplier_client = Depends(validate_is_bloom_supplier_client)
+is_bloom_seller_client = Depends(validate_is_bloom_seller_client)
+is_bloom_admin_client = Depends(validate_is_bloom_admin_client)
+is_not_bloom_user_client = Depends(validate_is_not_bloom_user_client)
+is_either_bloom_supplier_or_seller_client = Depends(validate_is_either_bloom_supplier_or_seller_client)
 
 
 async def requires_authenticated_account(
@@ -199,7 +303,7 @@ def require_eligible_user_account(
     return auth_state
 
 
-def require_eligible_business_account(
+def require_eligible_seller_account(
     auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
 ) -> AuthSessionState:
     """
@@ -243,6 +347,27 @@ def require_eligible_supplier_account(
     return auth_state
 
 
+def require_eligible_supplier_or_seller_account(
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
+) -> AuthSessionState:
+    """
+    Dependency to ensure the authenticated account is a verified supplier or seller account.
+
+    Args:
+        auth_state (AuthSessionState): The authenticated session state
+
+    Returns:
+        AuthSessionState: The verified supplier or seller account session state
+    """
+    if not (auth_state.type.is_supplier() or auth_state.type.is_business()):
+        raise errors.AccountIneligibleError(
+            detail="Account is not a supplier or seller account",
+            meta={"account_type": auth_state.type.value},
+        )
+
+    return auth_state
+
+
 def require_eligible_admin_account(
     auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
 ) -> AuthSessionState:
@@ -260,6 +385,101 @@ def require_eligible_admin_account(
         raise errors.AccountIneligibleError(
             detail="Account is not an admin account",
             meta={"account_type": auth_state.type.value},
+        )
+
+    return auth_state
+
+
+def require_permissions(scopes: list[str], all_required: bool = True):
+    """
+    Create a dependency to require specific permissions for the authenticated account's type info.
+
+    Args:
+        required_scopes (list[str]): List of permission scopes required (e.g., ['users:read', 'products:create'])
+        all_required (bool): Whether to require "all" of the permissions or "any" of them. Defaults to True.
+
+    Returns:
+        Dependency function that can be used with FastAPI routes
+    """
+
+    async def dependency(
+        auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
+        session: Annotated[AsyncSession, Depends(get_db_session)],
+    ) -> AuthSessionState:
+        """
+        Dependency function to check permissions.
+
+        Args:
+            auth_state (AuthSessionState): The authenticated session state
+            session (AsyncSession): The database session
+
+        Returns:
+            AuthSessionState: The session state if permissions are granted
+
+        Raises:
+            InvalidPermissionError: If the required permissions are not granted
+        """
+        repo = AccountTypeInfoRepository(session)
+        type_info = await repo.find_one_by(auth_state.type_info_id)
+
+        if not type_info:
+            raise errors.InvalidPermissionError(
+                detail="Account type info not found",
+            )
+
+        if all_required:
+            for scope in scopes:
+                if not type_info.has_permission(scope):
+                    raise errors.InvalidPermissionError(
+                        detail=f"You are missing required permission scope {scope}",
+                    )
+        else:
+            if not any(type_info.has_permission(scope) for scope in scopes):
+                raise errors.InvalidPermissionError(
+                    detail="You don't have any of the required permission scopes",
+                )
+
+        return auth_state
+
+    return dependency
+
+
+async def require_noauth_or_eligible_account(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(get_security_schemes()[0])],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AuthSessionState | None:
+    """
+    Dependency that requires an eligible account or an account that is not authenticated
+    """
+
+    if not credentials or not credentials.credentials:
+        return None
+
+    token = credentials.credentials
+
+    decoded_token = security_service.decode_jwt_token(token)
+    auth_state = security_service.get_token_data(decoded_token, AuthSessionState)
+
+    token_service = TokenService(session=session)
+    is_valid = await token_service.is_token_valid(token=token)
+
+    if not is_valid:
+        raise errors.InvalidTokenError()
+
+    account_service = AccountService(session=session)
+    account = await account_service.get_account_by(id=auth_state.id)
+
+    if not account:
+        raise errors.AccountNotFoundError()
+
+    if not account.is_eligible():
+        raise errors.AccountIneligibleError(
+            meta={
+                "is_verified": account.is_verified,
+                "is_active": account.is_active,
+                "is_suspended": account.is_suspended,
+                "is_locked": account.is_locked(),
+            }
         )
 
     return auth_state

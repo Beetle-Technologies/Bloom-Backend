@@ -27,7 +27,7 @@ from .base import (  # noqa: F401
     ServiceError,
     UnauthorizedError,
 )
-from .client import InvalidClienTypeError, UnsupportedAppError, UnsupportedClientPlatformError  # noqa: F401
+from .client import InvalidClientTypeError, UnsupportedAppError, UnsupportedClientPlatformError  # noqa: F401
 from .csrf import CSRFError  # noqa: F401
 from .database import DatabaseError  # noqa: F401
 
@@ -51,7 +51,7 @@ __all__ = [
     "RateLimitExceededError",
     "ServiceError",
     "UnauthorizedError",
-    "InvalidClienTypeError",
+    "InvalidClientTypeError",
     "UnsupportedAppError",
     "UnsupportedClientPlatformError",
     "CSRFError",

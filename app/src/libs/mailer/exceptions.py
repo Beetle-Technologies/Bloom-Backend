@@ -1,8 +1,8 @@
 from fastapi import status
-from fastapi_problem.error import StatusProblem
+from src.core.exceptions import errors
 
 
-class MailerError(StatusProblem):
+class MailerError(errors.ServiceError):
     """Base error for mailer related issues"""
 
     type_ = "mailer_error"

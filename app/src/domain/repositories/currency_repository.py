@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import logging
-
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.logging import get_logger
 from src.domain.models.currency import Currency
 from src.domain.repositories.base_repository import BaseRepository
 from src.domain.schemas import CurrencyCreate, CurrencyUpdate
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CurrencyRepository(BaseRepository[Currency, CurrencyCreate, CurrencyUpdate]):

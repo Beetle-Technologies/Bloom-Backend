@@ -1,4 +1,3 @@
-import logging
 from datetime import UTC, datetime, timedelta
 from typing import ClassVar, Literal
 
@@ -8,6 +7,7 @@ from src.core.config import settings
 from src.core.database.decorators import transactional
 from src.core.enums import ClientType
 from src.core.exceptions import errors
+from src.core.logging import get_logger
 from src.core.types import Password, PhoneNumber
 from src.domain.enums import AccountTypeEnum, AuthPreCheckTypeEnum, TokenVerificationRequestTypeEnum
 from src.domain.schemas import (
@@ -15,6 +15,7 @@ from src.domain.schemas import (
     AuthRegisterResponse,
     AuthSessionResponse,
     AuthSessionState,
+    AuthUserSessionResponse,
     CachedAccountData,
     TokenCreate,
 )
@@ -28,7 +29,7 @@ from src.domain.tasks.mailer import send_email_task
 from src.libs.cache import get_cache_service
 from src.libs.mailer import MailerRequest
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AuthService:
@@ -274,6 +275,131 @@ class AuthService:
                 status=500,
             ) from e
 
+    async def send_code_for_session(
+        self,
+        *,
+        client_type: ClientType,
+        fid: str,
+    ) -> None:
+        """
+        Request an email verification to be sent to the specified email address.
+
+        Args:
+            email (EmailStr): The email address to send the verification to.
+
+        Raises:
+            ServiceError: If there is an error during the process.
+        """
+        try:
+            account = await self.account_service.get_account_by(friendly_id=fid)
+            if not account:
+                return
+
+            token = self.security_service.generate_totp()
+
+            await self.account_service.update_account(
+                id=account.id,
+                account_update={
+                    "confirmation_token": token,
+                    "confirmation_token_sent_at": datetime.now(UTC),
+                },
+            )
+
+            send_email_task.delay(
+                payload=MailerRequest(
+                    subject="Request a new session",
+                    sender=settings.MAILER_DEFAULT_SENDER,
+                    recipients=[account.email],
+                    template_name="v1/auth/request_new_session.mjml.html",
+                    template_context={
+                        "first_name": account.first_name,
+                        "email": account.email,
+                        "token": token,
+                        "validity_time": (settings.AUTH_OTP_MAX_AGE // 60),
+                        "client_type": client_type.value,
+                    },
+                )
+            )
+        except errors.ServiceError as se:
+            logger.error(
+                f"src.domain.services.auth_service.send_code_for_session:: ServiceError: {se.detail}",
+                exc_info=True,
+            )
+            raise se
+        except Exception as e:
+            logger.error(
+                f"src.domain.services.auth_service.send_code_for_session:: Unexpected error: {str(e)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Failed to send session OTP",
+                status=500,
+            ) from e
+
+    async def verify_code_for_session(
+        self,
+        *,
+        token: str,
+    ) -> None:
+        """
+        Verify the email address using the provided token.
+
+        Args:
+            token (str): The verification token received by the user.
+
+        Raises:
+            VerificationError: If the token is invalid or verification fails.
+            ServiceError: If there is an error during the process.
+        """
+
+        try:
+            otp = self.security_service.verify_totp(token=token)
+
+            if not otp:
+                raise errors.InvalidOTPError()
+
+            account = await self.account_service.get_account_by(confirmation_token=token)
+            if not account:
+                raise errors.AccountNotFoundError()
+
+            if (
+                not account.confirmation_token_sent_at
+                or (datetime.now(UTC) - account.confirmation_token_sent_at).total_seconds() > settings.AUTH_OTP_MAX_AGE
+            ):
+                raise errors.InvalidOTPError()
+
+            if not account.is_verified:
+                updated_account = await self.account_service.update_account(
+                    id=account.id,
+                    account_update={
+                        "is_verified": True,
+                        "confirmation_token": None,
+                        "confirmation_token_sent_at": None,
+                        "email_confirmed": True,
+                        "is_active": True,
+                        "confirmed_at": datetime.now(UTC),
+                    },
+                )
+
+                if updated_account:
+                    await self._cache_verified_account(updated_account)
+
+        except errors.ServiceError as se:
+            logger.error(
+                f"src.domain.services.auth_service.verify_code_for_session:: ServiceError: {se.detail}",
+                exc_info=True,
+            )
+            raise se
+        except Exception as e:
+            logger.error(
+                f"src.domain.services.auth_service.verify_code_for_session:: Unexpected error: {str(e)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Failed to verify session OTP",
+                status=500,
+            ) from e
+
     async def request_email_verification(
         self,
         *,
@@ -293,11 +419,9 @@ class AuthService:
         try:
             account = await self.account_service.get_account_by(friendly_id=fid)
             if not account:
-                # To prevent user enumeration, we do not disclose whether the email exists.
                 return
 
             if account.is_verified:
-                # If already verified, no action is needed.
                 return
 
             token: str | None = None
@@ -565,6 +689,163 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Pre-check operation failed",
+                status=500,
+            ) from e
+
+    @transactional
+    async def request_new_session(
+        self,
+        *,
+        first_name: str | None,
+        last_name: str | None,
+        email: EmailStr,
+        password: Password | None,
+        otp: str | None,
+        mode: Literal["register", "trigger_login", "login"],
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> AuthUserSessionResponse | None:
+        """
+        Request a new authentication session by creating a new account and logging in.
+
+        Args:
+            first_name (str): The first name of the
+            last_name (str): The last name of the user
+            email (EmailStr): The email address of the user
+            password (Password): The password for the account
+            otp (str | None): The OTP for email verification (if required)
+            mode (Literal["register", "trigger_login", "login"]): The mode of operation
+            ip_address (str | None): The IP address of the user (optional)
+            user_agent (str | None): The user agent string (optional)
+
+        Returns:
+            AuthSessionResponse: The authentication session details with access and refresh tokens.
+
+        Raises:
+            ServiceError: If there is an error during the process.
+        """
+        try:
+
+            if first_name and last_name and email and password and mode == "register":
+                existing_account = await self.account_service.get_account_by(email=email)
+                if existing_account:
+                    raise errors.AccountCreationError(
+                        detail="An account with this email already exists",
+                        status=400,
+                    )
+
+                account = await self.account_service.create_account(
+                    first_name=first_name,
+                    last_name=last_name,
+                    username=None,
+                    email=email,
+                    password=password,
+                    phone_number=None,
+                )
+
+                account_type_info = await self.account_type_info_service.create_account_type_info(
+                    account_id=account.id,
+                    account_type=AccountTypeEnum.USER,
+                )
+
+                await self.permission_service.assign_permissions_to_account_type_info(
+                    account_type_info_id=account_type_info.id,
+                    account_type=AccountTypeEnum.USER,
+                    assigned_by=None,
+                )
+
+                await self.account_service.record_tracking_activity(
+                    account_id=account.id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                )
+
+                assert account.friendly_id is not None
+
+                return None
+            elif email and mode == "trigger_login":
+                account = await self.account_service.get_account_by(email=email)
+                if not account:
+                    raise errors.AuthenticationError(
+                        detail="Account not found",
+                        status=404,
+                    )
+
+                await self.send_code_for_session(
+                    client_type=ClientType.BLOOM_MAIN,
+                    fid=account.friendly_id,  # type: ignore
+                )
+
+                return None
+            elif email and otp and mode == "login":
+                account = await self.account_service.get_account_by(email=email)
+                if not account:
+                    raise errors.AuthenticationError(
+                        detail="Account not found",
+                        status=404,
+                    )
+
+                await self.verify_code_for_session(token=otp)
+
+                account_type_info = account.get_account_type_infos(account_type=AccountTypeEnum.USER)
+                if not account_type_info:
+                    raise errors.AuthenticationError(
+                        detail="Account not found",
+                        status=403,
+                    )
+
+                auth_session_state = AuthSessionState(
+                    id=account.id,
+                    type_info_id=account_type_info.id,
+                    type=AccountTypeEnum.USER,
+                )
+
+                auth_tokens = self.security_service.generate_auth_tokens(auth_session_state)
+
+                access_token = next((t for t in auth_tokens if t.scope == "access"), None)
+                if not access_token:
+                    raise errors.ServiceError(
+                        detail="Failed to generate access token",
+                        status=500,
+                    )
+
+                await self.token_service.bulk_create_if_not_exists(
+                    tokens=[
+                        TokenCreate(
+                            token=access_token.token,
+                            deleted_datetime=datetime.now(UTC) + timedelta(seconds=access_token.expires_in),
+                        )
+                    ]
+                )
+
+                return AuthUserSessionResponse(token=access_token)
+            else:
+                raise errors.ServiceError(
+                    detail="Invalid registration or OTP for login",
+                    status=400,
+                )
+        except errors.ServiceError as se:
+            logger.error(
+                f"src.domain.services.auth_service.request_new_session:: ServiceError during new session request for email {email}: {se.detail}",
+                exc_info=True,
+            )
+            raise se
+        except AssertionError as ae:
+            logger.error(
+                f"src.domain.services.auth_service.request_new_session:: AssertionError during new session request for email {email}: {str(ae)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Failed to create new session due to an unexpected error",
+                status=500,
+            ) from ae
+        except Exception as e:
+            logger.error(
+                f"src.domain.services.auth_service.request_new_session:: Unexpected error during new session request for email {email}: {str(e)}",
+                exc_info=True,
+            )
+            raise errors.ServiceError(
+                detail="Failed to create new session due to an unexpected error",
                 status=500,
             ) from e
 

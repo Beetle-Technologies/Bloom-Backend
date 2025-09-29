@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, Self
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, JsonValue, model_validator
 from src.core.helpers import optional
 from src.core.types import GUID, Password, PhoneNumber
 
@@ -46,7 +46,8 @@ class AccountCreate(AccountBase):
 
 @optional
 class AccountUpdate(AccountBase):
-    pass
+
+    type_attributes: JsonValue | None = None
 
 
 class AccountResponse(BaseModel):
@@ -96,3 +97,20 @@ class AccountTypeUpdate(AccountTypeCreate):
     """Schema for updating an existing account type."""
 
     pass
+
+
+class AccountBasicProfileResponse(BaseModel):
+    """Schema for account profile response data."""
+
+    fid: str = Field(..., description="Unique friendly identifier for the account")
+    first_name: str
+    last_name: str
+    email: EmailStr
+    username: str | None
+    phone_number: PhoneNumber | None
+    attachment: Optional[str] = Field(None, description="URL to the profile attachment")
+    is_active: bool
+    is_verified: bool
+    is_suspended: bool
+    locked_at: datetime | None = None
+    type_attributes: JsonValue = Field(..., description="Attributes related to the account type")

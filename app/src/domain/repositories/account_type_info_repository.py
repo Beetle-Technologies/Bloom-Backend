@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.logging import get_logger
 from src.core.types import GUID
 from src.domain.models.account_type_info import AccountTypeInfo
 from src.domain.repositories.base_repository import BaseRepository
@@ -12,7 +12,7 @@ from src.domain.schemas import AccountTypeInfoCreate, AccountTypeInfoUpdate
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AccountTypeInfoRepository(BaseRepository[AccountTypeInfo, AccountTypeInfoCreate, AccountTypeInfoUpdate]):

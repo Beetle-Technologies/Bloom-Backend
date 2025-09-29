@@ -47,7 +47,15 @@ class CountryUpdate(CountryCreate):
 class CountryResponse(CountryBase):
     """Schema for country responses."""
 
-    id: str  # UUID as string
+    id: UUID
 
     class Config:
         from_attributes = True
+
+
+class CountryBasicResponse(BaseModel):
+    """Basic schema for country responses."""
+
+    id: UUID
+    name: CountryEnum
+    is_active: bool

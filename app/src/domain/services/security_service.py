@@ -1,6 +1,5 @@
 import base64
 import json
-import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Type, TypeVar
@@ -15,12 +14,15 @@ from passlib.context import CryptContext
 from passlib.exc import UnknownHashError
 from pydantic import BaseModel, ValidationError
 from src.core.config import settings
+from src.core.constants import SPECIAL_CHARS
 from src.core.exceptions import errors
+from src.core.logging import get_logger
+from src.core.types import Password
 
 if TYPE_CHECKING:
     from src.domain.schemas.auth import AuthSessionState, AuthSessionToken
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 ALGORITHM = "HS256"
 
@@ -152,6 +154,36 @@ class SecurityService:
             logger.error(f"Failed to parse token data into {target_type.__name__}: {error}")
             raise errors.InvalidTokenError() from error
 
+    def generate_deterministic_password(self, src: str) -> Password:
+        """
+        Generate a secure deterministic password that meets the `Password` criteria from the source string.
+
+        Args:
+            length: Length of the generated password
+
+        Returns:
+            Randomly generated password string that contains at least one uppercase letter, one lowercase letter, one digit, and one special character.
+        """
+
+        seed = sum(ord(char) for char in src) + len(src)
+        rng = secrets.SystemRandom(seed)
+
+        while True:
+            password_chars = [
+                rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),  # At least one uppercase letter
+                rng.choice("abcdefghijklmnopqrstuvwxyz"),  # At least one lowercase letter
+                rng.choice("0123456789"),  # At least one digit
+                rng.choice(list(SPECIAL_CHARS)),  # At least one special character
+            ]
+
+            rng.shuffle(password_chars)
+            password = "".join(password_chars)
+
+            try:
+                return Password(password)
+            except Exception:
+                continue
+
     def get_cryptographic_signer(self, context: str) -> Fernet:
         """
         Get Fernet signer for encrypting/decrypting tokens.
@@ -246,6 +278,7 @@ class SecurityService:
 
     def generate_totp(
         self,
+        digits: int = 4,
         secret: str = settings.AUTH_OTP_SECRET_KEY,
         interval: int = settings.AUTH_OTP_MAX_AGE,
     ) -> str:
@@ -259,7 +292,7 @@ class SecurityService:
         Returns:
             4-digit OTP string
         """
-        totp = pyotp.TOTP(secret, digits=4, interval=interval)
+        totp = pyotp.TOTP(secret, digits=digits, interval=interval)
         return totp.now()
 
     def verify_totp(

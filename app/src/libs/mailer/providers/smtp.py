@@ -1,10 +1,10 @@
-import logging
 import smtplib
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import make_msgid
 
+from src.core.logging import get_logger
 from src.core.mjml import mjml_templates
 from src.libs.mailer.exceptions import (
     MailerConnectionError,
@@ -15,7 +15,7 @@ from src.libs.mailer.exceptions import (
 from src.libs.mailer.interface import EmailProvider
 from src.libs.mailer.schemas import MailerRequest, MailerResponse, SMTPConfiguration
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SMTPProvider(EmailProvider):

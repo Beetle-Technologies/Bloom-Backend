@@ -1,12 +1,12 @@
-import logging
 from typing import Any
 
 from src.core.config import settings
+from src.core.logging import get_logger
 from src.libs.mailer.interface import EmailProvider
 from src.libs.mailer.providers.smtp import SMTPProvider
 from src.libs.mailer.schemas import SMTPConfiguration
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MailerFactory:
@@ -64,7 +64,7 @@ class MailerFactory:
         smtp_provider = MailerFactory.create_provider("smtp", smtp_config)
 
         if provider_type == "aws_ses":
-            logging.warning("src.libs.mailer.factory.get_configured_provider:: Reverting to smtp provider")
+            logger.warning("src.libs.mailer.factory.get_configured_provider:: Reverting to smtp provider")
             return smtp_provider
 
         return smtp_provider

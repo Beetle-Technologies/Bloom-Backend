@@ -1,13 +1,13 @@
 import asyncio
 import functools
 import hashlib
-import logging
 from typing import Any, Callable, Optional, ParamSpec, TypeVar
 
+from src.core.logging import get_logger
 from src.libs.cache.factory import CacheFactory
 from src.libs.cache.interface import CacheProvider
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 P = ParamSpec("P")
 T = TypeVar("T")

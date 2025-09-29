@@ -1,10 +1,10 @@
-import logging
 from contextvars import ContextVar
 from typing import Self
 
 from sqlalchemy.ext.asyncio.session import AsyncSession
+from src.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _transaction_level = ContextVar("transaction_level", default=0)
 

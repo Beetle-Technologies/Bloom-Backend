@@ -1,5 +1,4 @@
 import json
-import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -7,8 +6,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.ext.asyncio.session import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
+from src.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # make sure all SQLModel models are imported (app.models) before initializing DB
 # otherwise, SQLModel might fail to initialize relationships properly

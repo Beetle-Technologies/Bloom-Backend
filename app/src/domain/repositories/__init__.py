@@ -2,6 +2,7 @@ from .account_repository import AccountRepository  # noqa: F401
 from .account_type_info_permission_repository import AccountTypeInfoPermissionRepository  # noqa: F401
 from .account_type_info_repository import AccountTypeInfoRepository  # noqa: F401
 from .account_type_repository import AccountTypeRepository  # noqa: F401
+from .address_repository import AddressRepository  # noqa: F401
 from .country_repository import CountryRepository  # noqa: F401
 from .currency_repository import CurrencyRepository  # noqa: F401
 from .permission_repository import PermissionRepository  # noqa: F401

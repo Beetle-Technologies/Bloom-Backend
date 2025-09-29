@@ -1,11 +1,11 @@
 import hashlib
 import hmac
-import logging
 import secrets
 
 from src.core.config import settings
+from src.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def generate_csrf(secret_key: str = settings.CSRF_SECRET_KEY) -> dict[str, str]:

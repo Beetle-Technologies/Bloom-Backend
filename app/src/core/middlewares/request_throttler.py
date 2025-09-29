@@ -1,4 +1,3 @@
-import logging
 import time
 from typing import Callable
 
@@ -6,11 +5,12 @@ from fastapi import Request, Response, status
 from src.core.config import settings
 from src.core.exceptions import errors
 from src.core.helpers.request import get_client_ip
+from src.core.logging import get_logger
 from src.libs.throttler import limiter
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RequestThrottlerMiddleware(BaseHTTPMiddleware):

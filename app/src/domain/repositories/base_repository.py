@@ -14,6 +14,7 @@ from src.libs.query_engine import (
     EntityNotFoundError,
     GeneralPaginationRequest,
     GeneralPaginationResponse,
+    QueryEngineError,
     QueryEngineService,
 )
 
@@ -272,9 +273,20 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             ModelType: Single entity or None if not found
         """
 
-        return await self.query_engine.query(
-            filters=params.filters, fields=params.fields, include=params.include, order_by=params.order_by
-        )
+        try:
+            return await self.query_engine.query(
+                filters=params.filters, fields=params.fields, include=params.include, order_by=params.order_by
+            )
+        except QueryEngineError as qe:
+            raise errors.DatabaseError(
+                message="Failed to execute query",
+                detail="An error occurred while executing the query.",
+            ) from qe
+        except SQLAlchemyError as e:
+            raise errors.DatabaseError(
+                message="Failed to execute query",
+                detail="An error occurred while executing the query.",
+            ) from e
 
     async def execute_raw(self, query: str, params: dict[str, Any] | None = None) -> Any:
         """

@@ -4,7 +4,7 @@ from typing import Any, Literal
 from fastapi import Request
 from src.core.constants import DEFAULT_PROXY_COUNT, DEFAULT_PROXY_HEADERS
 from src.core.database.mixins import FriendlyMixin
-from src.core.enums import ClientType, PClientPlatform
+from src.core.enums import ClientPlatform, ClientType
 from src.core.exceptions import errors
 from src.core.types import BloomClientInfo
 
@@ -117,20 +117,20 @@ def parse_bloom_client_header(x_bloom_client: str) -> BloomClientInfo:
             parsed_data[key] = value
 
     except ValueError as e:
-        raise errors.InvalidClienTypeError(detail=f"Invalid X-Bloom-Client header format: {str(e)}")
+        raise errors.InvalidClientTypeError(detail=f"Invalid X-Bloom-Client header format: {str(e)}")
 
     required_fields = ["platform", "version", "app"]
     missing_fields = [field for field in required_fields if field not in parsed_data]
 
     if missing_fields:
-        raise errors.InvalidClienTypeError(
+        raise errors.InvalidClientTypeError(
             detail=f"Missing required fields in X-Bloom-Client header: {', '.join(missing_fields)}"
         )
 
     try:
-        platform = PClientPlatform(parsed_data["platform"])
+        platform = ClientPlatform(parsed_data["platform"])
     except ValueError:
-        valid_platforms = [p.value for p in PClientPlatform]
+        valid_platforms = [p.value for p in ClientPlatform]
         raise errors.UnsupportedClientPlatformError(
             detail=f"Unsupported platform '{parsed_data['platform']}'. Supported platforms: {', '.join(valid_platforms)}"
         )
@@ -145,13 +145,13 @@ def parse_bloom_client_header(x_bloom_client: str) -> BloomClientInfo:
 
     version_pattern = re.compile(r"^\d+\.\d+\.\d+(?:[-+]\w+)?$")
     if not version_pattern.match(parsed_data["version"]):
-        raise errors.InvalidClienTypeError(
+        raise errors.InvalidClientTypeError(
             detail=f"Invalid version format '{parsed_data['version']}'. Expected format: x.y.z (e.g., 1.2.3)"
         )
 
     build = parsed_data.get("build")
     if build is not None and not build.isdigit():
-        raise errors.InvalidClienTypeError(detail=f"Invalid build format '{build}'. Build must be numeric")
+        raise errors.InvalidClientTypeError(detail=f"Invalid build format '{build}'. Build must be numeric")
 
     return BloomClientInfo(platform=platform, version=parsed_data["version"], app=app, build=build)
 

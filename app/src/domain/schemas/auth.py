@@ -1,9 +1,10 @@
 from typing import Annotated, Literal, Self
 
 import email_validator
-from pydantic import BaseModel, EmailStr, Field, JsonValue, StringConstraints, model_validator
+from pydantic import BaseModel, EmailStr, Field, JsonValue, StringConstraints, computed_field, model_validator
 from src.core.types import GUID, Password, PhoneNumber
 from src.domain.enums import AccountTypeEnum, AuthPreCheckTypeEnum, TokenVerificationRequestTypeEnum
+from src.domain.services.security_service import security_service
 
 
 class AuthPreCheckRequest(BaseModel):
@@ -223,3 +224,58 @@ class AuthPasswordChangeRequest(BaseModel):
         if self.new_password != self.confirm_new_password:
             raise ValueError("New password and confirmation do not match.")
         return self
+
+
+class AuthUserSessionRequest(BaseModel):
+    """
+    Represents a request to create an authentication session for a user account type
+
+    Attributes:
+        first_name (str | None): The first name of the user.
+        last_name (str | None): The last name of the user.
+        email (EmailStr): The email address of the account.
+        otp (str | None): The one-time password (OTP) for authentication.
+    """
+
+    first_name: str | None = Field(..., description="The first name of the user")
+    last_name: str | None = Field(..., description="The last name of the user")
+    email: EmailStr = Field(..., description="The email address of the account")
+    otp: str | None = Field(None, description="The one-time password (OTP) for authentication")
+    mode: Literal["register", "trigger_login", "login"] = "login"
+
+    @model_validator(mode="after")
+    def validate_mode(self) -> Self:
+        if self.mode == "register":
+            if not (self.first_name and self.last_name and self.email and self.otp):
+                raise ValueError("For registration, first name, last name, email, and OTP are required.")
+        if self.mode == "trigger_login":
+            if not self.email:
+                raise ValueError("For triggering login, email is required.")
+        elif self.mode == "login":
+            if not (self.email and self.otp):
+                raise ValueError("For login, email and OTP are required.")
+        else:
+            raise ValueError("Mode must be either 'register' or 'login'.")
+        return self
+
+    @computed_field
+    @property
+    def password(self) -> Password | None:
+        # Here I just generate a default deterministic password for the user if first and last name, email are provided else None
+        password_key = f"{self.first_name}{self.last_name}{self.email}"
+        return (
+            security_service.generate_deterministic_password(password_key)
+            if self.first_name and self.last_name and self.email
+            else None
+        )
+
+
+class AuthUserSessionResponse(BaseModel):
+    """
+    Represents the response returned after a successful user session creation.
+
+    Attributes:
+        token (AuthSessionToken): The authentication session token.
+    """
+
+    token: AuthSessionToken = Field(..., description="The authentication access session token")

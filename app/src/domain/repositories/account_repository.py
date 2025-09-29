@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
@@ -8,13 +7,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.exceptions import errors
+from src.core.logging import get_logger
 from src.core.types import IDType
 from src.domain.models.account import Account
 from src.domain.repositories.base_repository import BaseRepository
 from src.domain.schemas import AccountCreate, AccountUpdate
 from src.domain.services.security_service import security_service
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AccountRepository(BaseRepository[Account, AccountCreate, AccountUpdate]):

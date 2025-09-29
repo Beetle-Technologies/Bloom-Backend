@@ -7,6 +7,8 @@ from src.core.database.session import get_db_session
 from src.core.dependencies import (
     auth_rate_limit,
     is_bloom_client,
+    is_bloom_user_client,
+    is_not_bloom_user_client,
     per_minute_rate_limit,
     requires_eligible_account,
     strict_rate_limit,
@@ -28,6 +30,8 @@ from src.domain.schemas import (
     AuthSessionState,
     AuthTokenRefreshRequest,
     AuthTokenVerificationRequest,
+    AuthUserSessionRequest,
+    AuthUserSessionResponse,
     AuthVerificationRequest,
 )
 from src.domain.services import AuthService
@@ -154,12 +158,12 @@ async def verify_email(
 )
 async def register(
     request: Request,
-    request_client: Annotated[BloomClientInfo, is_bloom_client],
+    request_client: Annotated[BloomClientInfo, is_not_bloom_user_client],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     body: Annotated[AuthRegisterRequest, Body(..., description="User registration request body")],
 ) -> IResponseBase[AuthRegisterResponse]:
     """
-    Register a new user account
+    Register a new account
     """
 
     try:
@@ -178,16 +182,14 @@ async def register(
             user_agent=request_info["user_agent"],
         )
 
-        assert isinstance(data, AuthRegisterResponse)
-
         return build_json_response(
             data=data,
             message="Registration successful",
-        )
+        )  # type: ignore
     except errors.ServiceError as se:
         raise se
-    except AssertionError:
-        raise errors.ServiceError(detail="Failed to register account", status=500)
+    except Exception as e:
+        raise errors.ServiceError(detail="Failed to register account", status=500) from e
 
 
 @router.post(
@@ -230,11 +232,59 @@ async def login(
         ) from e
 
 
+@router.post(
+    "/request_new_session", dependencies=[auth_rate_limit], response_model=IResponseBase[AuthUserSessionResponse | None]
+)
+async def request_session(
+    request: Request,  # noqa: ARG001
+    request_client: Annotated[BloomClientInfo, is_bloom_user_client],  # noqa: ARG001
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    body: Annotated[AuthUserSessionRequest, Body(..., description="Request session request body")],
+) -> IResponseBase[AuthUserSessionResponse | None]:
+    """
+    Request a new authenticated user session
+    """
+    try:
+        auth_service = AuthService(session=session)
+        request_info = get_request_info(request, keys=["ip_address", "user_agent"])
+
+        data = await auth_service.request_new_session(
+            first_name=body.first_name,
+            last_name=body.last_name,
+            email=body.email,
+            password=body.password,
+            otp=body.otp,
+            ip_address=request_info["ip_address"],
+            user_agent=request_info["user_agent"],
+            mode=body.mode,
+        )
+
+        if data is None:
+            message = "An OTP has been sent if the email is registered."
+
+            if body.mode == "register":
+                message = "Account registered successfully"
+
+            return build_json_response(data=None, message=message)
+
+        return build_json_response(
+            data=data,
+            message="Session request successful",
+        )  # type: ignore
+    except errors.ServiceError as se:
+        raise se
+    except Exception as e:
+        raise errors.ServiceError(
+            detail="Failed to request new session",
+            status=500,
+        ) from e
+
+
 @router.post("/logout", dependencies=[auth_rate_limit], response_model=IResponseBase[None])
 async def logout(
     request: Request,  # noqa: ARG001
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    token_data: Annotated[AuthSessionState, Depends(requires_eligible_account)],  # noqa: ARG001
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],  # noqa: ARG001
     body: Annotated[AuthLogoutRequest, Body(..., description="Logout request body")],
 ) -> IResponseBase[None]:
     """
@@ -283,16 +333,12 @@ async def refresh(
             refresh_token=body.refresh_token,
         )
 
-        assert isinstance(data, AuthSessionResponse)
-
         return build_json_response(
             data=data,
             message="Token refresh successful",
-        )
+        )  # type: ignore
     except errors.ServiceError as se:
         raise se
-    except AssertionError:
-        raise errors.ServiceError(detail="Failed to refresh tokens", status=500)
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to refresh tokens",
@@ -374,7 +420,7 @@ async def reset_password(
 async def change_password(
     request: Request,  # noqa: ARG001
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    token_data: Annotated[AuthSessionState, Depends(requires_eligible_account)],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     body: Annotated[AuthPasswordChangeRequest, Body(..., description="Password change request body")],
 ) -> IResponseBase[None]:
     """
@@ -384,7 +430,7 @@ async def change_password(
         auth_service = AuthService(session=session)
 
         await auth_service.change_password(
-            account_id=token_data.id,
+            account_id=auth_state.id,
             current_password=body.current_password,
             new_password=body.new_password,
         )

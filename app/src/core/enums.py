@@ -1,7 +1,7 @@
 from enum import StrEnum
 
 
-class PClientPlatform(StrEnum):
+class ClientPlatform(StrEnum):
     """
     Enumeration of supported platforms.
 

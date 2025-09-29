@@ -2,7 +2,7 @@ from fastapi import status
 from fastapi_problem.error import StatusProblem
 
 
-class InvalidClienTypeError(StatusProblem):
+class InvalidClientTypeError(StatusProblem):
     """
     This error is raised when the X-Bloom-Client header format is invalid.
     """

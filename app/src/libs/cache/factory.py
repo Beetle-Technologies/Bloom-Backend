@@ -1,14 +1,14 @@
-import logging
 from typing import Any
 
 from src.core.config import settings
+from src.core.logging import get_logger
 from src.libs.cache.exceptions import CacheConfigurationError
 from src.libs.cache.interface import CacheProvider
 from src.libs.cache.providers.memory import MemoryCacheProvider
 from src.libs.cache.providers.redis import RedisCacheProvider
 from src.libs.cache.schemas import MemoryCacheConfiguration, RedisCacheConfiguration
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CacheFactory:

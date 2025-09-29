@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.exceptions import errors
+from src.core.logging import get_logger
 from src.domain.models.token import Token
 from src.domain.repositories import TokenRepository
 from src.domain.schemas import TokenCreate
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TokenService:

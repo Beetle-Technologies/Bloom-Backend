@@ -1,10 +1,10 @@
 from typing import Optional
 
 from fastapi import status
-from fastapi_problem.error import StatusProblem
+from src.core.exceptions import errors
 
 
-class QueryEngineError(StatusProblem):
+class QueryEngineError(errors.ServiceError):
     """Base error for query engine related issues"""
 
     type_ = "query_engine_error"

@@ -1,21 +1,27 @@
 from typing import TYPE_CHECKING, ClassVar
 from uuid import UUID
 
+from pydantic import JsonValue
 from sqlalchemy import TEXT
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlmodel import Boolean, Column, Field, Relationship
-from src.core.database.mixins import GUIDMixin, TimestampMixin
+from src.core.database.mixins import FriendlyMixin, GUIDMixin, TimestampMixin
 from src.core.types import GUID, PhoneNumber
 
 if TYPE_CHECKING:
     from src.domain.models.country import Country
 
 
-class Address(GUIDMixin, TimestampMixin, table=True):
+class Address(GUIDMixin, FriendlyMixin, TimestampMixin, table=True):
     """
     Represents an address in the system.
 
     Attributes:\n
-        id (UUID): The unique identifier for the address.
+        id (GUID): The unique identifier for the address.
+        friendly_id (str): A user-friendly identifier for the address.
+        addressable_type (str): The type of the related object (e.g., 'AccountTypeInfo', 'Order').
+        addressable_id (GUID): The ID of the related object.
+        country_id (UUID): The ID of the country associated with the address.
         phone_number (PhoneNumber | None): The phone number associated with the address.
         address (str): The street address.
         city (str): The city of the address.
@@ -30,6 +36,8 @@ class Address(GUIDMixin, TimestampMixin, table=True):
         "id",
         "phone_number",
         "address",
+        "addressable_type",
+        "addressable_id",
         "city",
         "state",
         "postal_code",
@@ -91,6 +99,14 @@ class Address(GUIDMixin, TimestampMixin, table=True):
             default=None,
             nullable=True,
         ),
+    )
+    attributes: JsonValue = Field(
+        sa_column=Column(
+            JSONB(),
+            default=dict,
+            index=True,
+        ),
+        description="Additional attributes for the address in JSON format",
     )
 
     # Relationships

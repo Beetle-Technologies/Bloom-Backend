@@ -1,5 +1,4 @@
 import json
-import logging
 from typing import Any, List, Optional
 
 try:
@@ -11,6 +10,7 @@ except ImportError:
     RedisError = Exception
     RedisConnectionError = Exception
 
+from src.core.logging import get_logger
 from src.libs.cache.exceptions import (
     CacheConfigurationError,
     CacheConnectionError,
@@ -20,7 +20,7 @@ from src.libs.cache.exceptions import (
 from src.libs.cache.interface import CacheProvider
 from src.libs.cache.schemas import CacheResponse, RedisCacheConfiguration
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RedisCacheProvider(CacheProvider):
