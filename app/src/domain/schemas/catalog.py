@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Annotated, Optional
+from typing import Annotated, Any, Dict, Optional
 from uuid import UUID
 
 from fastapi import File, UploadFile
@@ -15,7 +15,10 @@ class CatalogFilterParams(BaseModel):
     Filter parameters for catalog browsing.
     """
 
-    status: Annotated[list[ProductStatus] | None, BeforeValidator(parse_comma_separated_list(ProductStatus))] = None
+    status: Annotated[
+        list[ProductStatus] | None,
+        BeforeValidator(parse_comma_separated_list(ProductStatus)),
+    ] = None
     category: Annotated[list[str] | None, BeforeValidator(parse_comma_separated_list)] = None
     min_price: Optional[Decimal] = None
     max_price: Optional[Decimal] = None
@@ -63,7 +66,12 @@ class CatalogItemCreateRequest(BaseModel):
 
     name: str = Field(..., description="The name of the product")
     description: str | None = Field(None, description="A description of the product")
-    price: Decimal = Field(..., ge=0.01, decimal_places=2, description="The base price of the product as string")
+    price: Decimal = Field(
+        ...,
+        ge=0.01,
+        decimal_places=2,
+        description="The base price of the product as string",
+    )
     currency_id: UUID = Field(..., description="The currency ID as string")
     category_id: GUID = Field(..., description="The category ID as string")
     is_digital: bool = Field(False, description="Whether the product is a digital good")
@@ -71,3 +79,46 @@ class CatalogItemCreateRequest(BaseModel):
     initial_stock: int = Field(1, ge=1, description="Initial quantity in stock")
     attachments: list[UploadFile] = File(..., description="List of attachment files")
     attachment_names: list[str] = Field(..., description="Names for attachments")
+
+
+class AdjustInventoryRequest(BaseModel):
+    """
+    Schema for adjusting the inventory
+    """
+
+    quantity_change: int = Field(..., description="Quantity to add (positive) or remove (negative)")
+    reason: str | None = Field(None, description="Reason for the adjustment")
+
+
+class RequestItemRequest(BaseModel):
+    """
+    Schema for create product item for sale
+    """
+
+    requested_quantity: int | None = Field(None, gt=0, description="Quantity requested")
+    mode: str = Field(default="implicit", description="Request mode: implicit or explicit")
+    name: Optional[str] = Field(None, description="Name of the item")
+    description: Optional[str] = Field(None, description="Description of the item")
+    markup_percentage: Decimal = Field(
+        ...,
+        ge=5.00,
+        decimal_places=2,
+        description="Markup percentage over product price (for ProductItem)",
+    )
+    attributes: Optional[Dict[str, Any]] = Field(None, description="Attributes specific to this item")
+
+
+class CatalogItemUpdateRequest(BaseModel):
+    """
+    Generalized schema for updating catalog items (Product or ProductItem).
+    """
+
+    name: Optional[str] = Field(None, description="Name of the item")
+    description: Optional[str] = Field(None, description="Description of the item")
+    price: Optional[Decimal] = Field(None, description="Price (for Product) or base price (for ProductItem)")
+    markup_percentage: Optional[Decimal] = Field(None, description="Markup percentage (for ProductItem)")
+    currency_id: Optional[UUID] = Field(None, description="Currency ID")
+    category_id: Optional[GUID] = Field(None, description="Category ID")
+    status: Optional[ProductStatus] = Field(None, description="Status")
+    is_digital: Optional[bool] = Field(None, description="Whether it's digital")
+    attributes: Optional[Dict[str, Any]] = Field(None, description="Attributes for the item")

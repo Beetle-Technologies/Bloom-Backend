@@ -9,23 +9,33 @@ from src.core.dependencies import get_storage_service
 from src.core.exceptions import errors
 from src.core.logging import get_logger
 from src.core.types import GUID
-from src.domain.enums import InventoriableType, InventoryActionType, ProductStatus
+from src.domain.enums import InventoriableType, InventoryActionType, ProductItemRequestStatus, ProductStatus
+from src.domain.models.inventory import Inventory
+from src.domain.models.inventory_action import InventoryAction
 from src.domain.models.product import Product
 from src.domain.models.product_item import ProductItem
 from src.domain.repositories.attachment_repository import AttachmentBlobRepository, AttachmentRepository
+from src.domain.repositories.inventory_action_repository import InventoryActionRepository
 from src.domain.repositories.product_item_repository import ProductItemRepository
 from src.domain.repositories.product_repository import ProductRepository
 from src.domain.schemas import (
     DEFAULT_CATALOG_RETURN_FIELDS,
+    AdjustInventoryRequest,
     AuthSessionState,
     CatalogItemCreateRequest,
+    CatalogItemUpdateRequest,
     InventoryActionCreate,
     InventoryCreate,
     ProductCreate,
+    ProductItemCreate,
+    ProductItemRequestCreate,
+    RequestItemRequest,
 )
 from src.domain.services.attachment_service import AttachmentService
 from src.domain.services.inventory_action_service import InventoryActionService
 from src.domain.services.inventory_service import InventoryService
+from src.domain.services.product_item_request_service import ProductItemRequestService
+from src.domain.services.product_item_service import ProductItemService
 from src.domain.services.product_service import ProductService
 from src.libs.query_engine import BaseQueryEngineParams, GeneralPaginationRequest, GeneralPaginationResponse
 from src.libs.storage import StorageService
@@ -40,6 +50,21 @@ class CatalogService:
         self.session = session
         self.product_repository = ProductRepository(session=self.session)
         self.product_item_repository = ProductItemRepository(session=self.session)
+
+    async def _get_inventory_for_item(
+        self, inventoriable_type: InventoriableType, inventoriable_id: GUID
+    ) -> Inventory | None:
+        """
+        Get inventory for an inventoriable item.
+        """
+        try:
+            inventory_service = InventoryService(self.session)
+            return await inventory_service.get_inventory_by_item(inventoriable_type, inventoriable_id)
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.catalog_service._get_inventory_for_item:: Error getting inventory for {inventoriable_type}:{inventoriable_id}: {e}"
+            )
+            return None
 
     async def get_catalog_item(
         self, item_fid: str, auth_state: AuthSessionState | None
@@ -64,7 +89,10 @@ class CatalogService:
                 )
                 attachable_type = "Product"
             else:
-                filters = {"friendly_id__eq": item_fid, "status__eq": ProductStatus.ACTIVE}
+                filters = {
+                    "friendly_id__eq": item_fid,
+                    "status__eq": ProductStatus.ACTIVE,
+                }
 
                 item = await self.product_item_repository.query(
                     params=BaseQueryEngineParams(
@@ -79,6 +107,11 @@ class CatalogService:
                 raise errors.NotFoundError(detail="Item not found")
 
             attachments = await self._get_attachments_for_attachable(attachable_type, item.id)
+
+            inventoriable_type = (
+                InventoriableType.PRODUCT if isinstance(item, Product) else InventoriableType.PRODUCT_ITEM
+            )
+            item.inventory = await self._get_inventory_for_item(inventoriable_type, item.id)
 
             return item, attachments
         except errors.ServiceError as se:
@@ -141,6 +174,11 @@ class CatalogService:
             for item in result.items:
                 attachable_type = "Product" if isinstance(item, Product) else "ProductItem"
                 item.attachments = await self._get_attachments_for_attachable(attachable_type, item.id)
+
+                inventoriable_type = (
+                    InventoriableType.PRODUCT if isinstance(item, Product) else InventoriableType.PRODUCT_ITEM
+                )
+                item.inventory = await self._get_inventory_for_item(inventoriable_type, item.id)
 
             return result
         except errors.ServiceError as se:
@@ -257,3 +295,235 @@ class CatalogService:
                 detail="Failed to create catalog item",
                 status=500,
             ) from e
+
+    async def update_catalog_item(
+        self,
+        item_fid: str,
+        update_data: CatalogItemUpdateRequest,
+        auth_state: AuthSessionState,
+    ) -> Product | ProductItem:
+        """
+        Update a catalog item by friendly ID based on auth state.
+        """
+        try:
+            if auth_state.type.is_supplier():
+                product = await self.product_repository.get_by_friendly_id(item_fid)
+                if not product or product.supplier_account_id != auth_state.id:
+                    raise errors.NotFoundError("Product not found or access denied")
+
+                update_dict = update_data.model_dump(exclude_unset=True)
+                updated_product = await self.product_repository.update(product.id, update_dict)
+
+                if not updated_product:
+                    raise errors.ServiceError("Failed to update product")
+                return updated_product
+            elif auth_state.type.is_business():
+                product_item = await self.product_item_repository.get_by_friendly_id(item_fid)
+                if not product_item or product_item.seller_account_id != auth_state.id:
+                    raise errors.NotFoundError("Product item not found or access denied")
+
+                update_dict = update_data.model_dump(exclude_unset=True)
+                updated_item = await self.product_item_repository.update(product_item.id, update_dict)
+
+                if not updated_item:
+                    raise errors.ServiceError("Failed to update product item")
+                return updated_item
+            else:
+                raise errors.ServiceError("Unauthorized to update items")
+        except errors.ServiceError as se:
+            raise se
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.catalog_service.update_catalog_item:: Error updating catalog item {item_fid}: {e}"
+            )
+            raise errors.ServiceError("Failed to update catalog item", status=500)
+
+    async def delete_catalog_item(self, item_fid: str, auth_state: AuthSessionState) -> bool:
+        """
+        Delete a catalog item by friendly ID based on auth state.
+        """
+
+        try:
+            if auth_state.type.is_supplier():
+                product = await self.product_repository.get_by_friendly_id(item_fid)
+
+                if not product or product.supplier_account_id != auth_state.id:
+                    raise errors.NotFoundError("Product not found or access denied")
+                return await self.product_repository.delete(product.id)
+            elif auth_state.type.is_business():
+                product_item = await self.product_item_repository.get_by_friendly_id(item_fid)
+                if not product_item or product_item.seller_account_id != auth_state.id:
+                    raise errors.NotFoundError("Product item not found or access denied")
+                return await self.product_item_repository.delete(product_item.id)
+            else:
+                raise errors.ServiceError("Unauthorized to delete items")
+        except errors.ServiceError as se:
+            raise se
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.catalog_service.delete_catalog_item:: Error deleting catalog item {item_fid}: {e}"
+            )
+            raise errors.ServiceError("Failed to delete catalog item", status=500)
+
+    @transactional
+    async def request_catalog_item(
+        self,
+        item_fid: str,
+        request_data: RequestItemRequest,
+        auth_state: AuthSessionState,
+    ) -> ProductItem:
+        """
+        Request a catalog item (create ProductItem with reserved stock).
+        """
+        try:
+            product = await self.product_repository.get_by_friendly_id(item_fid)
+            if not product:
+                raise errors.NotFoundError("Product not found")
+
+            inventory_service = InventoryService(self.session)
+            inventory = await inventory_service.get_inventory_by_item(InventoriableType.PRODUCT, product.id)
+            if not inventory:
+                raise errors.NotFoundError("Product inventory not found")
+
+            available_stock = inventory.available_stock
+            if available_stock <= 0:
+                raise errors.ServiceError("No available stock for this product")
+
+            allocated_stock = min(available_stock, request_data.requested_quantity or 1)
+
+            await inventory_service.reserve_stock(InventoriableType.PRODUCT, product.id, allocated_stock)
+
+            product_item_data = ProductItemCreate(
+                product_id=product.id,
+                name=request_data.name or product.name,
+                description=request_data.description or product.description,
+                seller_account_id=auth_state.id,
+                markup_percentage=request_data.markup_percentage,
+                price=None,
+                currency_id=None,
+                category_id=None,
+                status=None,
+                is_digital=None,
+                attributes=request_data.attributes,
+            )
+            product_item_service = ProductItemService(self.session)
+            product_item = await product_item_service.create_product_item(product_item_data)
+
+            inventory_data = InventoryCreate(
+                inventoriable_type=InventoriableType.PRODUCT_ITEM,
+                inventoriable_id=product_item.id,
+                quantity_in_stock=allocated_stock,
+                reserved_stock=0,
+            )
+            inventory = await inventory_service.create_inventory(inventory_data)
+
+            request_create_data = ProductItemRequestCreate(
+                seller_account_id=auth_state.id,
+                supplier_account_id=product.supplier_account_id,
+                product_id=product.id,
+                requested_quantity=allocated_stock,
+                status=ProductItemRequestStatus.APPROVED,
+                mode=request_data.mode,
+            )
+            product_item_request_service = ProductItemRequestService(self.session)
+            await product_item_request_service.create_request(request_create_data)
+
+            return product_item
+        except errors.ServiceError as se:
+            raise se
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.catalog_service.request_catalog_item:: Error requesting catalog item {item_fid}: {e}"
+            )
+            raise errors.ServiceError("Failed to request catalog item", status=500)
+
+    async def get_catalog_item_inventory(self, item_fid: str, auth_state: AuthSessionState) -> Inventory:
+        """
+        Get inventory for a catalog item.
+        """
+        try:
+            if auth_state.type.is_supplier():
+                product = await self.product_repository.get_by_friendly_id(item_fid)
+                if not product or product.supplier_account_id != auth_state.id:
+                    raise errors.NotFoundError("Product not found or access denied")
+                inventoriable_type = InventoriableType.PRODUCT
+                inventoriable_id = product.id
+            else:
+                raise errors.ServiceError("Unauthorized")
+
+            inventory_service = InventoryService(self.session)
+            inventory = await inventory_service.get_inventory_by_item(inventoriable_type, inventoriable_id)
+            if not inventory:
+                raise errors.NotFoundError("Inventory not found")
+            return inventory
+        except errors.ServiceError as se:
+            raise se
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.catalog_service.get_catalog_item_inventory:: Error getting inventory for {item_fid}: {e}"
+            )
+            raise errors.ServiceError("Failed to get inventory", status=500)
+
+    async def get_catalog_item_inventory_history(
+        self,
+        item_fid: str,
+        auth_state: AuthSessionState,
+        pagination: GeneralPaginationRequest,
+    ) -> GeneralPaginationResponse[InventoryAction]:
+        """
+        Get paginated inventory history for a catalog item.
+        """
+        try:
+            inventory = await self.get_catalog_item_inventory(item_fid, auth_state)
+
+            pagination.filters = {"inventory_id__eq": str(inventory.id)}
+
+            action_repo = InventoryActionRepository(self.session)
+            return await action_repo.find(pagination=pagination)
+        except errors.ServiceError as se:
+            raise se
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.catalog_service.get_catalog_item_inventory_history:: Error getting inventory history for {item_fid}: {e}"
+            )
+            raise errors.ServiceError("Failed to get inventory history", status=500)
+
+    @transactional
+    async def adjust_catalog_item_inventory(
+        self,
+        item_fid: str,
+        adjust_data: AdjustInventoryRequest,
+        auth_state: AuthSessionState,
+    ) -> Inventory:
+        """
+        Adjust inventory for a catalog item.
+        """
+        try:
+            if auth_state.type.is_supplier():
+                product = await self.product_repository.get_by_friendly_id(item_fid)
+                if not product or product.supplier_account_id != auth_state.id:
+                    raise errors.NotFoundError("Product not found or access denied")
+                inventoriable_type = InventoriableType.PRODUCT
+                inventoriable_id = product.id
+            else:
+                raise errors.ServiceError("Unauthorized")
+
+            inventory_service = InventoryService(self.session)
+            action_type = (
+                InventoryActionType.STOCK_IN if adjust_data.quantity_change > 0 else InventoryActionType.STOCK_OUT
+            )
+            inventory = await inventory_service.adjust_stock(
+                inventoriable_type,
+                inventoriable_id,
+                adjust_data.quantity_change,
+                action_type,
+                adjust_data.reason,
+            )
+            return inventory  # type: ignore
+        except errors.ServiceError as se:
+            raise se
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.catalog_service.adjust_catalog_item_inventory:: Error adjusting inventory for {item_fid}: {e}"
+            )
+            raise errors.ServiceError("Failed to adjust inventory", status=500)

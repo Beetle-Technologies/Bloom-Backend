@@ -43,3 +43,47 @@ CREATE OR REPLACE TRIGGER product_item_search_update
     EXECUTE FUNCTION update_product_item_search_vector();
 """
 )
+
+COUNTRY_SEARCH_TRIGGER_FUNCTION = DDL(
+    """
+CREATE OR REPLACE FUNCTION update_country_search_vector()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.search_text := COALESCE(NEW.name, '');
+    NEW.search_vector := to_tsvector('english', NEW.search_text);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+"""
+)
+
+COUNTRY_SEARCH_TRIGGER = DDL(
+    """
+CREATE OR REPLACE TRIGGER country_search_update
+    BEFORE INSERT OR UPDATE ON country
+    FOR EACH ROW
+    EXECUTE FUNCTION update_country_search_vector();
+"""
+)
+
+CURRENCY_SEARCH_TRIGGER_FUNCTION = DDL(
+    """
+CREATE OR REPLACE FUNCTION update_currency_search_vector()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.search_text := COALESCE(NEW.code, '') || ' ' || COALESCE(NEW.name, '');
+    NEW.search_vector := to_tsvector('english', NEW.search_text);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+"""
+)
+
+CURRENCY_SEARCH_TRIGGER = DDL(
+    """
+CREATE OR REPLACE TRIGGER currency_search_update
+    BEFORE INSERT OR UPDATE ON currency
+    FOR EACH ROW
+    EXECUTE FUNCTION update_currency_search_vector();
+"""
+)

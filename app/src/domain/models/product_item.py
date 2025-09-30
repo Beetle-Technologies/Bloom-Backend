@@ -47,7 +47,8 @@ class ProductItem(
     """
 
     __table_args__ = (
-        Index("idx_product_items_gin", "attributes", postgresql_using="gin"),
+        Index("idx_product_item_search_vector", "search_vector", postgresql_using="gin"),
+        Index("idx_product_item_attributes", "attributes", postgresql_using="gin"),
         CheckConstraint(
             "markup_percentage >= 0",
             name="chk_product_item_markup_percentage_non_negative",

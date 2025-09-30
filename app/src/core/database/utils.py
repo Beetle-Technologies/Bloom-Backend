@@ -5,6 +5,10 @@ from src.core.database.session import db_context_manager
 from src.core.database.triggers import (
     ACCOUNT_AUDIT_LOG_TRIGGER,
     AUDIT_LOG_TRIGGER_FUNCTION,
+    COUNTRY_SEARCH_TRIGGER,
+    COUNTRY_SEARCH_TRIGGER_FUNCTION,
+    CURRENCY_SEARCH_TRIGGER,
+    CURRENCY_SEARCH_TRIGGER_FUNCTION,
     PRODUCT_AUDIT_LOG_TRIGGER,
     PRODUCT_ITEM_PRICE_UPDATE_VIA_PRODUCT_FUNCTION,
     PRODUCT_ITEM_PRICE_UPDATE_VIA_PRODUCT_TRIGGER,
@@ -127,6 +131,14 @@ async def _setup_search_triggers(session: AsyncSession) -> None:
     await session.exec(PRODUCT_ITEM_SEARCH_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(PRODUCT_ITEM_SEARCH_TRIGGER)  # type: ignore
 
+    # Countries
+    await session.exec(COUNTRY_SEARCH_TRIGGER_FUNCTION)  # type: ignore
+    await session.exec(COUNTRY_SEARCH_TRIGGER)  # type: ignore
+
+    # Currencies
+    await session.exec(CURRENCY_SEARCH_TRIGGER_FUNCTION)  # type: ignore
+    await session.exec(CURRENCY_SEARCH_TRIGGER)  # type: ignore
+
 
 async def _drop_search_triggers(session: AsyncSession) -> None:
     """
@@ -134,8 +146,12 @@ async def _drop_search_triggers(session: AsyncSession) -> None:
     """
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_search_update ON products;"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_item_search_update ON product_items;"))  # type: ignore
+    await session.exec(DDL("DROP TRIGGER IF EXISTS country_search_update ON country;"))  # type: ignore
+    await session.exec(DDL("DROP TRIGGER IF EXISTS currency_search_update ON currency;"))  # type: ignore
     await session.exec(DDL("DROP FUNCTION IF EXISTS update_product_search_vector();"))  # type: ignore
     await session.exec(DDL("DROP FUNCTION IF EXISTS update_product_item_search_vector();"))  # type: ignore
+    await session.exec(DDL("DROP FUNCTION IF EXISTS update_country_search_vector();"))  # type: ignore
+    await session.exec(DDL("DROP FUNCTION IF EXISTS update_currency_search_vector();"))  # type: ignore
 
 
 async def register_triggers() -> None:

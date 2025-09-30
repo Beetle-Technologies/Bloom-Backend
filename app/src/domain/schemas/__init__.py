@@ -60,9 +60,12 @@ from .auth import (  # noqa: F401
 from .cache import CachedAccountData  # noqa: F401
 from .catalog import (  # noqa: F401
     DEFAULT_CATALOG_RETURN_FIELDS,
+    AdjustInventoryRequest,
     CatalogBrowseParams,
     CatalogFilterParams,
     CatalogItemCreateRequest,
+    CatalogItemUpdateRequest,
+    RequestItemRequest,
 )
 from .country import CountryCreate, CountryResponse, CountryUpdate  # noqa: F401
 from .currency import CurrencyCreate, CurrencyResponse, CurrencyUpdate  # noqa: F401

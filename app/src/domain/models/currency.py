@@ -2,15 +2,15 @@ from typing import TYPE_CHECKING, ClassVar
 
 from babel.numbers import get_currency_symbol
 from pycountries import Currency as CurrencyCode
-from sqlalchemy import VARCHAR, Boolean, Column
+from sqlalchemy import VARCHAR, Boolean, Column, Index
 from sqlmodel import Field, Relationship
-from src.core.database.mixins import UUIDMixin
+from src.core.database.mixins import SearchableMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from src.domain.models import Country
 
 
-class Currency(UUIDMixin, table=True):
+class Currency(UUIDMixin, SearchableMixin, TimestampMixin, table=True):
     """
     Represents a currency in the system.
 
@@ -20,10 +20,16 @@ class Currency(UUIDMixin, table=True):
         symbol (str): The symbol of the currency (e.g., $).
         is_active (bool): Indicates whether the currency is active.
         is_default (bool): Indicates whether this currency is the default one.
+        search_vector (str | None): A vector for full-text search.
+        search_text (str | None): Text used for searching the currency.
         countries (list[Country]): The list of countries that use this currency.
+        created_datetime (datetime): The timestamp when the currency was created.
+        updated_datetime (datetime | None): The timestamp when the currency was last updated.
     """
 
     __tablename__ = "currency"  # type: ignore
+
+    __table_args__ = (Index("idx_currency_search_vector", "search_vector", postgresql_using="gin"),)
 
     SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",

@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, ClassVar, List, Optional
 from uuid import UUID
 
-from sqlalchemy import Boolean, Column
+from sqlalchemy import Boolean, Column, Index
 from sqlalchemy.dialects.postgresql import JSONB, NUMERIC
 from sqlmodel import TEXT, Field, Relationship
 from src.core.database.mixins import DeletableMixin, FriendlyMixin, GUIDMixin, SearchableMixin, TimestampMixin
@@ -42,6 +42,11 @@ class Product(
         updated_datetime (datetime | None): The timestamp when the product was last updated.
         deleted_datetime (datetime | None): The timestamp when the product was deleted.
     """
+
+    __table_args__ = (
+        Index("idx_product_search_vector", "search_vector", postgresql_using="gin"),
+        Index("idx_product_attributes", "attributes", postgresql_using="gin"),
+    )
 
     SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
