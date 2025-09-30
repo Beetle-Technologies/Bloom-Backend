@@ -58,6 +58,7 @@ from .auth import (  # noqa: F401
     AuthVerificationRequest,
 )
 from .cache import CachedAccountData  # noqa: F401
+from .cart import AddToCartRequest, CartCreate, CartItemCreate, CartItemUpdate, CartUpdate  # noqa: F401
 from .catalog import (  # noqa: F401
     DEFAULT_CATALOG_RETURN_FIELDS,
     AdjustInventoryRequest,
