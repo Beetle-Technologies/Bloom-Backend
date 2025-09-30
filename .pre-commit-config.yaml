@@ -1,4 +1,4 @@
-exclude: '^scripts/|^docs/|^build/|^dist/|^venv/|\.egg-info/|\.tox/|\.mypy_cache/|\.pytest_cache/|\.coverage$'
+exclude: '^scripts/|^docs/|^build/|^dist/|^.kamal/|^config/|^venv/|\.egg-info/|\.tox/|\.mypy_cache/|\.pytest_cache/|\.coverage$'
 default_stages: [pre-commit]
 
 default_language_version:
