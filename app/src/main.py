@@ -15,7 +15,7 @@ from src.core.exceptions.handler import eh
 from src.core.logging import get_logger, setup_exception_logging, setup_logging
 from src.core.middlewares import RequestThrottlerMiddleware, RequestUtilsMiddleware
 from src.core.openapi import OpenAPI
-from src.domain.routers import account_router, attachment_router, auth_router, catalog_router, order_router
+from src.domain.routers import account_router, attachment_router, auth_router, cart_router, catalog_router, order_router
 
 setup_logging()
 setup_exception_logging()
@@ -148,6 +148,7 @@ app.include_router(account_router, prefix=f"{settings.api_v1_str}/accounts", tag
 app.include_router(attachment_router, prefix=f"{settings.api_v1_str}/attachments", tags=["Attachments"])
 app.include_router(auth_router, prefix=f"{settings.api_v1_str}/auth", tags=["Auth"])
 app.include_router(catalog_router, prefix=f"{settings.api_v1_str}/catalog", tags=["Catalog"])
+app.include_router(cart_router, prefix=f"{settings.api_v1_str}/cart", tags=["Cart"])
 app.include_router(order_router, prefix=f"{settings.api_v1_str}/orders", tags=["Orders"])
 
 

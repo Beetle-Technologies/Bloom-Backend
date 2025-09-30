@@ -60,6 +60,11 @@ class CatalogService:
         try:
             inventory_service = InventoryService(self.session)
             return await inventory_service.get_inventory_by_item(inventoriable_type, inventoriable_id)
+        except errors.ServiceError as se:
+            logger.exception(
+                f"src.domain.services.catalog_service._get_inventory_for_item:: Service error getting inventory for {inventoriable_type}:{inventoriable_id}: {se.detail}"
+            )
+            return None
         except Exception as e:
             logger.exception(
                 f"src.domain.services.catalog_service._get_inventory_for_item:: Error getting inventory for {inventoriable_type}:{inventoriable_id}: {e}"

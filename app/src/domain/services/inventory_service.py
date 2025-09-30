@@ -11,6 +11,7 @@ from src.domain.repositories.inventory_action_repository import InventoryActionR
 from src.domain.repositories.inventory_repository import InventoryRepository
 from src.domain.schemas.inventory import InventoryCreate, InventoryUpdate
 from src.domain.schemas.inventory_action import InventoryActionCreate
+from src.libs.query_engine import BaseQueryEngineParams
 
 logger = get_logger(__name__)
 
@@ -26,13 +27,34 @@ class InventoryService:
     async def get_inventory_by_item(
         self, inventoriable_type: InventoriableType, inventoriable_id: GUID
     ) -> Inventory | None:
-        """Get inventory for a specific item."""
-        return await self.inventory_repository.get_by_item(inventoriable_type, inventoriable_id)
+        try:
+            return await self.inventory_repository.query(
+                params=BaseQueryEngineParams(
+                    filters={
+                        "inventoriable_type__eq": inventoriable_type,
+                        "inventoriable_id__eq": inventoriable_id,
+                    },
+                    fields="id,quantity_in_stock,reserved_stock",
+                )
+            )
+        except errors.DatabaseError as de:
+            logger.exception(
+                f"src.domain.services.inventory_service.get_inventory_by_item:: Database error fetching inventory: {de}"
+            )
+            raise errors.ServiceError(
+                message="Failed to fetch inventory",
+            ) from de
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.inventory_service.get_inventory_by_item:: Unexpected error fetching inventory: {e}"
+            )
+            raise errors.ServiceError(
+                message="An unexpected error occurred while fetching inventory",
+            ) from e
 
     async def create_inventory(self, inventory_data: InventoryCreate) -> Inventory:
         """Create a new inventory entry."""
         try:
-            # Check if inventory already exists for this item
             existing = await self.get_inventory_by_item(
                 inventory_data.inventoriable_type, inventory_data.inventoriable_id
             )
@@ -60,10 +82,9 @@ class InventoryService:
         action_type: InventoryActionType,
         reason: str | None = None,
     ) -> Inventory:
-        # Get or create inventory
+
         inventory = await self.get_inventory_by_item(inventoriable_type, inventoriable_id)
         if not inventory:
-            # Create inventory with zero stock
             inventory_data = InventoryCreate(
                 inventoriable_type=inventoriable_type,
                 inventoriable_id=inventoriable_id,
@@ -72,7 +93,6 @@ class InventoryService:
             )
             inventory = await self.create_inventory(inventory_data)
 
-        # Calculate new stock levels
         new_quantity = inventory.quantity_in_stock + quantity_change
         if new_quantity < 0:
             raise errors.ServiceError(
@@ -80,7 +100,6 @@ class InventoryService:
                 detail=f"Cannot reduce stock below zero. Current: {inventory.quantity_in_stock}, Requested change: {quantity_change}",
             )
 
-        # Update inventory
         update_data = InventoryUpdate(
             quantity_in_stock=new_quantity,
             reserved_stock=inventory.reserved_stock,  # Keep reserved stock as is
@@ -92,7 +111,6 @@ class InventoryService:
                 detail="Could not update inventory stock levels",
             )
 
-        # Record the action
         action_data = InventoryActionCreate(
             inventory_id=inventory.id,
             action_type=action_type,
