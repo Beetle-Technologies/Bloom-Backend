@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import TEXT, Boolean, CheckConstraint, Column, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, NUMERIC
 from sqlmodel import Field, Relationship
-from src.core.database.mixins import DeletableMixin, FriendlyMixin, GUIDMixin, TimestampMixin
+from src.core.database.mixins import DeletableMixin, FriendlyMixin, GUIDMixin, SearchableMixin, TimestampMixin
 from src.core.types import GUID
 from src.domain.enums import ProductStatus
 
@@ -13,7 +13,14 @@ if TYPE_CHECKING:
     from src.domain.models import Account, Category, Currency, Product
 
 
-class ProductItem(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, table=True):
+class ProductItem(
+    GUIDMixin,
+    FriendlyMixin,
+    DeletableMixin,
+    SearchableMixin,
+    TimestampMixin,
+    table=True,
+):
     """
     Represents a customized version of a product for sale.
     This model mirrors the Product model with nullable fields that are populated by triggers.
@@ -30,6 +37,8 @@ class ProductItem(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, tabl
         currency_id (UUID | None): Currency ID (copied from product if null, overrideable).
         category_id (GUID | None): Category ID (copied from product if null, overrideable).
         status (ProductStatus | None): Item status (copied from product if null, overrideable).
+        search_vector (str | None): Full-text search vector for the product item.
+        search_text (str | None): Full-text search text for the product item.
         is_digital (bool | None): Whether item is digital (copied from product if null, overrideable).
         attributes (Dict[str, Any] | None): Custom attributes (merged with product attributes if null).
         created_datetime (datetime): The timestamp when the product item was created.
@@ -59,6 +68,8 @@ class ProductItem(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, tabl
         "category_id",
         "status",
         "is_digital",
+        "search_vector",
+        "search_text",
         "attributes",
         "created_datetime",
         "updated_datetime",

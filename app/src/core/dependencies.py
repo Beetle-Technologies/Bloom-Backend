@@ -27,7 +27,6 @@ def get_security_schemes() -> tuple[HTTPBearer, OAuth2PasswordBearer]:
     )
 
 
-@lru_cache(maxsize=1)
 def get_storage_service() -> StorageService:
     """
     Dependency to get the storage service instance.

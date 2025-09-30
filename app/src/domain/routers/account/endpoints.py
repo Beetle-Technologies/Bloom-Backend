@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, Request
+from fastapi import APIRouter, Body, Depends, Path, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.database.session import get_db_session
 from src.core.dependencies import api_rate_limit, is_bloom_client, requires_eligible_account
@@ -54,6 +54,7 @@ async def me(
     "/me",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[AccountBasicProfileResponse],
+    status_code=status.HTTP_200_OK,
 )
 async def update_me(
     request: Request,  # noqa: ARG001
@@ -92,7 +93,7 @@ async def update_me(
         ) from e
 
 
-@router.delete("/me", dependencies=[api_rate_limit], response_model=IResponseBase[None])
+@router.delete("/me", dependencies=[api_rate_limit], response_model=IResponseBase[None], status_code=status.HTTP_200_OK)
 async def delete_me(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
@@ -128,6 +129,7 @@ async def delete_me(
     "/me/addresses",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[list[AddressResponse]],
+    status_code=status.HTTP_200_OK,
 )
 async def get_addresses(
     request: Request,  # noqa: ARG001
@@ -158,6 +160,7 @@ async def get_addresses(
     "/me/addresses",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[AddressResponse],
+    status_code=status.HTTP_200_OK,
 )
 async def create_addresses(
     request: Request,  # noqa: ARG001
@@ -199,6 +202,7 @@ async def create_addresses(
     "/me/addresses/{address_fid}",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[AddressResponse],
+    status_code=status.HTTP_200_OK,
 )
 async def update_addresses(
     request: Request,  # noqa: ARG001
@@ -248,6 +252,7 @@ async def update_addresses(
     "/me/addresses/{address_fid}",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[None],
+    status_code=status.HTTP_200_OK,
 )
 async def delete_addresses(
     request: Request,  # noqa: ARG001

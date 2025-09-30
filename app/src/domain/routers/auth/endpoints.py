@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.database.session import get_db_session
@@ -43,6 +43,7 @@ router = APIRouter()
     "/pre_check",
     dependencies=[strict_rate_limit],
     response_model=IResponseBase[AuthPreCheckResponse],
+    status_code=status.HTTP_200_OK,
 )
 async def pre_check(
     request: Request,  # noqa: ARG001
@@ -79,6 +80,7 @@ async def pre_check(
     "/request_email_verification",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    status_code=status.HTTP_200_OK,
 )
 async def request_email_verification(
     request: Request,  # noqa: ARG001
@@ -118,6 +120,7 @@ async def request_email_verification(
     "/verify_email",
     dependencies=[per_minute_rate_limit],
     response_model=IResponseBase[None],
+    status_code=status.HTTP_200_OK,
 )
 async def verify_email(
     request: Request,
@@ -155,6 +158,7 @@ async def verify_email(
     "/register",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[AuthRegisterResponse],
+    status_code=status.HTTP_200_OK,
 )
 async def register(
     request: Request,
@@ -196,6 +200,7 @@ async def register(
     "/login",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[AuthSessionResponse],
+    status_code=status.HTTP_200_OK,
 )
 async def login(
     request: Request,
@@ -233,7 +238,10 @@ async def login(
 
 
 @router.post(
-    "/request_new_session", dependencies=[auth_rate_limit], response_model=IResponseBase[AuthUserSessionResponse | None]
+    "/request_new_session",
+    dependencies=[auth_rate_limit],
+    response_model=IResponseBase[AuthUserSessionResponse | None],
+    status_code=status.HTTP_200_OK,
 )
 async def request_session(
     request: Request,  # noqa: ARG001
@@ -280,7 +288,9 @@ async def request_session(
         ) from e
 
 
-@router.post("/logout", dependencies=[auth_rate_limit], response_model=IResponseBase[None])
+@router.post(
+    "/logout", dependencies=[auth_rate_limit], response_model=IResponseBase[None], status_code=status.HTTP_200_OK
+)
 async def logout(
     request: Request,  # noqa: ARG001
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -315,6 +325,7 @@ async def logout(
     "/refresh",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[AuthSessionResponse],
+    status_code=status.HTTP_200_OK,
 )
 async def refresh(
     request: Request,  # noqa: ARG001
@@ -350,6 +361,7 @@ async def refresh(
     "/request_forgot_password",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    status_code=status.HTTP_200_OK,
 )
 async def forgot_password(
     request: Request,  # noqa: ARG001
@@ -382,6 +394,7 @@ async def forgot_password(
     "/verify_password_reset",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    status_code=status.HTTP_200_OK,
 )
 async def reset_password(
     request: Request,  # noqa: ARG001
@@ -416,6 +429,7 @@ async def reset_password(
     "/request_password_change",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    status_code=status.HTTP_200_OK,
 )
 async def change_password(
     request: Request,  # noqa: ARG001

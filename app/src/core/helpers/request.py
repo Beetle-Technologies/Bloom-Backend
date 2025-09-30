@@ -1,5 +1,6 @@
 import re
-from typing import Any, Literal
+from enum import StrEnum
+from typing import Any, Literal, Optional
 
 from fastapi import Request
 from src.core.constants import DEFAULT_PROXY_COUNT, DEFAULT_PROXY_HEADERS
@@ -19,6 +20,22 @@ def is_friendly_id(value: str) -> bool:
     if prefix not in ("i", "u"):
         return False
     return all(c in FriendlyMixin._ALPHABET for c in value[1:])
+
+
+def parse_comma_separated_list(enum_type: Optional[type[StrEnum]] = None):
+    def parser(v: list[str]):
+        value = v[0] if v else None
+        if value is None:
+            return None
+
+        items = value.split(",")
+
+        if enum_type:
+            return [enum_type(item.strip()) for item in items]
+
+        return [item.strip() for item in items]
+
+    return parser
 
 
 def parse_nested_query_params(query_params: dict[str, Any]) -> dict[str, Any]:

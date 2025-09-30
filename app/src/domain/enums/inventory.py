@@ -22,7 +22,7 @@ class InventoryActionType(StrEnum):
     RETURNED = "returned"
 
 
-class InventoriableType:
+class InventoriableType(StrEnum):
     """
     Enumeration for types of inventoriable items.
 

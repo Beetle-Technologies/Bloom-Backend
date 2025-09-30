@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlmodel import SQLModel, and_, col, not_, or_
+from sqlmodel import SQLModel, and_, col, func, not_, or_
 
 
 class FiltersProvider:
@@ -214,6 +214,8 @@ class FiltersProvider:
             if isinstance(value, (list, tuple)) and len(value) == 2:
                 return field_col.between(value[0], value[1])
             return None
+        elif operator == "search":
+            return field_col.op("@@")(func.to_tsquery("english", value))
         else:
             return None
 

@@ -8,8 +8,12 @@ from src.core.database.triggers import (
     PRODUCT_AUDIT_LOG_TRIGGER,
     PRODUCT_ITEM_PRICE_UPDATE_VIA_PRODUCT_FUNCTION,
     PRODUCT_ITEM_PRICE_UPDATE_VIA_PRODUCT_TRIGGER,
+    PRODUCT_ITEM_SEARCH_TRIGGER,
+    PRODUCT_ITEM_SEARCH_TRIGGER_FUNCTION,
     PRODUCT_ITEM_TRIGGER,
     PRODUCT_ITEM_TRIGGER_FUNCTION,
+    PRODUCT_SEARCH_TRIGGER,
+    PRODUCT_SEARCH_TRIGGER_FUNCTION,
     TOKEN_CLEANUP_SCHEDULED_TRIGGER,
     TOKEN_CLEANUP_TRIGGER,
     TOKEN_CLEANUP_TRIGGER_FUNCTION,
@@ -111,6 +115,29 @@ async def _drop_token_cleanup_triggers(session: AsyncSession) -> None:
     await session.exec(DDL("DROP FUNCTION IF EXISTS scheduled_token_cleanup();"))  # type: ignore
 
 
+async def _setup_search_triggers(session: AsyncSession) -> None:
+    """
+    Set up database triggers for search vectors.
+    """
+    # Products
+    await session.exec(PRODUCT_SEARCH_TRIGGER_FUNCTION)  # type: ignore
+    await session.exec(PRODUCT_SEARCH_TRIGGER)  # type: ignore
+
+    # Product Items
+    await session.exec(PRODUCT_ITEM_SEARCH_TRIGGER_FUNCTION)  # type: ignore
+    await session.exec(PRODUCT_ITEM_SEARCH_TRIGGER)  # type: ignore
+
+
+async def _drop_search_triggers(session: AsyncSession) -> None:
+    """
+    Drop database triggers for search vectors.
+    """
+    await session.exec(DDL("DROP TRIGGER IF EXISTS product_search_update ON products;"))  # type: ignore
+    await session.exec(DDL("DROP TRIGGER IF EXISTS product_item_search_update ON product_items;"))  # type: ignore
+    await session.exec(DDL("DROP FUNCTION IF EXISTS update_product_search_vector();"))  # type: ignore
+    await session.exec(DDL("DROP FUNCTION IF EXISTS update_product_item_search_vector();"))  # type: ignore
+
+
 async def register_triggers() -> None:
     """
     Register all database triggers.
@@ -119,6 +146,7 @@ async def register_triggers() -> None:
         await _setup_product_item_triggers(session)
         await _setup_audit_log_triggers(session)
         await _setup_token_cleanup_triggers(session)
+        await _setup_search_triggers(session)
 
         await session.commit()
 
@@ -131,5 +159,6 @@ async def drop_triggers() -> None:
         await _drop_product_item_triggers(session)
         await _drop_audit_log_triggers(session)
         await _drop_token_cleanup_triggers(session)
+        await _drop_search_triggers(session)
 
         await session.commit()

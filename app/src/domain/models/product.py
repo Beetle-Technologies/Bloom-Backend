@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import Boolean, Column
 from sqlalchemy.dialects.postgresql import JSONB, NUMERIC
 from sqlmodel import TEXT, Field, Relationship
-from src.core.database.mixins import DeletableMixin, FriendlyMixin, GUIDMixin, TimestampMixin
+from src.core.database.mixins import DeletableMixin, FriendlyMixin, GUIDMixin, SearchableMixin, TimestampMixin
 from src.core.types import GUID
 from src.domain.enums import ProductStatus
 
@@ -13,7 +13,14 @@ if TYPE_CHECKING:
     from src.domain.models import Account, Category, Currency, ProductItem, ProductItemRequest
 
 
-class Product(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, table=True):
+class Product(
+    GUIDMixin,
+    FriendlyMixin,
+    DeletableMixin,
+    SearchableMixin,
+    TimestampMixin,
+    table=True,
+):
     """
     Represents a product in the system.
 
@@ -29,6 +36,8 @@ class Product(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, table=Tr
         status (ProductStatus): The current status of the product.
         attributes (dict[str, Any]): JSON data containing flexible product attributes.
         is_digital (bool): Whether the product is a digital good.
+        search_vector (str | None): A vector for full-text search.
+        search_text (str | None): Text used for searching the product.
         created_datetime (datetime): The timestamp when the product was created.
         updated_datetime (datetime | None): The timestamp when the product was last updated.
         deleted_datetime (datetime | None): The timestamp when the product was deleted.
@@ -44,6 +53,8 @@ class Product(GUIDMixin, FriendlyMixin, DeletableMixin, TimestampMixin, table=Tr
         "currency_id",
         "category_id",
         "status",
+        "search_vector",
+        "search_text",
         "is_digital",
         "attributes",
         "created_datetime",
