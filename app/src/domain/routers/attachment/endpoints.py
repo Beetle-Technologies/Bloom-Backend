@@ -30,8 +30,7 @@ from src.domain.schemas.attachment import (
     AttachmentUploadResponse,
 )
 from src.domain.services import AttachmentService
-
-from app.src.libs.storage.utils import get_file_info
+from src.libs.storage.utils import get_file_info
 
 if TYPE_CHECKING:
     from src.libs.storage import StorageService

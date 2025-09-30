@@ -7,8 +7,7 @@ from src.core.types import GUID
 from src.domain.models.product_item import ProductItem
 from src.domain.repositories.product_item_repository import ProductItemRepository
 from src.domain.schemas import ProductItemCreate, ProductItemUpdate
-
-from app.src.libs.query_engine.schemas import BaseQueryEngineParams
+from src.libs.query_engine import BaseQueryEngineParams
 
 logger = get_logger(__name__)
 

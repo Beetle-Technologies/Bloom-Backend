@@ -21,6 +21,7 @@ from src.core.helpers.request import parse_nested_query_params
 from src.core.helpers.response import IResponseBase, build_json_response
 from src.core.logging import get_logger
 from src.core.types import BloomClientInfo
+from src.domain.enums import ProductStatus
 from src.domain.models.inventory import Inventory
 from src.domain.schemas import (
     DEFAULT_CATALOG_RETURN_FIELDS,
@@ -32,8 +33,6 @@ from src.domain.schemas.catalog import AdjustInventoryRequest, CatalogItemUpdate
 from src.domain.services.catalog_service import CatalogService
 from src.libs.query_engine import GeneralPaginationRequest
 from src.libs.storage import StorageService
-
-from app.src.domain.enums.product import ProductStatus
 
 logger = get_logger(__name__)
 
