@@ -48,3 +48,11 @@ class AddToCartRequest(BaseModel):
 
     item_fid: str
     quantity: PositiveInt = Field(gt=0)
+
+
+class UpdateCartItemRequest(BaseModel):
+    """
+    Schema for updating a cart item.
+    """
+
+    quantity: PositiveInt = Field(gt=0)
