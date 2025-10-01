@@ -4,7 +4,6 @@ import email_validator
 from pydantic import BaseModel, EmailStr, Field, JsonValue, StringConstraints, computed_field, model_validator
 from src.core.types import GUID, Password, PhoneNumber
 from src.domain.enums import AccountTypeEnum, AuthPreCheckTypeEnum, TokenVerificationRequestTypeEnum
-from src.domain.services.security_service import security_service
 
 
 class AuthPreCheckRequest(BaseModel):
@@ -261,6 +260,8 @@ class AuthUserSessionRequest(BaseModel):
     @computed_field
     @property
     def password(self) -> Password | None:
+        from src.domain.services.security_service import security_service
+
         # Here I just generate a default deterministic password for the user if first and last name, email are provided else None
         password_key = f"{self.first_name}{self.last_name}{self.email}"
         return (

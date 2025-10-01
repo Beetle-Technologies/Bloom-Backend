@@ -18,17 +18,7 @@ logger = get_logger(__name__)
 
 class RequestUtilsMiddleware(BaseHTTPMiddleware):
     """
-    Enhanced middleware for request utilities and comprehensive lifecycle logging.
-
-    This middleware provides:
-    - Request ID generation and tracking
-    - Client IP detection through proxy headers
-    - User agent extraction
-    - Comprehensive request lifecycle logging with structured context
-    - Performance monitoring and error tracking
-
-    All detected information is stored in request.state for easy access
-    and automatically added to the logging context for the entire request.
+    Middleware for request utilities
     """
 
     def __init__(
@@ -65,11 +55,9 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
         2. Process the request
         3. Log outgoing response with outcome and timing
         """
-        # Generate or extract request ID
         request_id = self._get_request_id(request)
         REQUEST_ID_CTX.set(request_id)
 
-        # Extract client information
         client_ip = get_client_ip(
             request,
             proxy_headers=self.proxy_headers,
@@ -78,12 +66,10 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
         )
         user_agent = get_user_agent(request)
 
-        # Store in request state for access by other components
         request.state.request_id = request_id
         request.state.client_ip = client_ip
         request.state.user_agent = user_agent
 
-        # Build request context for logging
         request_context = {
             "request_id": request_id,
             "client_ip": client_ip,
@@ -93,22 +79,17 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
             "query_params": str(request.query_params) if request.query_params else None,
         }
 
-        # Add request body to context if enabled (be careful with sensitive data)
         if self.log_request_body and request.method in ["POST", "PUT", "PATCH"]:
             try:
                 body = await request.body()
                 if body and len(body) < 10000:  # Limit body size for logging
                     request_context["request_body_size"] = len(body)
-                    # Don't log actual body content for security reasons by default
             except Exception:
-                # If we can't read the body, don't fail the request
                 pass
 
         start_time = time.perf_counter()
 
-        # Use structured logging context for the entire request
         with add_to_log_context(**request_context):
-            # Log incoming request
             if self.enable_request_logging:
                 logger.info(
                     "Incoming %s request to %s",
@@ -126,21 +107,16 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
                 )
 
             try:
-                # Process the request
                 response = await call_next(request)
 
-                # Calculate processing time
                 process_time = time.perf_counter() - start_time
                 duration_ms = process_time * 1000
 
-                # Determine log level based on response status
                 log_level = self._get_log_level_for_status(response.status_code)
 
-                # Add timing headers
                 response.headers["X-Process-Time"] = f"{process_time:.6f}"
                 response.headers["X-Request-ID"] = request_id
 
-                # Log response
                 if self.enable_request_logging:
                     extra_data = {
                         "event_type": "request_complete",
@@ -150,7 +126,6 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
                         "content_type": response.headers.get("content-type"),
                     }
 
-                    # Add response body info if enabled
                     if self.log_response_body:
                         extra_data["response_headers_count"] = len(response.headers)
 
@@ -167,11 +142,9 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
                 return response
 
             except Exception as exc:
-                # Calculate processing time even for errors
                 process_time = time.perf_counter() - start_time
                 duration_ms = process_time * 1000
 
-                # Log the error with full context
                 logger.error(
                     "Request processing failed for %s %s after %.2fms",
                     request.method,
@@ -186,7 +159,6 @@ class RequestUtilsMiddleware(BaseHTTPMiddleware):
                     },
                 )
 
-                # Re-raise as internal server error for consistency
                 raise errors.InternalServerError(
                     detail="An unexpected error occurred while processing your request."
                 ) from exc

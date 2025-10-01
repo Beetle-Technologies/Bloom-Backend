@@ -12,12 +12,20 @@ from src.core.config import settings
 from src.core.database.session import engine
 from src.core.database.utils import register_triggers
 from src.core.exceptions.handler import eh
-from src.core.logging import get_logger, setup_exception_logging, setup_logging
+from src.core.logging import get_logger, get_logging_config, setup_exception_logging, setup_logging
 from src.core.middlewares import RequestThrottlerMiddleware, RequestUtilsMiddleware
 from src.core.openapi import OpenAPI
-from src.domain.routers import account_router, attachment_router, auth_router, cart_router, catalog_router, order_router
+from src.domain.routers import (
+    account_router,
+    admin_router,
+    attachment_router,
+    auth_router,
+    cart_router,
+    catalog_router,
+    order_router,
+)
 
-setup_logging()
+setup_logging(config_override=get_logging_config())
 setup_exception_logging()
 
 logger = get_logger(__name__)
@@ -32,10 +40,6 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
         logger.info("Application startup initiated", extra={"event_type": "app_startup_start"})
 
         await register_triggers()
-        logger.info(
-            "Database triggers registered",
-            extra={"event_type": "db_triggers_registered"},
-        )
 
         logger.info(
             "Application startup completed successfully",
@@ -105,7 +109,7 @@ app = FastAPI(
     openapi_url=None,
 )
 
-add_exception_handler(app, eh, generic_swagger_defaults=False)
+add_exception_handler(app, eh)
 
 
 openapi = OpenAPI()
@@ -144,6 +148,7 @@ app.add_middleware(RequestThrottlerMiddleware)
 
 
 # Routers (V1)
+app.include_router(admin_router, prefix=f"{settings.api_v1_str}/admin", tags=["Admin"])
 app.include_router(account_router, prefix=f"{settings.api_v1_str}/accounts", tags=["Accounts"])
 app.include_router(attachment_router, prefix=f"{settings.api_v1_str}/attachments", tags=["Attachments"])
 app.include_router(auth_router, prefix=f"{settings.api_v1_str}/auth", tags=["Auth"])

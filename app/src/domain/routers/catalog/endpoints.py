@@ -98,7 +98,6 @@ async def browse_catalog(
         logger.exception(f"src.domain.routers.catalog.browse_catalog:: Error browsing catalog: {e}")
         raise errors.ServiceError(
             detail="Failed to browse catalog",
-            status=500,
         ) from e
 
 
@@ -135,7 +134,6 @@ async def create_item(
         logger.exception(f"src.domain.routers.catalog.endpoints.create_item:: Error creating catalog item: {e}")
         raise errors.ServiceError(
             detail="Failed to create catalog item",
-            status=500,
         ) from e
 
 
@@ -172,7 +170,6 @@ async def get_item(
         logger.exception(f"Error getting catalog item {item_fid}: {e}")
         raise errors.ServiceError(
             detail="Failed to retrieve catalog item",
-            status=500,
         ) from e
 
 
@@ -206,7 +203,7 @@ async def update_item(
         raise se
     except Exception as e:
         logger.exception(f"Error updating item {item_fid}: {e}")
-        raise errors.ServiceError("Failed to update item", status=500)
+        raise errors.ServiceError("Failed to update item")
 
 
 @router.delete(
@@ -237,7 +234,7 @@ async def delete_item(
         raise se
     except Exception as e:
         logger.exception(f"Error deleting item {item_fid}: {e}")
-        raise errors.ServiceError("Failed to delete item", status=500)
+        raise errors.ServiceError("Failed to delete item")
 
 
 @router.post(
@@ -274,7 +271,7 @@ async def request_item(
         raise se
     except Exception as e:
         logger.exception(f"Error requesting item {item_fid}: {e}")
-        raise errors.ServiceError("Failed to request item", status=500)
+        raise errors.ServiceError("Failed to request item")
 
 
 @router.get(
@@ -300,7 +297,7 @@ async def get_item_inventory(
         raise se
     except Exception as e:
         logger.exception(f"Error getting inventory for {item_fid}: {e}")
-        raise errors.ServiceError("Failed to get inventory", status=500)
+        raise errors.ServiceError("Failed to get inventory")
 
 
 @router.get(
@@ -332,7 +329,7 @@ async def get_item_inventory_history(
         raise se
     except Exception as e:
         logger.exception(f"Error getting inventory history for {item_fid}: {e}")
-        raise errors.ServiceError("Failed to get inventory history", status=500)
+        raise errors.ServiceError("Failed to get inventory history")
 
 
 @router.post(
@@ -368,4 +365,4 @@ async def adjust_item_inventory(
         raise se
     except Exception as e:
         logger.exception(f"Error adjusting inventory for {item_fid}: {e}")
-        raise errors.ServiceError("Failed to adjust inventory", status=500)
+        raise errors.ServiceError("Failed to adjust inventory")

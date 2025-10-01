@@ -47,7 +47,7 @@ router = APIRouter()
 async def upload_attachment(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     storage_service: Annotated["StorageService", Depends(get_storage_service)],
     upload_data: Annotated[AttachmentUploadRequest, Form(..., media_type="multipart/form-data")],
@@ -77,21 +77,18 @@ async def upload_attachment(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to upload attachment",
-            status=500,
         ) from e
 
 
-router.post(
+@router.post(
     "/bulk_upload",
     dependencies=[upload_rate_limit],
     response_model=IResponseBase[AttachmentBulkUploadResponse],
 )
-
-
 async def bulk_upload_attachments(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     storage_service: Annotated["StorageService", Depends(get_storage_service)],
     upload_data: Annotated[AttachmentBulkUploadRequest, Form(..., media_type="multipart/form-data")],
@@ -127,7 +124,6 @@ async def bulk_upload_attachments(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to upload attachments",
-            status=500,
         ) from e
 
 
@@ -139,7 +135,7 @@ async def bulk_upload_attachments(
 async def upload_direct_attachment(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     storage_service: Annotated["StorageService", Depends(get_storage_service)],
     upload_data: Annotated[AttachmentDirectUploadRequest, Form(..., media_type="multipart/form-data")],
@@ -169,7 +165,6 @@ async def upload_direct_attachment(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to generate presigned upload URL",
-            status=500,
         ) from e
 
 
@@ -181,7 +176,7 @@ async def upload_direct_attachment(
 async def bulk_direct_upload_attachments(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     storage_service: Annotated["StorageService", Depends(get_storage_service)],
     upload_data: Annotated[AttachmentBulkDirectUploadRequest, Form(...)],
@@ -215,7 +210,6 @@ async def bulk_direct_upload_attachments(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to generate presigned upload URLs",
-            status=500,
         ) from e
 
 
@@ -229,7 +223,7 @@ async def delete_attachment(
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
     attachment_fid: Annotated[str, Path(..., description="The Friendly ID of the attachment to delete")],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     storage_service: Annotated["StorageService", Depends(get_storage_service)],
 ) -> IResponseBase[None]:
     """
@@ -257,7 +251,6 @@ async def delete_attachment(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to delete attachment",
-            status=500,
         ) from e
 
 
@@ -271,7 +264,7 @@ async def download_attachment(
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
     attachment_fid: Annotated[str, Path(..., description="The Friendly ID of the attachment to download")],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],  # noqa: ARG001
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],  # noqa: ARG001
     storage_service: Annotated["StorageService", Depends(get_storage_service)],
 ) -> IResponseBase[AttachmentDownloadResponse]:
     """
@@ -292,7 +285,6 @@ async def download_attachment(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to get attachment download URL",
-            status=500,
         ) from e
 
 
@@ -305,7 +297,7 @@ async def get_direct_attachment_url(
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
     attachment_fid: Annotated[str, Path(..., description="The Friendly ID of the attachment")],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     storage_service: Annotated["StorageService", Depends(get_storage_service)],
 ) -> StreamingResponse:
     """
@@ -340,7 +332,6 @@ async def get_direct_attachment_url(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to download attachment",
-            status=500,
         ) from e
 
 
@@ -354,7 +345,7 @@ async def replace_attachment(
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
     attachment_fid: Annotated[str, Path(..., description="The Friendly ID of the attachment to replace")],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     storage_service: Annotated["StorageService", Depends(get_storage_service)],
     replace_data: Annotated[AttachmentReplaceRequest, Form(..., media_type="multipart/form-data")],
 ) -> IResponseBase[AttachmentUploadResponse]:
@@ -381,5 +372,4 @@ async def replace_attachment(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to replace attachment",
-            status=500,
         ) from e

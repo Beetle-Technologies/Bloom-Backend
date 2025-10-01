@@ -3,7 +3,7 @@ from functools import lru_cache
 from types import CoroutineType
 from typing import Annotated, Any, Callable
 
-from fastapi import Depends, Header, Request, status
+from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from multidict import CIMultiDict
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -81,7 +81,6 @@ def create_rate_limit_dependency(
             retry_after = max(1, int(stats.reset_time - current_time))
 
             raise errors.RateLimitExceededError(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 headers=CIMultiDict(
                     {
                         "X-RateLimit-Limit": str(limit_amount),

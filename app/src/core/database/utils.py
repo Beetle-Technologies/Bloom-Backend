@@ -56,11 +56,9 @@ async def _setup_product_item_triggers(session: AsyncSession) -> None:
     Args:
         engine: SQLAlchemy engine instance
     """
-    # Create the trigger functions
     await session.exec(PRODUCT_ITEM_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(PRODUCT_ITEM_PRICE_UPDATE_VIA_PRODUCT_FUNCTION)  # type: ignore
 
-    # Create the triggers
     await session.exec(PRODUCT_ITEM_TRIGGER)  # type: ignore
     await session.exec(PRODUCT_ITEM_PRICE_UPDATE_VIA_PRODUCT_TRIGGER)  # type: ignore
 
@@ -72,7 +70,6 @@ async def _drop_product_item_triggers(session: AsyncSession) -> None:
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_item_populate_fields ON product_items;"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_price_update_items ON products;"))  # type: ignore
 
-    # Drop functions
     await session.exec(DDL("DROP FUNCTION IF EXISTS populate_product_item_fields();"))  # type: ignore
     await session.exec(DDL("DROP FUNCTION IF EXISTS update_product_items_on_product_price_change();"))  # type: ignore
 
@@ -82,10 +79,8 @@ async def _setup_audit_log_triggers(session: AsyncSession) -> None:
     Set up database triggers for AuditLog model.
     """
 
-    # Create the trigger functions
     await session.exec(AUDIT_LOG_TRIGGER_FUNCTION)  # type: ignore
 
-    # Create the triggers
     await session.exec(ACCOUNT_AUDIT_LOG_TRIGGER)  # type: ignore
     await session.exec(PRODUCT_AUDIT_LOG_TRIGGER)  # type: ignore
 
@@ -102,11 +97,9 @@ async def _setup_token_cleanup_triggers(session: AsyncSession) -> None:
     """
     Set up database triggers for Token cleanup.
     """
-    # Create the trigger functions
     await session.exec(TOKEN_CLEANUP_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(TOKEN_CLEANUP_SCHEDULED_TRIGGER)  # type: ignore
 
-    # Create the triggers
     await session.exec(TOKEN_CLEANUP_TRIGGER)  # type: ignore
 
 
@@ -123,19 +116,15 @@ async def _setup_search_triggers(session: AsyncSession) -> None:
     """
     Set up database triggers for search vectors.
     """
-    # Products
     await session.exec(PRODUCT_SEARCH_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(PRODUCT_SEARCH_TRIGGER)  # type: ignore
 
-    # Product Items
     await session.exec(PRODUCT_ITEM_SEARCH_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(PRODUCT_ITEM_SEARCH_TRIGGER)  # type: ignore
 
-    # Countries
     await session.exec(COUNTRY_SEARCH_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(COUNTRY_SEARCH_TRIGGER)  # type: ignore
 
-    # Currencies
     await session.exec(CURRENCY_SEARCH_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(CURRENCY_SEARCH_TRIGGER)  # type: ignore
 

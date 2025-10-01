@@ -198,13 +198,13 @@ class PermissionService:
                 f"DatabaseError assigning permissions to account type info {account_type_info_id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to assign permissions", status=500) from de
+            raise errors.ServiceError(detail="Failed to assign permissions") from de
         except Exception as e:
             logger.error(
                 f"Unexpected error assigning permissions to account type info {account_type_info_id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to assign permissions", status=500) from e
+            raise errors.ServiceError(detail="Failed to assign permissions") from e
 
     async def get_permissions_for_account_type_info(
         self,
@@ -266,7 +266,7 @@ class PermissionService:
 
         except errors.DatabaseError as de:
             logger.error(f"DatabaseError revoking permission: {de.detail}", exc_info=True)
-            raise errors.ServiceError(detail="Failed to revoke permission", status=500) from de
+            raise errors.ServiceError(detail="Failed to revoke permission") from de
         except Exception as e:
             logger.error(f"Unexpected error revoking permission: {str(e)}", exc_info=True)
-            raise errors.ServiceError(detail="Failed to revoke permission", status=500) from e
+            raise errors.ServiceError(detail="Failed to revoke permission") from e

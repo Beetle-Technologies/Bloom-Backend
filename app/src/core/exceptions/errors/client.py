@@ -9,8 +9,11 @@ class InvalidClientTypeError(StatusProblem):
 
     type_ = "invalid_client_type"
     title = "Invalid Client Type"
-    detail = "The X-Bloom-Client header format is invalid or missing required parameters."
+    detail = "This client is invalid or missing required parameters."
     status = status.HTTP_400_BAD_REQUEST
+
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)
 
 
 class UnsupportedClientPlatformError(StatusProblem):
@@ -23,6 +26,9 @@ class UnsupportedClientPlatformError(StatusProblem):
     detail = "The specified platform is not supported."
     status = status.HTTP_400_BAD_REQUEST
 
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)
+
 
 class UnsupportedAppError(StatusProblem):
     """
@@ -33,3 +39,6 @@ class UnsupportedAppError(StatusProblem):
     title = "Unsupported App"
     detail = "The specified app is not supported."
     status = status.HTTP_400_BAD_REQUEST
+
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)

@@ -15,7 +15,6 @@ def get_logging_config() -> Dict[str, Any]:
     Returns:
         Dictionary containing the complete logging configuration
     """
-    # Base configuration structure
     config = {
         "version": 1,
         "disable_existing_loggers": False,
@@ -41,7 +40,7 @@ def get_logging_config() -> Dict[str, Any]:
                     "name": "logger",
                 },
             },
-            "detailed": {
+            "json_formatter": {
                 "()": "src.core.logging.formatters.StructuredExceptionJsonFormatter",
                 "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
@@ -101,7 +100,7 @@ def get_logging_config() -> Dict[str, Any]:
             "error_file": {
                 "class": "logging.FileHandler",
                 "level": "ERROR",
-                "formatter": "detailed",
+                "formatter": "json_formatter",  # Changed from "detailed" to "json_formatter"
                 "filters": ["context_filter"],
                 "filename": "logs/errors.log",
                 "mode": "a",
@@ -127,17 +126,14 @@ def get_logging_config() -> Dict[str, Any]:
         }
         config["root"]["handlers"] = ["json_stdout", "error_stderr"]
 
-    # Configure application loggers
     app_level = "DEBUG" if settings.ENVIRONMENT == "local" else "INFO"
 
     config["loggers"] = {
-        # Main application logger
         "src": {
             "level": app_level,
             "handlers": config["root"]["handlers"],
             "propagate": False,
         },
-        # FastAPI and related loggers
         "fastapi": {
             "level": "INFO",
             "propagate": True,
@@ -150,7 +146,6 @@ def get_logging_config() -> Dict[str, Any]:
             "level": "WARNING",  # Disable access logs - we handle this in middleware
             "propagate": False,
         },
-        # Database loggers
         "sqlalchemy": {
             "level": "WARNING",
             "propagate": True,
@@ -159,7 +154,6 @@ def get_logging_config() -> Dict[str, Any]:
             "level": "INFO" if settings.ENVIRONMENT == "local" else "WARNING",
             "propagate": True,
         },
-        # Third-party loggers
         "boto3": {
             "level": "WARNING",
             "propagate": True,
@@ -225,20 +219,16 @@ def setup_logging(config_override: Optional[Dict[str, Any]] = None) -> None:
             config_path = Path(settings.BASE_DIR) / "config" / "logging.yaml"
             config = load_config_from_yaml(config_path)
 
-    # 3. Use default programmatic configuration
     if config is None:
         config = get_logging_config()
 
-    # Ensure log directory exists for file handlers
     log_dir = Path(settings.BASE_DIR) / "logs"
     log_dir.mkdir(exist_ok=True)
 
-    # Apply the configuration
     try:
         logging.config.dictConfig(config)
     except Exception as e:
         print(f"Failed to configure logging: {e}", file=sys.stderr)
-        # Fallback to basic configuration
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -264,19 +254,16 @@ def setup_exception_logging() -> None:
             exc_value: The exception instance
             exc_traceback: The traceback object
         """
-        # Don't log KeyboardInterrupt
         if issubclass(exc_type, KeyboardInterrupt):
             original_excepthook(exc_type, exc_value, exc_traceback)
             return
 
-        # Log the uncaught exception
         logger = logging.getLogger(__name__)
         logger.critical(
             "Uncaught exception, application will terminate",
             exc_info=(exc_type, exc_value, exc_traceback),
         )
 
-        # Call the original exception hook
         original_excepthook(exc_type, exc_value, exc_traceback)
 
     sys.excepthook = handle_uncaught_exception

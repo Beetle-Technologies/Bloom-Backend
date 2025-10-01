@@ -22,12 +22,13 @@ Usage:
         logger.info("Processing user request")
 """
 
-from .config import get_logger, setup_exception_logging, setup_logging
+from .config import get_logger, get_logging_config, setup_exception_logging, setup_logging
 from .exceptions import general_exception_handler, http_exception_handler, log_exception_with_context
 from .filters import add_to_log_context, clear_log_context, get_log_context
 
 __all__ = [
     "setup_logging",
+    "get_logging_config",
     "setup_exception_logging",
     "get_logger",
     "add_to_log_context",

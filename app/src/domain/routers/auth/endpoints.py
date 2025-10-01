@@ -72,7 +72,6 @@ async def pre_check(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to perform pre-check",
-            status=500,
         ) from e
 
 
@@ -112,7 +111,6 @@ async def request_email_verification(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to request email verification",
-            status=500,
         ) from e
 
 
@@ -150,7 +148,6 @@ async def verify_email(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to verify email",
-            status=500,
         ) from e
 
 
@@ -193,7 +190,7 @@ async def register(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
-        raise errors.ServiceError(detail="Failed to register account", status=500) from e
+        raise errors.ServiceError(detail="Failed to register account") from e
 
 
 @router.post(
@@ -231,10 +228,7 @@ async def login(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
-        raise errors.ServiceError(
-            detail="Failed to login",
-            status=500,
-        ) from e
+        raise errors.ServiceError(detail="Failed to login") from e
 
 
 @router.post(
@@ -284,12 +278,14 @@ async def request_session(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to request new session",
-            status=500,
         ) from e
 
 
 @router.post(
-    "/logout", dependencies=[auth_rate_limit], response_model=IResponseBase[None], status_code=status.HTTP_200_OK
+    "/logout",
+    dependencies=[auth_rate_limit],
+    response_model=IResponseBase[None],
+    status_code=status.HTTP_200_OK,
 )
 async def logout(
     request: Request,  # noqa: ARG001
@@ -317,7 +313,6 @@ async def logout(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to logout",
-            status=500,
         ) from e
 
 
@@ -353,7 +348,6 @@ async def refresh(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to refresh tokens",
-            status=500,
         ) from e
 
 
@@ -386,7 +380,6 @@ async def forgot_password(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to request password reset",
-            status=500,
         ) from e
 
 
@@ -421,7 +414,6 @@ async def reset_password(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to reset password",
-            status=500,
         ) from e
 
 
@@ -458,5 +450,4 @@ async def change_password(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to change password",
-            status=500,
         ) from e

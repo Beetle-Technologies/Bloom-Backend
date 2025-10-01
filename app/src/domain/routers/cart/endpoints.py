@@ -6,14 +6,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.database.session import get_db_session
 from src.core.dependencies import api_rate_limit, is_bloom_user_client, require_eligible_user_account
 from src.core.exceptions import errors
-from src.core.helpers.response import build_json_response
+from src.core.helpers.response import IResponseBase, build_json_response
 from src.core.logging import get_logger
 from src.core.types import BloomClientInfo
+from src.domain.models.cart_item import CartItem
 from src.domain.schemas import AddToCartRequest, AuthSessionState, UpdateCartItemRequest
 from src.domain.services.cart_service import CartService
-
-from app.src.core.helpers.response import IResponseBase
-from app.src.domain.models.cart_item import CartItem
 
 logger = get_logger(__name__)
 
@@ -24,6 +22,7 @@ router = APIRouter()
     "/",
     dependencies=[api_rate_limit],
     status_code=status.HTTP_200_OK,
+    response_model=IResponseBase[dict[str, Any]],
 )
 async def add_to_cart(
     request: Request,  # noqa: ARG001
@@ -49,7 +48,7 @@ async def add_to_cart(
         raise sp
     except Exception as e:
         logger.exception(f"src.domain.routers.cart.endpoints.add_to_cart:: Error adding to cart: {e}")
-        raise errors.ServiceError("Failed to add item to cart", status=500)
+        raise errors.ServiceError("Failed to add item to cart")
 
 
 @router.get(
@@ -83,19 +82,20 @@ async def get_cart(
         raise sp
     except Exception as e:
         logger.exception(f"src.domain.routers.cart.endpoints.get_cart:: Error getting cart {cart_fid}: {e}")
-        raise errors.ServiceError("Failed to retrieve cart", status=500)
+        raise errors.ServiceError("Failed to retrieve cart")
 
 
 @router.delete(
     "/{cart_fid}",
     dependencies=[api_rate_limit],
+    response_model=IResponseBase[None],
     status_code=status.HTTP_200_OK,
 )
 async def clear_cart(
     cart_fid: Annotated[str, Path(..., description="The friendly ID of the cart to clear")],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     auth_state: Annotated[AuthSessionState, Depends(require_eligible_user_account)],
-):
+) -> IResponseBase[None]:
     """
     Clear all items from a specific cart by its friendly ID.
 
@@ -114,12 +114,13 @@ async def clear_cart(
         raise sp
     except Exception as e:
         logger.exception(f"src.domain.routers.cart.endpoints.clear_cart:: Error clearing cart {cart_fid}: {e}")
-        raise errors.ServiceError("Failed to clear cart", status=500)
+        raise errors.ServiceError("Failed to clear cart")
 
 
 @router.put(
     "/{cart_fid}/items/{item_fid}",
     dependencies=[api_rate_limit],
+    response_model=IResponseBase[CartItem],
     status_code=status.HTTP_200_OK,
 )
 async def update_cart_item(
@@ -145,7 +146,7 @@ async def update_cart_item(
         raise se
     except Exception as e:
         logger.exception(f"Error updating cart item {item_fid}: {e}")
-        raise errors.ServiceError("Failed to update cart item", status=500)
+        raise errors.ServiceError("Failed to update cart item")
 
 
 @router.delete(
@@ -180,4 +181,4 @@ async def remove_from_cart(
         logger.exception(
             f"src.domain.routers.cart.endpoints.remove_from_cart:: Error removing from cart {item_fid}: {e}"
         )
-        raise errors.ServiceError("Failed to remove item from cart", status=500)
+        raise errors.ServiceError("Failed to remove item from cart")

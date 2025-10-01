@@ -66,7 +66,8 @@ $$ LANGUAGE plpgsql;
 
 PRODUCT_ITEM_TRIGGER = DDL(
     """
-CREATE OR REPLACE TRIGGER product_item_populate_fields
+DROP TRIGGER IF EXISTS product_item_populate_fields ON product_items;
+CREATE TRIGGER product_item_populate_fields
     BEFORE INSERT OR UPDATE ON product_items
     FOR EACH ROW
     EXECUTE FUNCTION populate_product_item_fields();
@@ -102,7 +103,8 @@ $$ LANGUAGE plpgsql;
 
 PRODUCT_ITEM_PRICE_UPDATE_VIA_PRODUCT_TRIGGER = DDL(
     """
-CREATE OR REPLACE TRIGGER product_price_update_items
+DROP TRIGGER IF EXISTS product_price_update_items ON products;
+CREATE TRIGGER product_price_update_items
     AFTER UPDATE ON products
     FOR EACH ROW
     EXECUTE FUNCTION update_product_items_on_product_price_change();

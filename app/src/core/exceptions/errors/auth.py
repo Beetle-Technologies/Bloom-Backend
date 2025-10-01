@@ -11,6 +11,9 @@ class AuthenticationError(ServiceError):
     title = "Invalid credentials"
     detail = "Please provide valid authentication credentials."
 
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)
+
 
 class InvalidTokenError(AuthenticationError):
     """

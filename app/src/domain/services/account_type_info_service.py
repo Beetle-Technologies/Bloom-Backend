@@ -60,7 +60,7 @@ class AccountTypeInfoService:
                 f"DatabaseError creating account type info for account {account_id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to create account type info", status=500) from de
+            raise errors.ServiceError(detail="Failed to create account type info") from de
         except errors.ServiceError:
             raise
         except Exception as e:
@@ -68,7 +68,7 @@ class AccountTypeInfoService:
                 f"Unexpected error creating account type info for account {account_id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to create account type info", status=500) from e
+            raise errors.ServiceError(detail="Failed to create account type info") from e
 
     async def get_account_type_info(
         self,
@@ -132,10 +132,10 @@ class AccountTypeInfoService:
                 f"DatabaseError updating account type info {id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to update account type info", status=500) from de
+            raise errors.ServiceError(detail="Failed to update account type info") from de
         except Exception as e:
             logger.error(
                 f"Unexpected error updating account type info {id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to update account type info", status=500) from e
+            raise errors.ServiceError(detail="Failed to update account type info") from e

@@ -24,13 +24,13 @@ $$ language 'plpgsql';
 
 TOKEN_CLEANUP_TRIGGER = DDL(
     """
+DROP TRIGGER IF EXISTS token_cleanup_trigger ON tokens;
 CREATE TRIGGER token_cleanup_trigger
     AFTER UPDATE OF revoked ON tokens
     FOR EACH STATEMENT EXECUTE FUNCTION cleanup_expired_tokens();
 """
 )
 
-# Also create a scheduled trigger that runs periodically
 TOKEN_CLEANUP_SCHEDULED_TRIGGER = DDL(
     """
 CREATE OR REPLACE FUNCTION scheduled_token_cleanup()

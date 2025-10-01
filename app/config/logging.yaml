@@ -3,7 +3,16 @@ disable_existing_loggers: false
 
 formatters:
   json_formatter:
-    (): src.core.logging.formatters.StructuredExceptionJsonFormatter
+    "()": src.core.logging.formatters.StructuredExceptionJsonFormatter
+    format: "%(asctime)s %(name)s %(levelname)s %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+    rename_fields:
+      levelname: level
+      asctime: timestamp
+      name: logger
+
+  console_formatter:
+    "()": src.core.logging.formatters.ConsoleFormatter
     format: "%(asctime)s %(name)s %(levelname)s %(message)s"
     datefmt: "%Y-%m-%d %H:%M:%S"
     rename_fields:
@@ -13,18 +22,21 @@ formatters:
 
 filters:
   context_filter:
-    (): src.core.logging.filters.CombinedContextFilter
+    "()": src.core.logging.filters.CombinedContextFilter
 
   noise_reduction:
-    (): src.core.logging.filters.NoiseReductionFilter
+    "()": src.core.logging.filters.NoiseReductionFilter
     suppress_patterns: ["/health", "/metrics", "/ping"]
+
+  request_id:
+    "()": src.core.logging.filters.RequestIdFilter
 
 handlers:
   console:
     class: logging.StreamHandler
     level: INFO
-    formatter: json_formatter
-    filters: [context_filter, noise_reduction]
+    formatter: console_formatter
+    filters: [context_filter, noise_reduction, request_id]
     stream: ext://sys.stdout
 
   error_file:
@@ -45,6 +57,18 @@ loggers:
     propagate: false
 
   sqlalchemy.engine:
+    level: WARNING
+    propagate: true
+
+  fastapi:
+    level: INFO
+    propagate: true
+
+  celery:
+    level: INFO
+    propagate: true
+
+  uvicorn:
     level: INFO
     propagate: true
 

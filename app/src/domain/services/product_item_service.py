@@ -28,7 +28,6 @@ class ProductItemService:
             )
             raise errors.ServiceError(
                 detail="Failed to retrieve product item",
-                status=500,
             ) from e
 
     async def get_product_item_by_friendly_id(self, friendly_id: str) -> ProductItem | None:
@@ -40,7 +39,6 @@ class ProductItemService:
             )
             raise errors.ServiceError(
                 detail="Failed to retrieve product item",
-                status=500,
             ) from e
 
     async def create_product_item(self, product_item_data: ProductItemCreate) -> ProductItem:
@@ -65,7 +63,6 @@ class ProductItemService:
             raise errors.ServiceError(
                 message="Failed to create product item",
                 detail="An error occurred while creating the product item.",
-                status=500,
             ) from e
 
     async def update_product_item(
@@ -84,5 +81,4 @@ class ProductItemService:
             raise errors.ServiceError(
                 message="Failed to update product item",
                 detail="An error occurred while updating the product item.",
-                status=500,
             ) from e

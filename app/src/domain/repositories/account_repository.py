@@ -12,7 +12,6 @@ from src.core.types import IDType
 from src.domain.models.account import Account
 from src.domain.repositories.base_repository import BaseRepository
 from src.domain.schemas import AccountCreate, AccountUpdate
-from src.domain.services.security_service import security_service
 
 logger = get_logger(__name__)
 
@@ -114,6 +113,8 @@ class AccountRepository(BaseRepository[Account, AccountCreate, AccountUpdate]):
             Account: The created account object.
         """
         try:
+            from src.domain.services.security_service import security_service
+
             hashed_password, salt = security_service.hash_password(password=account.password)
 
             new_account = Account(

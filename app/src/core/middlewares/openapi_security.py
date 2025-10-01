@@ -1,6 +1,7 @@
 import base64
+import json
 
-from fastapi import Request, Response, status
+from fastapi import Request, Response
 from src.core.config import settings
 from src.core.exceptions import errors
 from src.core.logging import get_logger
@@ -49,9 +50,13 @@ class OpenAPISecurityMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     def _unauthorized_response(self):
+        error = errors.UnauthorizedError()
         return Response(
-            content=errors.UnauthorizedError().marshal(),
-            media_type="application/problem+json",
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            headers={"WWW-Authenticate": "Basic"},
+            content=json.dumps(error.marshal(uri=f"{settings.server_url}/errors/{{type}}", strict=True)),
+            status_code=error.status,
+            headers={
+                "content-type": "application/problem+json",
+                "WWW-Authenticate": 'Basic realm="OpenAPI Documentation"',
+                **(error.headers or {}),
+            },
         )

@@ -125,7 +125,6 @@ class CatalogService:
             logger.exception(f"Error getting catalog item {item_fid}: {e}")
             raise errors.ServiceError(
                 detail="Failed to retrieve catalog item",
-                status=500,
             ) from e
 
     async def _get_attachments_for_attachable(self, attachable_type: str, attachable_id: GUID) -> list[dict[str, str]]:
@@ -193,7 +192,6 @@ class CatalogService:
             logger.exception(f"src.domain.services.catalog_service.browse_catalog:: error while browsing catalog: {e}")
             raise errors.ServiceError(
                 detail="Failed to browse catalog",
-                status=500,
             ) from e
 
     async def _browse_catalog_internal(
@@ -298,7 +296,6 @@ class CatalogService:
             )
             raise errors.ServiceError(
                 detail="Failed to create catalog item",
-                status=500,
             ) from e
 
     async def update_catalog_item(
@@ -341,7 +338,7 @@ class CatalogService:
             logger.exception(
                 f"src.domain.services.catalog_service.update_catalog_item:: Error updating catalog item {item_fid}: {e}"
             )
-            raise errors.ServiceError("Failed to update catalog item", status=500)
+            raise errors.ServiceError("Failed to update catalog item")
 
     async def delete_catalog_item(self, item_fid: str, auth_state: AuthSessionState) -> bool:
         """
@@ -368,7 +365,7 @@ class CatalogService:
             logger.exception(
                 f"src.domain.services.catalog_service.delete_catalog_item:: Error deleting catalog item {item_fid}: {e}"
             )
-            raise errors.ServiceError("Failed to delete catalog item", status=500)
+            raise errors.ServiceError("Failed to delete catalog item")
 
     @transactional
     async def request_catalog_item(
@@ -440,7 +437,7 @@ class CatalogService:
             logger.exception(
                 f"src.domain.services.catalog_service.request_catalog_item:: Error requesting catalog item {item_fid}: {e}"
             )
-            raise errors.ServiceError("Failed to request catalog item", status=500)
+            raise errors.ServiceError("Failed to request catalog item")
 
     async def get_catalog_item_inventory(self, item_fid: str, auth_state: AuthSessionState) -> Inventory:
         """
@@ -467,7 +464,7 @@ class CatalogService:
             logger.exception(
                 f"src.domain.services.catalog_service.get_catalog_item_inventory:: Error getting inventory for {item_fid}: {e}"
             )
-            raise errors.ServiceError("Failed to get inventory", status=500)
+            raise errors.ServiceError("Failed to get inventory")
 
     async def get_catalog_item_inventory_history(
         self,
@@ -491,7 +488,7 @@ class CatalogService:
             logger.exception(
                 f"src.domain.services.catalog_service.get_catalog_item_inventory_history:: Error getting inventory history for {item_fid}: {e}"
             )
-            raise errors.ServiceError("Failed to get inventory history", status=500)
+            raise errors.ServiceError("Failed to get inventory history")
 
     @transactional
     async def adjust_catalog_item_inventory(
@@ -531,4 +528,4 @@ class CatalogService:
             logger.exception(
                 f"src.domain.services.catalog_service.adjust_catalog_item_inventory:: Error adjusting inventory for {item_fid}: {e}"
             )
-            raise errors.ServiceError("Failed to adjust inventory", status=500)
+            raise errors.ServiceError("Failed to adjust inventory")

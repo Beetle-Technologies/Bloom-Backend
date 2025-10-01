@@ -64,7 +64,7 @@ class CartService:
             logger.exception(
                 f"src.domain.services.cart_service.get_cart_by_friendly_id:: Error getting cart {friendly_id}: {e}"
             )
-            raise errors.ServiceError("Failed to retrieve cart", status=500) from e
+            raise errors.ServiceError("Failed to retrieve cart") from e
 
     async def _get_cartable(self, cartable_type: str, cartable_id: GUID) -> Product | ProductItem | None:
         if cartable_type == "Product":
@@ -127,7 +127,7 @@ class CartService:
                 updated_item = await self.cart_item_repository.update(existing_item.id, update_data)
 
                 if not updated_item:
-                    raise errors.ServiceError("Failed to update cart item", status=500)
+                    raise errors.ServiceError("Failed to update cart item")
 
                 return updated_item
             else:
@@ -147,7 +147,7 @@ class CartService:
             logger.exception(
                 f"src.domain.services.cart_service.add_to_cart:: Error adding item {item_fid} to cart: {e}"
             )
-            raise errors.ServiceError("Failed to add item to cart", status=500) from e
+            raise errors.ServiceError("Failed to add item to cart") from e
 
     async def update_cart_item(
         self, cart_fid: str, item_fid: str, quantity: int, auth_state: AuthSessionState
@@ -188,7 +188,7 @@ class CartService:
             logger.exception(
                 f"src.domain.services.cart_service.update_cart_item:: Error updating item {item_fid} in cart {cart_fid}: {e}"
             )
-            raise errors.ServiceError("Failed to update cart item", status=500) from e
+            raise errors.ServiceError("Failed to update cart item") from e
 
     async def remove_from_cart(self, cart_fid: str, item_fid: str, auth_state: AuthSessionState) -> bool:
         try:
@@ -219,7 +219,7 @@ class CartService:
             logger.exception(
                 f"src.domain.services.cart_service.remove_from_cart:: Error removing item {item_fid} from cart {cart_fid}: {e}"
             )
-            raise errors.ServiceError("Failed to remove item from cart", status=500) from e
+            raise errors.ServiceError("Failed to remove item from cart") from e
 
     @transactional
     async def clear_cart(self, cart_fid: str, auth_state: AuthSessionState) -> bool:
@@ -245,4 +245,4 @@ class CartService:
             raise se
         except errors.DatabaseError as e:
             logger.exception(f"src.domain.services.cart_service.clear_cart:: Error clearing cart {cart_fid}: {e}")
-            raise errors.ServiceError("Failed to clear cart", status=500) from e
+            raise errors.ServiceError("Failed to clear cart") from e

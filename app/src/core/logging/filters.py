@@ -6,6 +6,8 @@ import uuid
 from contextlib import contextmanager
 from typing import Any, Dict, Optional
 
+from src.core.config import settings
+
 _log_context: contextvars.ContextVar[Dict[str, Any]] = contextvars.ContextVar("log_context", default={})
 
 
@@ -55,14 +57,12 @@ class GlobalContextFilter(BaseContextFilter):
     def __init__(self, name: str = "") -> None:
         super().__init__(name)
 
-        # Cache static values at initialization
         self.hostname = socket.gethostname()
         self.process_id = os.getpid()
 
-        # Get environment information
-        self.environment = os.getenv("ENVIRONMENT", "unknown")
-        self.app_name = os.getenv("APP_NAME", "bloom-api")
-        self.app_version = os.getenv("APP_VERSION", "0.1.0")
+        self.environment = settings.ENVIRONMENT
+        self.app_name = settings.APP_NAME
+        self.app_version = settings.APP_VERSION
 
     def add_context(self, record: logging.LogRecord) -> None:
         """
@@ -109,7 +109,6 @@ class CombinedContextFilter(BaseContextFilter):
     def __init__(self, name: str = "") -> None:
         super().__init__(name)
 
-        # Initialize the component filters
         self.global_filter = GlobalContextFilter(name)
         self.dynamic_filter = DynamicContextFilter(name)
 

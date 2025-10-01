@@ -11,3 +11,6 @@ class DatabaseError(StatusProblem):
     title = "Database error"
     status = status.HTTP_500_INTERNAL_SERVER_ERROR
     detail = "An error occurred while interacting with the database."
+
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)

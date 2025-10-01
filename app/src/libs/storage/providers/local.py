@@ -7,6 +7,7 @@ import aiofiles
 from src.core.config import settings
 from src.core.types import FileContent
 from src.libs.storage.interface import StorageInterface
+from src.libs.storage.schemas import LocalConfiguration
 
 
 class LocalStorage(StorageInterface):
@@ -14,8 +15,8 @@ class LocalStorage(StorageInterface):
     Local file storage backend implementation.
     """
 
-    def __init__(self, base_path: str = settings.FILE_STORAGE_MEDIA_ROOT):
-        self.base_path = Path(base_path)
+    def __init__(self, config: LocalConfiguration):
+        self.base_path = Path(config.base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
     async def upload_file(self, file_data: FileContent, file_key: str, content_type: str) -> str:

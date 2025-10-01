@@ -28,7 +28,7 @@ router = APIRouter()
 async def me(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> IResponseBase[AccountBasicProfileResponse]:
     """
@@ -46,7 +46,6 @@ async def me(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to retrieve current account profile",
-            status=500,
         ) from e
 
 
@@ -59,7 +58,7 @@ async def me(
 async def update_me(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     account_data: Annotated[AccountUpdate, Body(...)],
 ) -> IResponseBase[AccountBasicProfileResponse]:
@@ -84,20 +83,23 @@ async def update_me(
     except AssertionError as ae:
         raise errors.ServiceError(
             detail="Failed to update account profile",
-            status=500,
         ) from ae
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to update account profile",
-            status=500,
         ) from e
 
 
-@router.delete("/me", dependencies=[api_rate_limit], response_model=IResponseBase[None], status_code=status.HTTP_200_OK)
+@router.delete(
+    "/me",
+    dependencies=[api_rate_limit],
+    response_model=IResponseBase[None],
+    status_code=status.HTTP_200_OK,
+)
 async def delete_me(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> IResponseBase[None]:
     """
@@ -111,7 +113,6 @@ async def delete_me(
         if not deleted:
             raise errors.ServiceError(
                 detail="Failed to delete account",
-                status=500,
             )
 
         return build_json_response(data=None, message="Account deleted successfully")
@@ -121,7 +122,6 @@ async def delete_me(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to delete account",
-            status=500,
         ) from e
 
 
@@ -134,7 +134,7 @@ async def delete_me(
 async def get_addresses(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> IResponseBase[list[AddressResponse]]:
     """
@@ -152,7 +152,6 @@ async def get_addresses(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to retrieve addresses",
-            status=500,
         ) from e
 
 
@@ -165,7 +164,7 @@ async def get_addresses(
 async def create_addresses(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     address_data: Annotated[AddressCreateRequest, Body(...)],
 ) -> IResponseBase[AddressResponse]:
@@ -194,7 +193,6 @@ async def create_addresses(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to create address",
-            status=500,
         ) from e
 
 
@@ -207,7 +205,7 @@ async def create_addresses(
 async def update_addresses(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     address_fid: Annotated[str, Path(..., description="The Friendly ID of the address to update")],
     address_data: Annotated[AddressUpdateRequest, Body(...)],
@@ -239,12 +237,10 @@ async def update_addresses(
     except AssertionError as ae:
         raise errors.ServiceError(
             detail="Failed to update address",
-            status=500,
         ) from ae
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to update address",
-            status=500,
         ) from e
 
 
@@ -257,7 +253,7 @@ async def update_addresses(
 async def delete_addresses(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, requires_eligible_account],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     address_fid: Annotated[str, Path(..., description="The Friendly ID of the address to delete")],
 ) -> IResponseBase[None]:
@@ -285,5 +281,4 @@ async def delete_addresses(
     except Exception as e:
         raise errors.ServiceError(
             detail="Failed to delete address",
-            status=500,
         ) from e

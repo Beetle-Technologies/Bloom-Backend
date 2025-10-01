@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Callable
 
@@ -60,15 +61,20 @@ class RequestThrottlerMiddleware(BaseHTTPMiddleware):
                 )
 
                 response = Response(
-                    content=errors.RateLimitExceededError().marshal(),
+                    content=json.dumps(
+                        errors.RateLimitExceededError().marshal(
+                            uri=f"{settings.server_url}/errors/{{type}}", strict=True
+                        )
+                    ),
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    media_type="application/problem+json",
+                    headers={
+                        "Content-Type": "application/problem+json",
+                        "Retry-After": str(retry_after),
+                        "X-RateLimit-Limit": str(limit_amount),
+                        "X-RateLimit-Remaining": "0",
+                        "X-RateLimit-Reset": str(int(stats.reset_time)),
+                    },
                 )
-
-                response.headers["X-RateLimit-Limit"] = str(limit_amount)
-                response.headers["X-RateLimit-Remaining"] = str(stats.remaining)
-                response.headers["X-RateLimit-Reset"] = str(int(stats.reset_time))
-                response.headers["Retry-After"] = str(retry_after)
 
                 return response
 

@@ -28,7 +28,6 @@ class ProductService:
             )
             raise errors.ServiceError(
                 detail="Failed to retrieve product",
-                status=500,
             ) from e
 
     async def get_product_by_friendly_id(self, friendly_id: str) -> Product | None:
@@ -41,7 +40,6 @@ class ProductService:
             )
             raise errors.ServiceError(
                 detail="Failed to retrieve product",
-                status=500,
             ) from e
 
     async def create_product(self, product_data: ProductCreate) -> Product:
@@ -53,7 +51,6 @@ class ProductService:
             raise errors.ServiceError(
                 message="Failed to create product",
                 detail="An error occurred while creating the product.",
-                status=500,
             ) from e
 
     async def update_product(self, product_id: GUID, product_data: ProductUpdate) -> Product | None:
@@ -65,7 +62,6 @@ class ProductService:
             raise errors.ServiceError(
                 message="Failed to update product",
                 detail="An error occurred while updating the product.",
-                status=500,
             ) from e
 
     async def get_products_by_supplier(self, supplier_account_id: GUID) -> list[Product]:
@@ -79,5 +75,4 @@ class ProductService:
             )
             raise errors.ServiceError(
                 detail="Failed to retrieve products",
-                status=500,
             ) from e

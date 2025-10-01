@@ -1,4 +1,5 @@
 from .account.endpoints import router as account_router  # noqa: F401
+from .admin.endpoints import router as admin_router  # noqa: F401
 from .attachment.endpoints import router as attachment_router  # noqa: F401
 from .auth.endpoints import router as auth_router  # noqa: F401
 from .cart.endpoints import router as cart_router  # noqa: F401

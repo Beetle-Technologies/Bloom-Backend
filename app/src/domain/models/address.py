@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import JsonValue
@@ -9,6 +9,7 @@ from src.core.database.mixins import FriendlyMixin, GUIDMixin, TimestampMixin
 from src.core.types import GUID, PhoneNumber
 
 if TYPE_CHECKING:
+    from src.domain.models.account_type_info import AccountTypeInfo
     from src.domain.models.country import Country
 
 
@@ -113,4 +114,11 @@ class Address(GUIDMixin, FriendlyMixin, TimestampMixin, table=True):
     country: "Country" = Relationship(
         back_populates="addresses",
         sa_relationship_kwargs={"lazy": "selectin"},
+    )
+    account_type_info: Optional["AccountTypeInfo"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "and_(Address.addressable_type == 'AccountTypeInfo', Address.addressable_id == foreign(AccountTypeInfo.id))",
+            "foreign_keys": "[Address.addressable_id]",
+            "viewonly": True,
+        }
     )

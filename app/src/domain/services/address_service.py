@@ -34,7 +34,10 @@ class AddressService:
             result = await self.address_repository.find(
                 pagination=GeneralPaginationRequest(
                     page=1,
-                    filters={"addressable_type__eq": "AccountTypeInfo", "addressable_id__eq": account_type_info_id},
+                    filters={
+                        "addressable_type__eq": "AccountTypeInfo",
+                        "addressable_id__eq": account_type_info_id,
+                    },
                     include=["country"],
                 )
             )
@@ -46,13 +49,13 @@ class AddressService:
                 f"DatabaseError getting addresses for account type info {account_type_info_id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to retrieve addresses", status=500) from de
+            raise errors.ServiceError(detail="Failed to retrieve addresses") from de
         except Exception as e:
             logger.error(
                 f"Unexpected error getting addresses for account type info {account_type_info_id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to retrieve addresses", status=500) from e
+            raise errors.ServiceError(detail="Failed to retrieve addresses") from e
 
     async def get_address_by_friendly_id(self, friendly_id: str, account_type_info_id: GUID) -> Address | None:
         """
@@ -83,13 +86,13 @@ class AddressService:
                 f"DatabaseError getting address by friendly_id {friendly_id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to retrieve address", status=500) from de
+            raise errors.ServiceError(detail="Failed to retrieve address") from de
         except Exception as e:
             logger.error(
                 f"Unexpected error getting address by friendly_id {friendly_id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to retrieve address", status=500) from e
+            raise errors.ServiceError(detail="Failed to retrieve address") from e
 
     async def create_address_for_account_type_info(
         self,
@@ -125,7 +128,7 @@ class AddressService:
                 f"DatabaseError creating address for account type info {account_type_info_id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to create address", status=500) from de
+            raise errors.ServiceError(detail="Failed to create address") from de
         except errors.ServiceError:
             raise
         except Exception as e:
@@ -133,7 +136,7 @@ class AddressService:
                 f"Unexpected error creating address for account type info {account_type_info_id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to create address", status=500) from e
+            raise errors.ServiceError(detail="Failed to create address") from e
 
     async def update_address_for_account_type_info(
         self,
@@ -186,7 +189,7 @@ class AddressService:
                 f"DatabaseError updating address {address_friendly_id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to update address", status=500) from de
+            raise errors.ServiceError(detail="Failed to update address") from de
         except errors.ServiceError:
             raise
         except Exception as e:
@@ -194,7 +197,7 @@ class AddressService:
                 f"Unexpected error updating address {address_friendly_id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to update address", status=500) from e
+            raise errors.ServiceError(detail="Failed to update address") from e
 
     async def delete_address_for_account_type_info(
         self,
@@ -226,13 +229,13 @@ class AddressService:
                 f"DatabaseError deleting address {address_friendly_id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to delete address", status=500) from de
+            raise errors.ServiceError(detail="Failed to delete address") from de
         except Exception as e:
             logger.error(
                 f"Unexpected error deleting address {address_friendly_id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to delete address", status=500) from e
+            raise errors.ServiceError(detail="Failed to delete address") from e
 
     async def get_default_address_for_account_type_info(self, account_type_info_id: GUID) -> Address | None:
         """
@@ -253,10 +256,10 @@ class AddressService:
                 f"DatabaseError getting default address for account type info {account_type_info_id}: {de.detail}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to retrieve default address", status=500) from de
+            raise errors.ServiceError(detail="Failed to retrieve default address") from de
         except Exception as e:
             logger.error(
                 f"Unexpected error getting default address for account type info {account_type_info_id}: {str(e)}",
                 exc_info=True,
             )
-            raise errors.ServiceError(detail="Failed to retrieve default address", status=500) from e
+            raise errors.ServiceError(detail="Failed to retrieve default address") from e

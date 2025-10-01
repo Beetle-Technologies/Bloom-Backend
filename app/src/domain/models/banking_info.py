@@ -9,7 +9,6 @@ from src.core.config import settings
 from src.core.database.mixins import GUIDMixin, TimestampMixin
 from src.core.types import GUID
 from src.domain.enums import BankAccountType, BankingInfoStatus
-from src.domain.services import security_service
 
 if TYPE_CHECKING:
     from src.domain.models import AccountTypeInfo
@@ -117,6 +116,8 @@ class BankingInfo(GUIDMixin, TimestampMixin, table=True):
     @classmethod
     def _get_cipher(cls):
         """Get the encryption cipher for banking data."""
+        from src.domain.services import security_service
+
         return security_service.get_cryptographic_signer(BANKING_INFO_ENCRYPTION_CONTEXT)
 
     @classmethod

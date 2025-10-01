@@ -112,7 +112,9 @@ class AccountService:
         try:
             account = await self.account_repository.get_by_email(email)
             if not account or account.deleted_datetime is not None:
-                raise errors.AccountNotFoundError()
+                raise errors.AccountNotFoundError(
+                    # detail="The requested account does not exist"
+                )
 
             if account.is_eligible():
                 raise errors.AccountIneligibleError(

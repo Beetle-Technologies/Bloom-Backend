@@ -36,10 +36,10 @@ class TokenService:
 
         except errors.DatabaseError as de:
             logger.error(f"DatabaseError creating token: {de.detail}", exc_info=True)
-            raise errors.ServiceError(detail="Failed to create token", status=500) from de
+            raise errors.ServiceError(detail="Failed to create token") from de
         except Exception as e:
             logger.error(f"Unexpected error creating token: {str(e)}", exc_info=True)
-            raise errors.ServiceError(detail="Failed to create token", status=500) from e
+            raise errors.ServiceError(detail="Failed to create token") from e
 
     async def bulk_create_if_not_exists(self, *, tokens: list[TokenCreate]) -> list[Token]:
         """
@@ -55,10 +55,10 @@ class TokenService:
             return await self.token_repository.bulk_create_if_not_exists(tokens)
         except errors.DatabaseError as de:
             logger.error(f"DatabaseError creating tokens: {de.detail}", exc_info=True)
-            raise errors.ServiceError(detail="Failed to create tokens", status=500) from de
+            raise errors.ServiceError(detail="Failed to create tokens") from de
         except Exception as e:
             logger.error(f"Unexpected error creating tokens: {str(e)}", exc_info=True)
-            raise errors.ServiceError(detail="Failed to create tokens", status=500) from e
+            raise errors.ServiceError(detail="Failed to create tokens") from e
 
     async def get_token(self, *, token: str) -> Token | None:
         """
@@ -94,10 +94,10 @@ class TokenService:
 
         except errors.DatabaseError as de:
             logger.error(f"DatabaseError revoking token: {de.detail}", exc_info=True)
-            raise errors.ServiceError(detail="Failed to revoke token", status=500) from de
+            raise errors.ServiceError(detail="Failed to revoke token") from de
         except Exception as e:
             logger.error(f"Unexpected error revoking token: {str(e)}", exc_info=True)
-            raise errors.ServiceError(detail="Failed to revoke token", status=500) from e
+            raise errors.ServiceError(detail="Failed to revoke token") from e
 
     async def is_token_valid(self, *, token: str) -> bool:
         """

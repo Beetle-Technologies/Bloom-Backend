@@ -50,7 +50,7 @@ async def get_currencies(
         raise se
     except Exception:
         logger.exception("src.domain.routers.misc.endpoints.get_currencies:: Error getting currencies: {e}")
-        raise errors.ServiceError("Failed to get currencies", status=500)
+        raise errors.ServiceError("Failed to get currencies")
 
 
 @router.get(
@@ -85,4 +85,4 @@ async def get_countries(
         raise se
     except Exception:
         logger.exception("src.domain.routers.misc.endpoints.get_countries:: Error getting countries: {e}")
-        raise errors.ServiceError("Failed to get countries", status=500)
+        raise errors.ServiceError("Failed to get countries")

@@ -139,8 +139,9 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
 
     addresses: list["Address"] = Relationship(
         sa_relationship_kwargs={
-            "primaryjoin": "Address.addressable_type == 'AccountTypeInfo' and Address.addressable_id == AccountTypeInfo.id",
+            "primaryjoin": "and_(Address.addressable_type == 'AccountTypeInfo', foreign(Address.addressable_id) == AccountTypeInfo.id)",
             "lazy": "selectin",
+            "viewonly": True,
         }
     )
 

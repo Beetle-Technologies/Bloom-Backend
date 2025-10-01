@@ -12,6 +12,9 @@ class ServiceError(StatusProblem):
     detail = "An error occurred while processing your request."
     status = status.HTTP_400_BAD_REQUEST
 
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)
+
 
 class NotFoundError(StatusProblem):
     """
@@ -22,6 +25,9 @@ class NotFoundError(StatusProblem):
     title = "Resource Not Found"
     detail = "The requested resource could not be found."
     status = status.HTTP_404_NOT_FOUND
+
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)
 
 
 class InternalServerError(StatusProblem):
@@ -34,6 +40,9 @@ class InternalServerError(StatusProblem):
     detail = "An unexpected error occurred on the server."
     status = status.HTTP_500_INTERNAL_SERVER_ERROR
 
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)
+
 
 class UnauthorizedError(StatusProblem):
     """
@@ -45,6 +54,9 @@ class UnauthorizedError(StatusProblem):
     detail = "You are not authorized to access this resource."
     status = status.HTTP_401_UNAUTHORIZED
 
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)
+
 
 class RateLimitExceededError(StatusProblem):
     """
@@ -55,3 +67,6 @@ class RateLimitExceededError(StatusProblem):
     title = "Rate Limit Exceeded"
     detail = "You have exceeded your request rate limit."
     status = status.HTTP_429_TOO_MANY_REQUESTS
+
+    def __init__(self, detail=None, **kwargs):
+        super().__init__(detail=detail or self.detail, **kwargs)

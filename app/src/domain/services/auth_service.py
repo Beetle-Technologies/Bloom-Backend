@@ -152,7 +152,6 @@ class AuthService:
             )
             raise errors.AccountCreationError(
                 detail="Registration failed due to an unexpected error",
-                status=500,
             ) from ae
         except Exception as e:
             logger.error(
@@ -161,7 +160,6 @@ class AuthService:
             )
             raise errors.AccountCreationError(
                 detail="Registration failed due to an unexpected error",
-                status=500,
             ) from e
 
     async def login(
@@ -261,10 +259,7 @@ class AuthService:
                 f"src.domain.services.auth_service.login:: ServiceError during login for email {email}: {se.detail}",
                 exc_info=True,
             )
-            raise errors.AuthenticationError(
-                detail=se.detail,
-                status=se.status,
-            ) from se
+            raise se
         except Exception as e:
             logger.error(
                 f"src.domain.services.auth_service.login:: Unexpected error during login for email {email}: {str(e)}",
@@ -272,7 +267,6 @@ class AuthService:
             )
             raise errors.AuthenticationError(
                 detail="Login failed due to an unexpected error",
-                status=500,
             ) from e
 
     async def send_code_for_session(
@@ -333,7 +327,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Failed to send session OTP",
-                status=500,
             ) from e
 
     async def verify_code_for_session(
@@ -397,7 +390,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Failed to verify session OTP",
-                status=500,
             ) from e
 
     async def request_email_verification(
@@ -474,7 +466,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Failed to generate verification token",
-                status=500,
             ) from ae
         except Exception as e:
             logger.error(
@@ -483,7 +474,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Failed to request email verification",
-                status=500,
             ) from e
 
     async def verify_email(
@@ -561,7 +551,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Failed to verify email",
-                status=500,
             ) from e
 
     async def logout(
@@ -599,7 +588,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Logout failed due to an unexpected error",
-                status=500,
             ) from e
 
     async def pre_check(
@@ -689,7 +677,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Pre-check operation failed",
-                status=500,
             ) from e
 
     @transactional
@@ -806,7 +793,6 @@ class AuthService:
                 if not access_token:
                     raise errors.ServiceError(
                         detail="Failed to generate access token",
-                        status=500,
                     )
 
                 await self.token_service.bulk_create_if_not_exists(
@@ -837,7 +823,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Failed to create new session due to an unexpected error",
-                status=500,
             ) from ae
         except Exception as e:
             logger.error(
@@ -846,7 +831,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Failed to create new session due to an unexpected error",
-                status=500,
             ) from e
 
     @transactional
@@ -907,7 +891,6 @@ class AuthService:
             logger.error(f"Unexpected error during token refresh: {str(e)}", exc_info=True)
             raise errors.ServiceError(
                 detail="Token refresh failed",
-                status=500,
             ) from e
 
     async def request_password_reset(
@@ -962,7 +945,6 @@ class AuthService:
             )
             raise errors.ServiceError(
                 detail="Failed to process password reset request",
-                status=500,
             ) from e
 
     async def reset_password(
@@ -1003,7 +985,6 @@ class AuthService:
             logger.error(f"Unexpected error during password reset: {str(e)}", exc_info=True)
             raise errors.ServiceError(
                 detail="Failed to reset password",
-                status=500,
             ) from e
 
     async def change_password(
@@ -1034,7 +1015,6 @@ class AuthService:
             if not updated_account:
                 raise errors.ServiceError(
                     detail="Failed to update password",
-                    status=500,
                 )
 
         except errors.AccountInvalidPasswordError as aip:
@@ -1050,7 +1030,6 @@ class AuthService:
             logger.error(f"Unexpected error during password change: {str(e)}", exc_info=True)
             raise errors.ServiceError(
                 detail="Failed to change password",
-                status=500,
             ) from e
 
     async def _cache_verified_account(self, account) -> None:

@@ -22,6 +22,7 @@ $$ language 'plpgsql';
 
 ACCOUNT_AUDIT_LOG_TRIGGER = DDL(
     """
+DROP TRIGGER IF EXISTS audit_accounts_trigger ON accounts;
 CREATE TRIGGER audit_accounts_trigger
     AFTER INSERT OR UPDATE OR DELETE ON accounts
     FOR EACH ROW EXECUTE FUNCTION create_audit_log();
@@ -30,6 +31,7 @@ CREATE TRIGGER audit_accounts_trigger
 
 PRODUCT_AUDIT_LOG_TRIGGER = DDL(
     """
+DROP TRIGGER IF EXISTS audit_products_trigger ON products;
 CREATE TRIGGER audit_products_trigger
     AFTER INSERT OR UPDATE OR DELETE ON products
     FOR EACH ROW EXECUTE FUNCTION create_audit_log();

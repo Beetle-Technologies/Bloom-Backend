@@ -28,6 +28,7 @@ class StructuredExceptionJsonFormatter(JsonFormatter):
         rename_fields: Optional[Dict[str, str]] = None,
         static_fields: Optional[Dict[str, Any]] = None,
         reserved_attrs: Optional[list] = None,
+        **kwargs,  # Add this to catch any extra arguments
     ):
         """
         Initialize the structured JSON formatter.
@@ -46,20 +47,26 @@ class StructuredExceptionJsonFormatter(JsonFormatter):
             static_fields: Static fields to include in every log record
             reserved_attrs: List of reserved attributes to exclude from output
         """
-        super().__init__(
-            fmt=fmt,
-            datefmt=datefmt,
-            json_default=json_default,
-            json_encoder=json_encoder,
-            json_serializer=json_serializer,
-            json_decoder=json_decoder,
-            json_indent=json_indent,
-            json_ensure_ascii=json_ensure_ascii,
-            prefix=prefix,
-            rename_fields=rename_fields,
-            static_fields=static_fields,
-            reserved_attrs=reserved_attrs,
-        )
+        # Filter out any unknown kwargs that might come from YAML config
+        valid_kwargs = {
+            "fmt": fmt,
+            "datefmt": datefmt,
+            "json_default": json_default,
+            "json_encoder": json_encoder,
+            "json_serializer": json_serializer,
+            "json_decoder": json_decoder,
+            "json_indent": json_indent,
+            "json_ensure_ascii": json_ensure_ascii,
+            "prefix": prefix,
+            "rename_fields": rename_fields,
+            "static_fields": static_fields,
+            "reserved_attrs": reserved_attrs,
+        }
+
+        # Remove None values
+        valid_kwargs = {k: v for k, v in valid_kwargs.items() if v is not None}
+
+        super().__init__(**valid_kwargs)
 
     def add_fields(self, log_record: Dict[str, Any], record: Any, message_dict: Dict[str, Any]) -> None:
         """
@@ -75,25 +82,20 @@ class StructuredExceptionJsonFormatter(JsonFormatter):
         """
         super().add_fields(log_record, record, message_dict)
 
-        # Handle structured exception logging
         if record.exc_info:
             exc_type, exc_value, exc_traceback = record.exc_info
 
-            # Create structured exception data
             exception_data = {
                 "type": exc_type.__name__ if exc_type else None,
                 "message": str(exc_value) if exc_value else None,
                 "traceback": None,
             }
 
-            # Add structured traceback
             if exc_traceback:
                 exception_data["traceback"] = traceback.format_exception(exc_type, exc_value, exc_traceback)
 
-            # Add the structured exception to the log record
             log_record["exception"] = exception_data
 
-            # Remove the original exc_info and exc_text fields to avoid duplication
             log_record.pop("exc_info", None)
             log_record.pop("exc_text", None)
 
@@ -107,19 +109,19 @@ class ConsoleFormatter(JsonFormatter):
     """
 
     def __init__(self, **kwargs):
-        # Set reasonable defaults for console output
-        default_fmt = "%(asctime)s %(name)s %(levelname)s %(message)s"
+        fmt = kwargs.pop("format", "%(asctime)s %(name)s %(levelname)s %(message)s")
+        datefmt = kwargs.pop("datefmt", "%Y-%m-%d %H:%M:%S")
+        rename_fields = kwargs.pop("rename_fields", {})
+
         default_rename_fields = {
             "levelname": "level",
             "asctime": "timestamp",
             "name": "logger",
         }
 
-        # Merge provided rename_fields with defaults
-        rename_fields = kwargs.pop("rename_fields", {})
         rename_fields = {**default_rename_fields, **rename_fields}
 
-        super().__init__(fmt=kwargs.pop("fmt", default_fmt), rename_fields=rename_fields, **kwargs)
+        super().__init__(fmt=fmt, datefmt=datefmt, rename_fields=rename_fields, **kwargs)
 
 
 class ProductionFormatter(StructuredExceptionJsonFormatter):
@@ -131,11 +133,16 @@ class ProductionFormatter(StructuredExceptionJsonFormatter):
     """
 
     def __init__(self, **kwargs):
-        # Set production-specific defaults
-        default_fmt = (
-            "%(asctime)s %(name)s %(levelname)s %(message)s "
-            "%(pathname)s %(lineno)d %(funcName)s %(process)d %(thread)d"
-        )
+        fmt = kwargs.pop("format", None)
+        if fmt is None:
+            fmt = (
+                "%(asctime)s %(name)s %(levelname)s %(message)s "
+                "%(pathname)s %(lineno)d %(funcName)s %(process)d %(thread)d"
+            )
+
+        datefmt = kwargs.pop("datefmt", "%Y-%m-%dT%H:%M:%S")
+        rename_fields = kwargs.pop("rename_fields", {})
+
         default_rename_fields = {
             "levelname": "level",
             "asctime": "timestamp",
@@ -147,8 +154,6 @@ class ProductionFormatter(StructuredExceptionJsonFormatter):
             "thread": "thread_id",
         }
 
-        # Merge provided rename_fields with defaults
-        rename_fields = kwargs.pop("rename_fields", {})
         rename_fields = {**default_rename_fields, **rename_fields}
 
-        super().__init__(fmt=kwargs.pop("fmt", default_fmt), rename_fields=rename_fields, **kwargs)
+        super().__init__(fmt=fmt, datefmt=datefmt, rename_fields=rename_fields, **kwargs)
