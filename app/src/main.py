@@ -22,6 +22,7 @@ from src.domain.routers import (
     auth_router,
     cart_router,
     catalog_router,
+    health_router,
     order_router,
 )
 
@@ -154,6 +155,7 @@ app.include_router(attachment_router, prefix=f"{settings.api_v1_str}/attachments
 app.include_router(auth_router, prefix=f"{settings.api_v1_str}/auth", tags=["Auth"])
 app.include_router(catalog_router, prefix=f"{settings.api_v1_str}/catalog", tags=["Catalog"])
 app.include_router(cart_router, prefix=f"{settings.api_v1_str}/cart", tags=["Cart"])
+app.include_router(health_router, prefix="/health", include_in_schema=False)
 app.include_router(order_router, prefix=f"{settings.api_v1_str}/orders", tags=["Orders"])
 
 

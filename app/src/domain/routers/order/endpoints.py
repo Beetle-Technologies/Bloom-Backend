@@ -57,7 +57,7 @@ async def get_order(
 
 
 @router.delete("/{order_fid}", dependencies=[api_rate_limit])
-async def delete_order(
+async def cancel_order(
     request: Request,
     request_client: Annotated[BloomClientInfo, is_bloom_user_client],
     order_fid: Annotated[str, Path(..., description="The friendly ID of the order to delete")],
@@ -65,7 +65,7 @@ async def delete_order(
     auth_state: Annotated[AuthSessionState, Depends(require_eligible_user_account)],
 ):
     """
-    Delete an order by order friendly ID
+    Cancel an order by order friendly ID if it hasn't been confirmed yet
     """
     pass
 

@@ -2,8 +2,10 @@
 
 echo "Running pre-start script..."
 
+export PYTHONPATH=/app
+
 echo "Checking database connection..."
-PYTHONPATH=. python ./src/core/initializers/database.py
+python ./src/core/initializers/database.py
 if [ $? -ne 0 ]; then
     echo "Database connection check failed. Exiting."
     exit 1
@@ -19,7 +21,7 @@ fi
 echo "Migrations completed successfully."
 
 echo "Loading fixtures..."
-PYTHONPATH=. python ./src/core/initializers/fixtures.py
+python ./src/core/initializers/fixtures.py
 if [ $? -ne 0 ]; then
     echo "Loading fixtures failed. Exiting."
     exit 1

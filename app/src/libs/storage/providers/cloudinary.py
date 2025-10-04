@@ -120,7 +120,7 @@ class CloudinaryStorage(StorageInterface):
         Returns:
             str: The URL to access the file.
         """
-        return f"https://res.cloudinary.com/{self.config.cloud_name}/image/upload/{file_key}"
+        return cloudinary.utils.cloudinary_url(file_key)[0]
 
     async def download_file_presigned(self, file_key: str) -> tuple[str, timedelta]:
         """

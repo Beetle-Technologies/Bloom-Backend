@@ -22,7 +22,7 @@ ENV UV_COMPILE_BYTECODE=1
 RUN uv venv /opt/venv
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONPATH=/backend/
+ENV PYTHONPATH=/app/
 ENV PYTHONUNBUFFERED=1
 
 # uv Cache
@@ -49,4 +49,4 @@ COPY ./src /app/src
 # Sync the project
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
 RUN --mount=type=cache,target=/root/.cache/uv \
-  uv sync --frozen
+    uv sync --frozen

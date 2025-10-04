@@ -58,7 +58,6 @@ class Settings(BaseSettings):
     OPENAPI_PASSWORD: str = "changethis"
     OPENAPI_DOCS_URL: str = "/docs"
     OPENAPI_JSON_SCHEMA_URL: str = "/openapi.json"
-    CSRF_SECRET_KEY: str = secrets.token_urlsafe(32)
     AUTH_SECRET_KEY: str = secrets.token_hex(64)
     FRONTEND_URL: HttpUrl | str = "http://localhost:3000"
     AUTH_OTP_SECRET_KEY: str = base64.b32encode(secrets.token_bytes(32)).decode()
@@ -169,7 +168,7 @@ class Settings(BaseSettings):
         )
 
     FILE_STORAGE_BACKEND: Literal["local", "s3", "cloudinary"] = "local"
-    FILE_STORAGE_MEDIA_ROOT: str = str(Path(BASE_DIR) / "uploads")
+    FILE_STORAGE_MEDIA_ROOT: str = str(Path(BASE_DIR) / "media")
     FILE_MAX_SIZE: int = 1024 * 1024 * 50  # 50 MB
     FILE_STORAGE_PRESIGNGED_EXPIRY_TIME: int = 7200  # 2 hour
     FILE_STORAGE_GENERATE_THUMBNAILS: bool = True
