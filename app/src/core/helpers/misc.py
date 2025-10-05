@@ -33,7 +33,7 @@ def call(type: Any, name: str, *args, **kwargs) -> Any:
 class DateTimeEncoder(JSONEncoder):
     """Custom JSON encoder for datetime objects."""
 
-    def default(self, obj: Any) -> Any:
+    def default(self, obj: Any) -> Any:  # type: ignore
         if isinstance(obj, (datetime, date)):
             return obj.isoformat()
         return super().default(obj)

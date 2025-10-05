@@ -6,6 +6,7 @@ from typing import Optional, Self
 from pydantic import BaseModel, EmailStr, Field, JsonValue, model_validator
 from src.core.helpers import optional
 from src.core.types import GUID, Password, PhoneNumber
+from src.domain.schemas.attachment import AttachmentBasicResponse
 
 
 class AuthAccount(BaseModel):
@@ -102,13 +103,14 @@ class AccountTypeUpdate(AccountTypeCreate):
 class AccountBasicProfileResponse(BaseModel):
     """Schema for account profile response data."""
 
+    id: GUID
     fid: str = Field(..., description="Unique friendly identifier for the account")
     first_name: str
     last_name: str
     email: EmailStr
     username: str | None
     phone_number: PhoneNumber | None
-    attachment: Optional[str] = Field(None, description="URL to the profile attachment")
+    attachment: Optional[AttachmentBasicResponse] = Field(None, description="URL/Path to the profile attachment")
     is_active: bool
     is_verified: bool
     is_suspended: bool

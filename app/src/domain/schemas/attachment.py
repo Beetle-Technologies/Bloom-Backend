@@ -225,8 +225,10 @@ class AttachmentBulkUploadRequest(BaseModel):
 
     files: list[Annotated[UploadFile, File(description="Files to be uploaded")]]
     names: list[str] = Field(..., description="Name identifiers for the attachments")
-    attachable_type: str = Field(..., max_length=120, description="Type of the attachable entity")
-    attachable_id: GUID = Field(..., description="ID of the attachable entity")
+    attachable_type: str = Field(
+        ..., max_length=120, description="Type of the attachable entity e.g., 'Account', 'Product', 'ProductItem"
+    )
+    attachable_id: GUID = Field(..., description="Friendly ID of the attachable entity")
     tags: str | None = None
     expires_at: datetime | None = None
     auto_delete_after: str | None = None
@@ -296,3 +298,11 @@ class AttachmentBulkDirectUploadResponse(BaseModel):
     """
 
     uploads: list[AttachmentPresignedUrlResponse]
+
+
+class AttachmentBasicResponse(BaseModel):
+    """Schema for basic attachment response data."""
+
+    id: GUID
+    fid: str
+    url: str | None

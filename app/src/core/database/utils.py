@@ -4,6 +4,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.database.session import db_context_manager
 from src.core.database.triggers import (
     ACCOUNT_AUDIT_LOG_TRIGGER,
+    ACCOUNT_SEARCH_TRIGGER,
+    ACCOUNT_SEARCH_TRIGGER_FUNCTION,
     AUDIT_LOG_TRIGGER_FUNCTION,
     COUNTRY_SEARCH_TRIGGER,
     COUNTRY_SEARCH_TRIGGER_FUNCTION,
@@ -116,6 +118,9 @@ async def _setup_search_triggers(session: AsyncSession) -> None:
     """
     Set up database triggers for search vectors.
     """
+    await session.exec(ACCOUNT_SEARCH_TRIGGER_FUNCTION)  # type: ignore
+    await session.exec(ACCOUNT_SEARCH_TRIGGER)  # type: ignore
+
     await session.exec(PRODUCT_SEARCH_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(PRODUCT_SEARCH_TRIGGER)  # type: ignore
 
@@ -133,6 +138,9 @@ async def _drop_search_triggers(session: AsyncSession) -> None:
     """
     Drop database triggers for search vectors.
     """
+
+    await session.exec(DDL("DROP TRIGGER IF EXISTS account_search_update ON accounts;"))  # type: ignore
+    await session.exec(DDL("DROP FUNCTION IF EXISTS update_account_search_vector();"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_search_update ON products;"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_item_search_update ON product_items;"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS country_search_update ON country;"))  # type: ignore

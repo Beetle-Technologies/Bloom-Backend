@@ -163,7 +163,6 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         except EntityNotFoundError as enf:
             raise errors.DatabaseError(
                 detail=enf.detail,
-                status=enf.status,
                 metadata=call(enf, "metadata") or {"id": id},
             )
 
@@ -275,6 +274,35 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         try:
             return await self.query_engine.query(
+                filters=params.filters, fields=params.fields, include=params.include, order_by=params.order_by
+            )
+        except QueryEngineError as qe:
+            raise errors.DatabaseError(
+                message="Failed to execute query",
+                detail="An error occurred while executing the query.",
+            ) from qe
+        except SQLAlchemyError as e:
+            raise errors.DatabaseError(
+                message="Failed to execute query",
+                detail="An error occurred while executing the query.",
+            ) from e
+
+    async def query_all(self, *, params: BaseQueryEngineParams) -> list[ModelType]:
+        """
+        Query for multiple entities.
+
+        Args:
+            filters (dict[str, Any] | None): Dictionary of filter conditions
+            fields (str | None): Comma-separated string of fields to select or "*" for all fields
+            include (list[str] | None): List of relationships to include
+            order_by (list[str] | None): List of fields to order by
+
+        Returns:
+            list[ModelType]: List of entities matching the query
+        """
+
+        try:
+            return await self.query_engine.query_all(
                 filters=params.filters, fields=params.fields, include=params.include, order_by=params.order_by
             )
         except QueryEngineError as qe:

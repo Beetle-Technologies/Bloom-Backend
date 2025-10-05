@@ -166,6 +166,40 @@ class AttachmentService:
                 detail="Failed to upload attachment",
             ) from e
 
+    async def get_attachment_url(
+        self,
+        *,
+        attachment_fid: str,
+        storage_service: StorageService,
+    ) -> str:
+        """
+        Get a direct URL for an attachment.
+
+        Args:
+            attachment_fid: The friendly ID of the attachment
+            storage_service: Storage service instance
+        Returns:
+            str: The direct URL of the attachment
+        """
+        try:
+            attachment = await self.attachment_repository.find_one_by_or_none(friendly_id=attachment_fid)
+            if not attachment:
+                raise errors.NotFoundError(detail="Attachment not found")
+
+            blob = await self.blob_repository.find_one_by_or_none(id=attachment.blob_id)
+            if not blob:
+                raise errors.NotFoundError(detail="Attachment blob not found")
+
+            file_url = await storage_service.get_file_url(blob.key)
+            return file_url
+        except errors.ServiceError as se:
+            raise se
+        except Exception as e:
+            logger.exception(f"Error getting attachment URL: {e}")
+            raise errors.ServiceError(
+                detail="Failed to get attachment URL",
+            ) from e
+
     async def generate_presigned_upload_url(
         self,
         *,

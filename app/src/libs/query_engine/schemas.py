@@ -366,7 +366,9 @@ class GeneralPaginationResponse(BaseModel, Generic[T]):
         base_data = {
             "has_next": self.has_next,
             "has_previous": self.has_previous,
-            "items": self.items,
+            "items": [
+                item._asdict() if hasattr(item, "_asdict") else item.__dict__ for item in self.items  # type: ignore
+            ],
         }
 
         if self.pagination_type == PaginationType.OFFSET:

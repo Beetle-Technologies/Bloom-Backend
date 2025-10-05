@@ -142,6 +142,7 @@ async def verify_email(
         await auth_service.verify_email(
             token=body.token,
             mode=body.mode,
+            is_reset=body.is_reset,
         )
 
         return build_json_response(
@@ -413,6 +414,7 @@ async def reset_password(
         auth_service = AuthService(session=session)
 
         await auth_service.reset_password(
+            fid=body.fid,
             token=body.token,
             new_password=body.new_password,
         )

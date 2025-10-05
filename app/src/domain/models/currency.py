@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, ClassVar
 
-from babel.numbers import get_currency_symbol
 from pycountries import Currency as CurrencyCode
 from sqlalchemy import VARCHAR, Boolean, Column, Index
 from sqlmodel import Field, Relationship
@@ -51,13 +50,3 @@ class Currency(UUIDMixin, SearchableMixin, TimestampMixin, table=True):
         description="Indicates if this currency is the default one for the system",
     )
     countries: list["Country"] = Relationship(back_populates="currency", sa_relationship_kwargs={"lazy": "selectin"})
-
-    @property
-    def symbol(self) -> str:
-        code = self.code.value
-
-        try:
-            symbol = get_currency_symbol(code)
-            return symbol
-        except Exception:
-            return code

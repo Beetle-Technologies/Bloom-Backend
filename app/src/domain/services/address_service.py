@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.database.decorators import transactional
 from src.core.exceptions import errors
 from src.core.logging import get_logger
 from src.core.types import GUID
@@ -94,6 +95,7 @@ class AddressService:
             )
             raise errors.ServiceError(detail="Failed to retrieve address") from e
 
+    @transactional
     async def create_address_for_account_type_info(
         self,
         account_type_info_id: GUID,
@@ -138,6 +140,7 @@ class AddressService:
             )
             raise errors.ServiceError(detail="Failed to create address") from e
 
+    @transactional
     async def update_address_for_account_type_info(
         self,
         address_friendly_id: str,
@@ -199,6 +202,7 @@ class AddressService:
             )
             raise errors.ServiceError(detail="Failed to update address") from e
 
+    @transactional
     async def delete_address_for_account_type_info(
         self,
         address_friendly_id: str,

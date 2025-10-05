@@ -57,5 +57,5 @@ class CountryBasicResponse(BaseModel):
     """Basic schema for country responses."""
 
     id: UUID
-    name: CountryEnum
+    name: str
     is_active: bool

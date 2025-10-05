@@ -21,6 +21,7 @@ from .address import (  # noqa: F401
     AddressUpdateRequest,
 )
 from .attachment import (  # noqa: F401
+    AttachmentBasicResponse,
     AttachmentBlobCreate,
     AttachmentBlobResponse,
     AttachmentBlobUpdate,

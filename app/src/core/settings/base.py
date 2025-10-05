@@ -5,8 +5,11 @@ import warnings
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
+from dotenv import load_dotenv
 from pydantic import AnyUrl, BeforeValidator, EmailStr, HttpUrl, PostgresDsn, RedisDsn, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+load_dotenv()
 
 
 def parse_cors(v: Any) -> list[str]:
@@ -65,9 +68,7 @@ class Settings(BaseSettings):
     AUTH_VERIFICATION_TOKEN_MAX_AGE: int = 60 * 60 * 24  # 24 hours
     BANKING_SECRET_KEY: str = secrets.token_urlsafe(32)
     AUTH_TOKEN_MAX_AGE: int = 60 * 60 * 8  # 8 hours
-    AUTH_TOKEN: str = "bloom_auth_token"
     AUTH_REMEMBER_TOKEN_MAX_AGE: int = 60 * 60 * 24 * 7  # 7 days
-    AUTH_REMEMBER_TOKEN: str = "bloom_remember_token"
     MAX_LOGIN_FAILED_ATTEMPTS: int = 5
     MAX_LOGIN_RETRY_TIME: int = 60 * 30  # 30 minutes
     MAX_PASSWORD_RESET_TIME: int = 60 * 60 * 24  # 24 hours
@@ -230,7 +231,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
-        self._check_default_secret("SECRET_KEY", self.AUTH_SECRET_KEY)
+        self._check_default_secret("AUTH_SECRET_KEY", self.AUTH_SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret("OPENAPI_PASSWORD", self.OPENAPI_PASSWORD)
 

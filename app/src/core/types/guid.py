@@ -100,7 +100,7 @@ class GUID(str):
         int_id = unique_id.int
 
         id_bytes = struct.pack(">QQ", int_id >> 64, int_id & 0xFFFFFFFFFFFFFFFF)
-        encoded_id = base64.b64encode(id_bytes).decode("ascii").rstrip("=")
+        encoded_id = base64.urlsafe_b64encode(id_bytes).decode("ascii").rstrip("=")
 
         guid_str = f"gid://{cls._APP_NAME}/{resource_type}/{encoded_id}"
         return cls(guid_str)
@@ -131,7 +131,11 @@ class GUID(str):
         if not all([app_name, resource_type, encoded_id]):
             raise ValueError("GUID parts cannot be empty")
 
-        return {"app_name": app_name, "resource_type": resource_type, "encoded_id": encoded_id}
+        return {
+            "app_name": app_name,
+            "resource_type": resource_type,
+            "encoded_id": encoded_id,
+        }
 
     @classmethod
     def extract_internal_id(cls, guid: str) -> UUID:
@@ -155,7 +159,8 @@ class GUID(str):
             encoded_id += "=" * padding
 
         try:
-            id_bytes = base64.b64decode(encoded_id)
+            # Use URL-safe base64 decoding to match the encoding
+            id_bytes = base64.urlsafe_b64decode(encoded_id)
 
             if len(id_bytes) != 16:
                 raise ValueError("Invalid UUID bytes length")

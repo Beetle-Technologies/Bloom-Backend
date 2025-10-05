@@ -2,6 +2,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.constants import get_currency_symbol
 from src.core.database.session import get_db_session
 from src.core.dependencies import api_rate_limit, is_bloom_client
 from src.core.exceptions import errors
@@ -39,13 +40,18 @@ async def get_currencies(
             pagination.filters = {}
         pagination.filters["is_active__eq"] = True
 
-        if pagination.filters["search"]:
+        if pagination.filters.get("search") is not None:
             pagination.filters["search_vector__search"] = pagination.filters.pop("search")
+
+        pagination.fields = "id,code"
 
         currency_repo = CurrencyRepository(session)
         result = await currency_repo.find(pagination=pagination)
+        data = result.to_dict()
 
-        return build_json_response(data=result.to_dict(), message="Currencies retrieved successfully")
+        data["items"] = [{**item, "symbol": get_currency_symbol(item["code"])} for item in data["items"]]
+
+        return build_json_response(data=data, message="Currencies retrieved successfully")
     except errors.ServiceError as se:
         raise se
     except Exception:
@@ -74,8 +80,10 @@ async def get_countries(
             pagination.filters = {}
         pagination.filters["is_active__eq"] = True
 
-        if pagination.filters["search"]:
+        if pagination.filters.get("search") is not None:
             pagination.filters["search_vector__search"] = pagination.filters.pop("search")
+
+        pagination.fields = "id,name,language,currency_id"
 
         country_repo = CountryRepository(session)
         result = await country_repo.find(pagination=pagination)

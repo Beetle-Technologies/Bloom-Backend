@@ -1,192 +1,236 @@
 <mjml>
-  <mj-head>
-    <mj-title>Suspicious Login Activity - {{ APP_NAME }}</mj-title>
-    <mj-preview>New login detected from a different location</mj-preview>
-    <mj-attributes>
-      <mj-all font-family="Arial, sans-serif" />
-      <mj-text font-size="16px" color="#333333" line-height="24px" />
-      <mj-section background-color="#ffffff" />
-    </mj-attributes>
-    <mj-style inline="inline">
-      {% if client_type == 'bloom-business' %}
-        .primary-color { color: #7C3AED !important; }
-        .primary-bg { background-color: #7C3AED !important; }
-        .gradient-bg { background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%) !important; }
-        .warning-bg { background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%) !important; }
-      {% else %}
-        .primary-color { color: #3B82F6 !important; }
-        .primary-bg { background-color: #3B82F6 !important; }
-        .gradient-bg { background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%) !important; }
-        .warning-bg { background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%) !important; }
-      {% endif %}
-      .info-row {
-        background-color: #F8FAFC !important;
-        padding: 12px 16px !important;
-        border-left: 4px solid {% if client_type == 'bloom-business' %}#7C3AED{% else %}#3B82F6{% endif %} !important;
-        margin-bottom: 8px !important;
-        border-radius: 4px !important;
-      }
-      .warning-section {
-        background-color: #FEF2F2 !important;
-        border: 2px solid #FECACA !important;
-        border-radius: 8px !important;
-        padding: 20px !important;
-      }
-      .button-style {
-        background: linear-gradient(135deg, {% if client_type == 'bloom-business' %}#7C3AED 0%, #A855F7 100%{% else %}#3B82F6 0%, #60A5FA 100%{% endif %}) !important;
-        border-radius: 8px !important;
-        color: #ffffff !important;
-        text-decoration: none !important;
-        font-weight: 600 !important;
-        padding: 16px 32px !important;
-        display: inline-block !important;
-      }
-    </mj-style>
-  </mj-head>
-  <mj-body background-color="#F9FAFB">
-    <!-- Header with Logo -->
-    <mj-section css-class="warning-bg" padding="40px 0">
-      <mj-column>
-        <mj-image
-          src="{{ base64image('bloom_purple_logo.png' if client_type == 'bloom-business' else 'bloom_blue_logo.png') }}"
-          alt="{{ APP_NAME }} Logo"
-          width="150px"
-          align="center"
-        />
-        <mj-text align="center" color="#ffffff" font-size="28px" font-weight="bold" padding-top="20px">
-          🔒 Security Alert
-        </mj-text>
-        <mj-text align="center" color="#ffffff" font-size="18px" padding-top="10px">
-          New login from different location
-        </mj-text>
-      </mj-column>
-    </mj-section>
+    <mj-head>
+        <mj-title>Suspicious Login Activity - {{ APP_NAME }}</mj-title>
+        <mj-preview>New login detected from a different location</mj-preview>
+        <mj-attributes>
+            <mj-all font-family="Arial, sans-serif" />
+            <mj-text font-size="16px" color="#333333" line-height="24px" />
+            <mj-section background-color="#ffffff" />
+        </mj-attributes>
+        <mj-style inline="inline">
+            {% if client_type == 'bloom-business' %} .primary-color { color:
+            #7C3AED !important; } .primary-bg { background-color: #7C3AED
+            !important; } .gradient-bg { background: linear-gradient(135deg,
+            #7C3AED 0%, #A855F7 100%) !important; } .warning-bg { background:
+            linear-gradient(135deg, #DC2626 0%, #EF4444 100%) !important; } {%
+            else %} .primary-color { color: #3B82F6 !important; } .primary-bg {
+            background-color: #3B82F6 !important; } .gradient-bg { background:
+            linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%) !important; }
+            .warning-bg { background: linear-gradient(135deg, #DC2626 0%,
+            #EF4444 100%) !important; } {% endif %} .info-row {
+            background-color: #F8FAFC !important; padding: 12px 16px !important;
+            border-left: 4px solid {% if client_type == 'bloom-business'
+            %}#7C3AED{% else %}#3B82F6{% endif %} !important; margin-bottom: 8px
+            !important; border-radius: 4px !important; } .warning-section {
+            background-color: #FEF2F2 !important; border: 2px solid #FECACA
+            !important; border-radius: 8px !important; padding: 20px !important;
+            } .button-style { background: linear-gradient(135deg, {% if
+            client_type == 'bloom-business' %}#7C3AED 0%, #A855F7 100%{% else
+            %}#3B82F6 0%, #60A5FA 100%{% endif %}) !important; border-radius:
+            8px !important; color: #ffffff !important; text-decoration: none
+            !important; font-weight: 600 !important; padding: 16px 32px
+            !important; display: inline-block !important; }
+        </mj-style>
+    </mj-head>
+    <mj-body background-color="#F9FAFB">
+        <!-- Header with Logo -->
+        <mj-section css-class="warning-bg" padding="40px 0">
+            <mj-column>
+                <mj-image
+                    src="{{ raw_image('bloom_logo_purple.png' if client_type == 'bloom-business' else 'bloom_logo_blue.png') }}"
+                    alt="{{ APP_NAME }} Logo"
+                    width="150px"
+                    align="center"
+                />
+                <mj-text
+                    align="center"
+                    color="#ffffff"
+                    font-size="28px"
+                    font-weight="bold"
+                    padding-top="20px"
+                >
+                    🔒 Security Alert
+                </mj-text>
+                <mj-text
+                    align="center"
+                    color="#ffffff"
+                    font-size="18px"
+                    padding-top="10px"
+                >
+                    New login from different location
+                </mj-text>
+            </mj-column>
+        </mj-section>
 
-    <!-- Main Content -->
-    <mj-section background-color="#ffffff" padding="40px 20px">
-      <mj-column>
-        <mj-text font-size="18px" color="#374151" padding-bottom="20px">
-          Hello {{ first_name }},
-        </mj-text>
+        <!-- Main Content -->
+        <mj-section background-color="#ffffff" padding="40px 20px">
+            <mj-column>
+                <mj-text font-size="18px" color="#374151" padding-bottom="20px">
+                    Hello {{ first_name }},
+                </mj-text>
 
-        <mj-text font-size="16px" color="#6B7280" line-height="24px" padding-bottom="20px">
-          We detected a login to your {{ APP_NAME }} account from a new IP address. If this was you, no action is needed.
-          If you don't recognize this activity, please secure your account immediately.
-        </mj-text>
+                <mj-text
+                    font-size="16px"
+                    color="#6B7280"
+                    line-height="24px"
+                    padding-bottom="20px"
+                >
+                    We detected a login to your {{ APP_NAME }} account from a
+                    new IP address. If this was you, no action is needed. If you
+                    don't recognize this activity, please secure your account
+                    immediately.
+                </mj-text>
 
-        <!-- Login Details -->
-        <mj-text font-size="16px" color="#374151" font-weight="bold" padding-bottom="15px">
-          Login Details:
-        </mj-text>
+                <!-- Login Details -->
+                <mj-text
+                    font-size="16px"
+                    color="#374151"
+                    font-weight="bold"
+                    padding-bottom="15px"
+                >
+                    Login Details:
+                </mj-text>
 
-        <mj-text font-size="14px" color="#6B7280" padding="0">
-          <div class="info-row">
-            <strong>Date & Time:</strong> {{ login_time.strftime('%B %d, %Y at %I:%M %p UTC') }}
-          </div>
-        </mj-text>
+                <mj-text font-size="14px" color="#6B7280" padding="0">
+                    <div class="info-row">
+                        <strong>Date & Time:</strong> {{ login_time.strftime('%B
+                        %d, %Y at %I:%M %p UTC') }}
+                    </div>
+                </mj-text>
 
-        <mj-text font-size="14px" color="#6B7280" padding="0">
-          <div class="info-row">
-            <strong>IP Address:</strong> {{ current_ip_address }}
-          </div>
-        </mj-text>
+                <mj-text font-size="14px" color="#6B7280" padding="0">
+                    <div class="info-row">
+                        <strong>IP Address:</strong> {{ current_ip_address }}
+                    </div>
+                </mj-text>
 
-        {% if previous_ip_address %}
-        <mj-text font-size="14px" color="#6B7280" padding="0">
-          <div class="info-row">
-            <strong>Previous IP:</strong> {{ previous_ip_address }}
-          </div>
-        </mj-text>
-        {% endif %}
+                {% if previous_ip_address %}
+                <mj-text font-size="14px" color="#6B7280" padding="0">
+                    <div class="info-row">
+                        <strong>Previous IP:</strong> {{ previous_ip_address }}
+                    </div>
+                </mj-text>
+                {% endif %} {% if user_agent %}
+                <mj-text font-size="14px" color="#6B7280" padding="0">
+                    <div class="info-row">
+                        <strong>Device/Browser:</strong> {{ user_agent }}
+                    </div>
+                </mj-text>
+                {% endif %} {% if location %}
+                <mj-text font-size="14px" color="#6B7280" padding="0">
+                    <div class="info-row">
+                        <strong>Approximate Location:</strong> {{ location }}
+                    </div>
+                </mj-text>
+                {% endif %}
 
-        {% if user_agent %}
-        <mj-text font-size="14px" color="#6B7280" padding="0">
-          <div class="info-row">
-            <strong>Device/Browser:</strong> {{ user_agent }}
-          </div>
-        </mj-text>
-        {% endif %}
+                <!-- Action Buttons -->
+                <mj-text
+                    font-size="16px"
+                    color="#374151"
+                    font-weight="bold"
+                    padding="30px 0 15px 0"
+                >
+                    If this wasn't you:
+                </mj-text>
 
-        {% if location %}
-        <mj-text font-size="14px" color="#6B7280" padding="0">
-          <div class="info-row">
-            <strong>Approximate Location:</strong> {{ location }}
-          </div>
-        </mj-text>
-        {% endif %}
+                <mj-button
+                    href="{{ FRONTEND_URL }}/auth/change-password"
+                    css-class="button-style"
+                    font-size="16px"
+                    padding="0 0 15px 0"
+                >
+                    Change Password
+                </mj-button>
 
-        <!-- Action Buttons -->
-        <mj-text font-size="16px" color="#374151" font-weight="bold" padding="30px 0 15px 0">
-          If this wasn't you:
-        </mj-text>
+                <mj-button
+                    href="{{ FRONTEND_URL }}/account/security"
+                    background-color="#6B7280"
+                    border-radius="8px"
+                    color="#ffffff"
+                    font-weight="600"
+                    font-size="16px"
+                    padding="0"
+                >
+                    Review Security Settings
+                </mj-button>
+            </mj-column>
+        </mj-section>
 
-        <mj-button
-          href="{{ FRONTEND_URL }}/auth/change-password"
-          css-class="button-style"
-          font-size="16px"
-          padding="0 0 15px 0"
-        >
-          Change Password
-        </mj-button>
+        <!-- Security Tips -->
+        <mj-section background-color="#F0F9FF" padding="30px 20px">
+            <mj-column>
+                <mj-text
+                    font-size="16px"
+                    color="#374151"
+                    font-weight="bold"
+                    padding-bottom="15px"
+                >
+                    🛡️ Security Tips:
+                </mj-text>
+                <mj-text font-size="14px" color="#6B7280" line-height="20px">
+                    • Use a strong, unique password for your {{ APP_NAME }}
+                    account<br />
+                    • Enable two-factor authentication if available<br />
+                    • Don't share your login credentials with anyone<br />
+                    • Always log out from shared devices<br />
+                    • Contact support if you notice any suspicious activity
+                </mj-text>
+            </mj-column>
+        </mj-section>
 
-        <mj-button
-          href="{{ FRONTEND_URL }}/account/security"
-          background-color="#6B7280"
-          border-radius="8px"
-          color="#ffffff"
-          font-weight="600"
-          font-size="16px"
-          padding="0"
-        >
-          Review Security Settings
-        </mj-button>
-      </mj-column>
-    </mj-section>
+        <!-- Warning Notice -->
+        <mj-section padding="20px">
+            <mj-column>
+                <mj-text
+                    font-size="14px"
+                    color="#DC2626"
+                    align="center"
+                    line-height="20px"
+                >
+                    <div class="warning-section">
+                        <strong>⚠️ Important:</strong> {{ APP_NAME }} will never
+                        ask for your password via email or phone. If you receive
+                        suspicious communications claiming to be from us, please
+                        report them to {{ SUPPORT_EMAIL }}.
+                    </div>
+                </mj-text>
+            </mj-column>
+        </mj-section>
 
-    <!-- Security Tips -->
-    <mj-section background-color="#F0F9FF" padding="30px 20px">
-      <mj-column>
-        <mj-text font-size="16px" color="#374151" font-weight="bold" padding-bottom="15px">
-          🛡️ Security Tips:
-        </mj-text>
-        <mj-text font-size="14px" color="#6B7280" line-height="20px">
-          • Use a strong, unique password for your {{ APP_NAME }} account<br/>
-          • Enable two-factor authentication if available<br/>
-          • Don't share your login credentials with anyone<br/>
-          • Always log out from shared devices<br/>
-          • Contact support if you notice any suspicious activity
-        </mj-text>
-      </mj-column>
-    </mj-section>
+        <!-- Footer -->
+        <mj-section background-color="#F3F4F6" padding="30px 20px">
+            <mj-column>
+                <mj-text
+                    font-size="14px"
+                    color="#6B7280"
+                    align="center"
+                    line-height="20px"
+                >
+                    Need help? Contact our support team at
+                    <a href="mailto:{{ SUPPORT_EMAIL }}" class="primary-color"
+                        >{{ SUPPORT_EMAIL }}</a
+                    >
+                </mj-text>
 
-    <!-- Warning Notice -->
-    <mj-section padding="20px">
-      <mj-column>
-        <mj-text font-size="14px" color="#DC2626" align="center" line-height="20px">
-          <div class="warning-section">
-            <strong>⚠️ Important:</strong> {{ APP_NAME }} will never ask for your password via email or phone.
-            If you receive suspicious communications claiming to be from us, please report them to {{ SUPPORT_EMAIL }}.
-          </div>
-        </mj-text>
-      </mj-column>
-    </mj-section>
+                <mj-text
+                    font-size="12px"
+                    color="#9CA3AF"
+                    align="center"
+                    padding-top="15px"
+                >
+                    © {{ now().year }} {{ APP_NAME }}. All rights reserved.
+                </mj-text>
 
-    <!-- Footer -->
-    <mj-section background-color="#F3F4F6" padding="30px 20px">
-      <mj-column>
-        <mj-text font-size="14px" color="#6B7280" align="center" line-height="20px">
-          Need help? Contact our support team at
-          <a href="mailto:{{ SUPPORT_EMAIL }}" class="primary-color">{{ SUPPORT_EMAIL }}</a>
-        </mj-text>
-
-        <mj-text font-size="12px" color="#9CA3AF" align="center" padding-top="15px">
-          © {{ now().year }} {{ APP_NAME }}. All rights reserved.
-        </mj-text>
-
-        <mj-text font-size="12px" color="#9CA3AF" align="center" padding-top="10px">
-          This security alert was sent to {{ email }}
-        </mj-text>
-      </mj-column>
-    </mj-section>
-  </mj-body>
+                <mj-text
+                    font-size="12px"
+                    color="#9CA3AF"
+                    align="center"
+                    padding-top="10px"
+                >
+                    This security alert was sent to {{ email }}
+                </mj-text>
+            </mj-column>
+        </mj-section>
+    </mj-body>
 </mjml>

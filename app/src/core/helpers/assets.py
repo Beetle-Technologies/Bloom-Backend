@@ -15,10 +15,11 @@ def image_to_base64(image_path: str) -> str:
         str: The base64-encoded string of the image.
     """
     full_image_path = Path(settings.BASE_DIR) / "static" / "images" / image_path
+    img_ext = full_image_path.suffix.lower()
 
     if not full_image_path.exists() or not full_image_path.is_file():
         raise FileNotFoundError(f"Image file not found: {full_image_path}")
 
-    with open(image_path, "rb") as image_file:
+    with open(full_image_path, "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
-    return encoded_string
+    return f"data:image/{img_ext};base64,{encoded_string}"

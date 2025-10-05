@@ -140,7 +140,6 @@ class SMTPProvider(EmailProvider):
             except Exception as e:
                 logger.exception(f"src.libs.mailer.providers.smtp:: Failed to render MJML template: {e}")
                 raise MailerTemplateError()
-
         try:
             msg = self._create_mime_message(
                 payload=payload,

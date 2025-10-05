@@ -235,6 +235,7 @@ async def requires_authenticated_account(
     token = credentials.credentials
 
     decoded_token = security_service.decode_jwt_token(token)
+
     auth_data = security_service.get_token_data(decoded_token, AuthSessionState)
 
     token_service = TokenService(session=session)
@@ -269,7 +270,7 @@ async def requires_eligible_account(
 
     if not account.is_eligible():
         raise errors.AccountIneligibleError(
-            meta={
+            metadata={
                 "is_verified": account.is_verified,
                 "is_active": account.is_active,
                 "is_suspended": account.is_suspended,
@@ -295,7 +296,7 @@ def require_eligible_user_account(
     if not auth_state.type.is_user():
         raise errors.AccountIneligibleError(
             detail="Account is not a user account",
-            meta={"account_type": auth_state.type.value},
+            metadata={"account_type": auth_state.type.value},
         )
 
     return auth_state
@@ -317,7 +318,7 @@ def require_eligible_seller_account(
     if not auth_state.type.is_business():
         raise errors.AccountIneligibleError(
             detail="Account is not a business account",
-            meta={"account_type": auth_state.type.value},
+            metadata={"account_type": auth_state.type.value},
         )
 
     return auth_state
@@ -339,7 +340,7 @@ def require_eligible_supplier_account(
     if not auth_state.type.is_supplier():
         raise errors.AccountIneligibleError(
             detail="Account is not a supplier account",
-            meta={"account_type": auth_state.type.value},
+            metadata={"account_type": auth_state.type.value},
         )
 
     return auth_state
@@ -360,7 +361,7 @@ def require_eligible_supplier_or_seller_account(
     if not (auth_state.type.is_supplier() or auth_state.type.is_business()):
         raise errors.AccountIneligibleError(
             detail="Account is not a supplier or seller account",
-            meta={"account_type": auth_state.type.value},
+            metadata={"account_type": auth_state.type.value},
         )
 
     return auth_state
@@ -382,7 +383,7 @@ def require_eligible_admin_account(
     if not auth_state.type.is_admin():
         raise errors.AccountIneligibleError(
             detail="Account is not an admin account",
-            meta={"account_type": auth_state.type.value},
+            metadata={"account_type": auth_state.type.value},
         )
 
     return auth_state
@@ -472,7 +473,7 @@ async def require_noauth_or_eligible_account(
 
     if not account.is_eligible():
         raise errors.AccountIneligibleError(
-            meta={
+            metadata={
                 "is_verified": account.is_verified,
                 "is_active": account.is_active,
                 "is_suspended": account.is_suspended,

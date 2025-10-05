@@ -71,3 +71,56 @@ ALLOWED_MIME_TYPES = [
     "application/x-rar-compressed",
     "application/x-7z-compressed",
 ]
+
+
+CURRENCY_SYMBOL_MAP: dict[str, str] = {
+    "US Dollar": "$",
+    "Euro": "€",
+    "Pound Sterling": "£",
+    "Yen": "¥",
+    "Canadian Dollar": "CA$",
+    "Australian Dollar": "A$",
+    "Swiss Franc": "CHF",
+    "Yuan Renminbi": "¥",
+    "Indian Rupee": "₹",
+    "Brazilian Real": "R$",
+    "Naira": "₦",
+    "Rand": "R",
+    "Kenyan Shilling": "KSh",
+    "Ghana Cedi": "GH₵",
+    "Egyptian Pound": "E£",
+}
+
+CURRENCY_ISO_CODE_MAP: dict[str, str] = {
+    "US Dollar": "USD",
+    "Euro": "EUR",
+    "Pound Sterling": "GBP",
+    "Yen": "JPY",
+    "Canadian Dollar": "CAD",
+    "Australian Dollar": "AUD",
+    "Swiss Franc": "CHF",
+    "Yuan Renminbi": "CNY",
+    "Indian Rupee": "INR",
+    "Brazilian Real": "BRL",
+    "Naira": "NGN",
+    "Rand": "ZAR",
+    "Kenyan Shilling": "KES",
+    "Ghana Cedi": "GHS",
+    "Egyptian Pound": "EGP",
+}
+
+
+def get_currency_symbol(code: str) -> str:
+    """Get currency symbol from currency code"""
+    return CURRENCY_SYMBOL_MAP.get(code, code)
+
+
+def get_currency_iso_code(code: str) -> str:
+    """Get ISO currency code from currency name"""
+    return CURRENCY_ISO_CODE_MAP.get(code, "")
+
+
+def format_currency(amount: float, currency_code: str) -> str:
+    """Format amount with currency symbol"""
+    symbol = get_currency_symbol(currency_code)
+    return f"{symbol}{amount:,.2f}"

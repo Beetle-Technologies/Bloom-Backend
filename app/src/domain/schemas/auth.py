@@ -74,6 +74,7 @@ class AuthTokenVerificationRequest(BaseModel):
 
     token: str = Field(..., description="The authentication token to verify")
     mode: TokenVerificationRequestTypeEnum = TokenVerificationRequestTypeEnum.OTP
+    is_reset: bool = Field(False, description="Indicates if the verification is for password reset")
 
 
 class AuthSessionToken(BaseModel):
@@ -143,6 +144,7 @@ class AuthPreCheckResponse(BaseModel):
 
     exists: bool
     is_verified: bool
+    gid: GUID | None = Field(None, description="The unique identifier for the account (if exists)")
     fid: str | None = Field(None, description="The friendly identifier for the account (if exists)")
     can_login: bool = Field(..., description="Whether the account can login (only for login mode)")
 
@@ -157,7 +159,7 @@ class AuthLogoutRequest(BaseModel):
     """
 
     access_token: str = Field(..., description="The access token to be invalidated")
-    refresh_token: str | None = Field(..., description="The refresh token to be invalidated")
+    refresh_token: str | None = Field(None, description="The refresh token to be invalidated")
 
 
 class AuthTokenRefreshRequest(AuthLogoutRequest):
@@ -194,12 +196,17 @@ class AuthPasswordResetRequest(BaseModel):
     """
 
     token: str = Field(..., description="The password reset token")
+    fid: str | None = Field(None, description="The friendly identifier for the account")
     new_password: Password = Field(..., description="The new password for the account")
     confirm_new_password: Password = Field(..., description="Confirmation of the new password")
 
     @model_validator(mode="after")
-    def passwords_match(self) -> Self:
-        if self.new_password != self.confirm_new_password:
+    def validate_request(self) -> Self:
+        if (
+            self.new_password is not None
+            and self.confirm_new_password is not None
+            and (self.new_password != self.confirm_new_password)
+        ):
             raise ValueError("New password and confirmation do not match.")
         return self
 

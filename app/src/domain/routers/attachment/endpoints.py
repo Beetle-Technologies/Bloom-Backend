@@ -22,11 +22,8 @@ from src.domain.schemas.attachment import (
     AttachmentBulkDirectUploadResponse,
     AttachmentBulkUploadRequest,
     AttachmentBulkUploadResponse,
-    AttachmentDirectUploadRequest,
     AttachmentDownloadResponse,
-    AttachmentPresignedUrlResponse,
     AttachmentReplaceRequest,
-    AttachmentUploadRequest,
     AttachmentUploadResponse,
 )
 from src.domain.services import AttachmentService
@@ -42,50 +39,9 @@ router = APIRouter()
 @router.post(
     "/upload",
     dependencies=[upload_rate_limit],
-    response_model=IResponseBase[AttachmentUploadResponse],
-)
-async def upload_attachment(
-    request: Request,  # noqa: ARG001
-    request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    storage_service: Annotated["StorageService", Depends(get_storage_service)],
-    upload_data: Annotated[AttachmentUploadRequest, Form(..., media_type="multipart/form-data")],
-) -> IResponseBase[AttachmentUploadResponse]:
-    """
-    Upload an attachment
-    """
-    try:
-        attachment_service = AttachmentService(session)
-
-        data = await attachment_service.upload_attachment(
-            file=upload_data.file,
-            name=upload_data.name,
-            attachable_type=upload_data.attachable_type,
-            attachable_id=upload_data.attachable_id,
-            uploaded_by=auth_state.id,
-            tags=upload_data.tags,
-            expires_at=upload_data.expires_at,
-            auto_delete_after=upload_data.auto_delete_after,
-            storage_service=storage_service,
-        )
-
-        return build_json_response(data=data, message="Attachment uploaded successfully")
-
-    except errors.ServiceError as se:
-        raise se
-    except Exception as e:
-        raise errors.ServiceError(
-            detail="Failed to upload attachment",
-        ) from e
-
-
-@router.post(
-    "/bulk_upload",
-    dependencies=[upload_rate_limit],
     response_model=IResponseBase[AttachmentBulkUploadResponse],
 )
-async def bulk_upload_attachments(
+async def upload_attachments(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
     auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
@@ -129,47 +85,6 @@ async def bulk_upload_attachments(
 
 @router.post(
     "/direct_upload",
-    dependencies=[upload_rate_limit],
-    response_model=IResponseBase[AttachmentPresignedUrlResponse],
-)
-async def upload_direct_attachment(
-    request: Request,  # noqa: ARG001
-    request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
-    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    storage_service: Annotated["StorageService", Depends(get_storage_service)],
-    upload_data: Annotated[AttachmentDirectUploadRequest, Form(..., media_type="multipart/form-data")],
-) -> IResponseBase[AttachmentPresignedUrlResponse]:
-    """
-    Upload an attachment directly to storage (bypassing the server)
-
-    This endpoint provides a pre-signed URL for direct upload to the storage service.
-    """
-    try:
-        attachment_service = AttachmentService(session)
-
-        data = await attachment_service.generate_presigned_upload_url(
-            filename=upload_data.filename,
-            name=upload_data.name,
-            attachable_type=upload_data.attachable_type,
-            attachable_id=upload_data.attachable_id,
-            uploaded_by=auth_state.id,  # type: ignore
-            expires_in=upload_data.expires_in,
-            storage_service=storage_service,
-        )
-
-        return build_json_response(data=data, message="Presigned upload URL generated successfully")
-
-    except errors.ServiceError as se:
-        raise se
-    except Exception as e:
-        raise errors.ServiceError(
-            detail="Failed to generate presigned upload URL",
-        ) from e
-
-
-@router.post(
-    "/bulk_direct_upload",
     dependencies=[upload_rate_limit],
     response_model=IResponseBase[AttachmentBulkDirectUploadResponse],
 )
@@ -241,7 +156,6 @@ async def delete_attachment(
         if not deleted:
             raise errors.ServiceError(
                 detail="Attachment not found or access denied",
-                status=404,
             )
 
         return build_json_response(data=None, message="Attachment deleted successfully")

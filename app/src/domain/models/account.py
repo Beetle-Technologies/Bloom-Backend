@@ -232,7 +232,7 @@ class Account(
         """
         Checks if the user account is prevented from logging in.
         """
-        return self.check_suspended() or self.is_locked() or not self.is_active or not self.is_verified
+        return not (self.check_suspended() or self.is_locked() or not self.is_active or not self.is_verified)
 
     def check_reenumeration_attempts(self) -> bool:
         """

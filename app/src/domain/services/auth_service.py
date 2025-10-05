@@ -99,8 +99,7 @@ class AuthService:
             if not account_type:
                 raise errors.AuthenticationError(
                     detail="Unsupported authentication client for this account",
-                    status=400,
-                    meta={"client_type": client_type.value},
+                    metadata={"client_type": client_type.value},
                 )
 
             account_type_info = await self.account_type_info_service.create_account_type_info(
@@ -142,9 +141,7 @@ class AuthService:
                 f"src.domain.services.auth_service.register:: ServiceError during registration for email {email}: {se.detail}",
                 exc_info=True,
             )
-            raise errors.AccountCreationError(
-                detail=se.detail, status=se.status, meta=getattr(se, "meta", None)
-            ) from se
+            raise errors.AccountCreationError(detail=se.detail, metadata=getattr(se, "metadata", None)) from se
         except AssertionError as ae:
             logger.error(
                 f"src.domain.services.auth_service.register:: AssertionError during registration for email {email}: {str(ae)}",
@@ -214,8 +211,7 @@ class AuthService:
             if not expected_account_type:
                 raise errors.AuthenticationError(
                     detail="Unsupported authentication client for this account",
-                    status=400,
-                    meta={"client_type": client_type.value},
+                    metadata={"client_type": client_type.value},
                 )
 
             account_type_info = account.get_account_type_infos(account_type=expected_account_type)
@@ -223,8 +219,7 @@ class AuthService:
             if not account_type_info:
                 raise errors.AuthenticationError(
                     detail="Account does not have the required type for this client",
-                    status=403,
-                    meta={
+                    metadata={
                         "client_type": client_type.value,
                         "required_account_type": expected_account_type.value,
                     },
@@ -312,7 +307,7 @@ class AuthService:
                         "validity_time": (settings.AUTH_OTP_MAX_AGE // 60),
                         "client_type": client_type.value,
                     },
-                )
+                ).model_dump()
             )
         except errors.ServiceError as se:
             logger.error(
@@ -481,6 +476,7 @@ class AuthService:
         *,
         token: str,
         mode: TokenVerificationRequestTypeEnum,
+        is_reset: bool,
     ) -> None:
         """
         Verify the email address using the provided token.
@@ -513,6 +509,7 @@ class AuthService:
                     raise errors.InvalidOTPError()
 
                 account = await self.account_service.get_account_by(confirmation_token=token)
+
                 if not account:
                     raise errors.AccountNotFoundError()
 
@@ -525,19 +522,20 @@ class AuthService:
                 ):
                     raise errors.InvalidOTPError()
 
-            await self.account_service.update_account(
-                id=account.id,
-                account_update={
-                    "is_verified": True,
-                    "confirmation_token": None,
-                    "confirmation_token_sent_at": None,
-                    "email_confirmed": True,
-                    "is_active": True,
-                    "confirmed_at": datetime.now(UTC),
-                },
-            )
+            if not is_reset:
+                await self.account_service.update_account(
+                    id=account.id,
+                    account_update={
+                        "is_verified": True,
+                        "confirmation_token": None,
+                        "confirmation_token_sent_at": None,
+                        "email_confirmed": True,
+                        "is_active": True,
+                        "confirmed_at": datetime.now(UTC),
+                    },
+                )
 
-            await self._cache_verified_account(account)
+                await self._cache_verified_account(account)
         except errors.ServiceError as se:
             logger.error(
                 f"src.domain.services.auth_service.verify_email:: ServiceError: {se.detail}",
@@ -616,7 +614,9 @@ class AuthService:
                 cached_data = await self.cache_service.get(cache_key)
 
                 if cached_data:
-                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, fid=cached_data.fid)
+                    return AuthPreCheckResponse(
+                        exists=True, is_verified=True, can_login=True, gid=cached_data.id, fid=cached_data.fid
+                    )
 
                 kwargs = {f"{type_check.value}": value}
                 account = await self.account_service.get_account_by(**kwargs)
@@ -628,18 +628,21 @@ class AuthService:
                     return AuthPreCheckResponse(
                         exists=True,
                         is_verified=account.is_verified,
+                        gid=account.id,
                         fid=account.friendly_id,
                         can_login=account.is_verified,
                     )
 
-                return AuthPreCheckResponse(exists=False, is_verified=False, fid=None, can_login=False)
+                return AuthPreCheckResponse(exists=False, is_verified=False, gid=None, fid=None, can_login=False)
 
             elif mode == "login":
                 cache_key = f"accounts:verified:{type_check}:{value}"
                 cached_data = await self.cache_service.get(cache_key)
 
                 if cached_data:
-                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, fid=cached_data.fid)
+                    return AuthPreCheckResponse(
+                        exists=True, is_verified=True, can_login=True, gid=cached_data.id, fid=cached_data.fid
+                    )
 
                 kwargs = {f"{type_check.value}": value, "is_verified": True}
                 account = await self.account_service.get_account_by(**kwargs)
@@ -647,7 +650,9 @@ class AuthService:
                 if account:
                     await self._cache_verified_account(account)
 
-                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, fid=account.friendly_id)
+                    return AuthPreCheckResponse(
+                        exists=True, is_verified=True, can_login=True, gid=account.id, fid=account.friendly_id
+                    )
 
                 kwargs = {f"{type_check.value}": value, "is_verified": True}
                 account = await self.account_service.get_account_by(**kwargs)
@@ -655,7 +660,9 @@ class AuthService:
                 if account:
                     await self._cache_verified_account(account)
 
-                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, fid=account.friendly_id)
+                    return AuthPreCheckResponse(
+                        exists=True, is_verified=True, can_login=True, gid=account.id, fid=account.friendly_id
+                    )
 
                 kwargs = {f"{type_check.value}": value}
                 account = await self.account_service.get_account_by(**kwargs)
@@ -665,10 +672,11 @@ class AuthService:
                         exists=True,
                         is_verified=False,
                         can_login=False,
+                        gid=account.id,
                         fid=account.friendly_id,
                     )
 
-                return AuthPreCheckResponse(exists=False, is_verified=False, can_login=False, fid=None)
+                return AuthPreCheckResponse(exists=False, is_verified=False, can_login=False, gid=None, fid=None)
 
             else:
                 raise ValueError(f"Invalid mode: {mode}")
@@ -720,7 +728,6 @@ class AuthService:
                 if existing_account:
                     raise errors.AccountCreationError(
                         detail="An account with this email already exists",
-                        status=400,
                     )
 
                 account = await self.account_service.create_account(
@@ -757,7 +764,6 @@ class AuthService:
                 if not account:
                     raise errors.AuthenticationError(
                         detail="Account not found",
-                        status=404,
                     )
 
                 await self.send_code_for_session(
@@ -771,7 +777,6 @@ class AuthService:
                 if not account:
                     raise errors.AuthenticationError(
                         detail="Account not found",
-                        status=404,
                     )
 
                 await self.verify_code_for_session(token=otp)
@@ -780,7 +785,6 @@ class AuthService:
                 if not account_type_info:
                     raise errors.AuthenticationError(
                         detail="Account not found",
-                        status=403,
                     )
 
                 auth_session_state = AuthSessionState(
@@ -810,7 +814,6 @@ class AuthService:
             else:
                 raise errors.ServiceError(
                     detail="Invalid registration or OTP for login",
-                    status=400,
                 )
         except errors.ServiceError as se:
             logger.error(
@@ -911,28 +914,55 @@ class AuthService:
             ServiceError: If the password reset request fails
         """
         try:
-            # To prevent user enumeration, we don't reveal if the email exists
             account = await self.account_service.get_account_by(email=email)
             if not account:
                 logger.debug(f"Password reset requested for non-existent email: {email}")
                 return
 
-            password_reset_token = await self.account_service.request_password_reset(email=email)
+            if client_type not in [ClientType.BLOOM_ADMIN]:
+                token = self.security_service.generate_totp()
 
-            send_email_task.delay(
-                payload=MailerRequest(
-                    subject="Password Reset Request",
-                    sender=settings.MAILER_DEFAULT_SENDER,
-                    recipients=[account.email],
-                    template_name="v1/auth/password_reset.mjml.html",
-                    template_context={
-                        "first_name": account.first_name,
-                        "email": account.email,
-                        "token": password_reset_token,
-                        "client_type": client_type.value,
+                await self.account_service.update_account(
+                    id=account.id,
+                    account_update={
+                        "confirmation_token": token,
+                        "confirmation_token_sent_at": datetime.now(UTC),
                     },
                 )
-            )
+
+                send_email_task.delay(
+                    payload=MailerRequest(
+                        subject="Password Reset Request",
+                        sender=settings.MAILER_DEFAULT_SENDER,
+                        recipients=[account.email],
+                        template_name="v1/auth/password_reset.mjml.html",
+                        template_context={
+                            "first_name": account.first_name,
+                            "email": account.email,
+                            "token": token,
+                            "mode": TokenVerificationRequestTypeEnum.OTP.value,
+                            "validity_time": (settings.AUTH_OTP_MAX_AGE // 60),
+                        },
+                    ).model_dump()
+                )
+            else:
+                token = await self.account_service.request_password_reset(email=email)
+
+                send_email_task.delay(
+                    payload=MailerRequest(
+                        subject="Password Reset Request",
+                        sender=settings.MAILER_DEFAULT_SENDER,
+                        recipients=[account.email],
+                        template_name="v1/auth/password_reset.mjml.html",
+                        template_context={
+                            "first_name": account.first_name,
+                            "email": account.email,
+                            "token": token,
+                            "mode": TokenVerificationRequestTypeEnum.STATE_KEY.value,
+                            "validity_time": (settings.MAX_PASSWORD_RESET_TIME // 3600),
+                        },
+                    ).model_dump()
+                )
 
         except errors.ServiceError as se:
             logger.error(
@@ -953,6 +983,7 @@ class AuthService:
         self,
         *,
         token: str,
+        fid: str | None,
         new_password: Password,
     ) -> None:
         """
@@ -966,16 +997,41 @@ class AuthService:
             ServiceError: If password reset fails
         """
         try:
-            success = await self.account_service.reset_account_password(
-                password_reset_token=token,
-                new_password=new_password,
-            )
 
-            if not success:
-                raise errors.ServiceError(
-                    detail="Password reset failed",
-                    status=400,
+            if not fid:
+                success = await self.account_service.reset_account_password(
+                    password_reset_token=token,
+                    new_password=new_password,
                 )
+
+                if not success:
+                    raise errors.ServiceError(
+                        detail="Password reset failed",
+                    )
+
+            if fid:
+                account = await self.account_service.get_account_by(friendly_id=fid)
+                if not account:
+                    raise errors.AccountNotFoundError()
+
+                encrypted_password, password_salt = self.security_service.hash_password(password=new_password)
+
+                updated_account = await self.account_service.update_account(
+                    id=account.id,
+                    account_update={
+                        "encrypted_password": encrypted_password,
+                        "password_salt": password_salt,
+                        "last_password_change_at": datetime.now(UTC),
+                        "confirmation_token": None,
+                        "confirmation_token_sent_at": None,
+                    },
+                )
+                if not updated_account:
+                    raise errors.ServiceError(
+                        detail="Failed to update password",
+                    )
+
+                await self._invalidate_account_cache(account)
 
         except errors.InvalidPasswordResetTokenError as iprt:
             logger.warning(f"Invalid password reset token used: {iprt.detail}")
@@ -1043,7 +1099,7 @@ class AuthService:
         """
         try:
             cached_data = CachedAccountData(
-                friendly_id=account.friendly_id, email=account.email, username=account.username
+                id=account.id, friendly_id=account.friendly_id, email=account.email, username=account.username
             )
 
             email_key = f"accounts:verified:email:{account.email}"
@@ -1130,7 +1186,7 @@ class AuthService:
                 sender=settings.MAILER_DEFAULT_SENDER,
                 recipients=[account.email],
                 subject=f"Security Alert: New login to your {settings.APP_NAME} account",
-            )
+            ).model_dump()
 
             send_email_task.delay(mailer_request)
         except Exception as e:

@@ -1,8 +1,8 @@
 """init_tables
 
-Revision ID: 8cf1c2dd718e
+Revision ID: 7218f47deeb1
 Revises:
-Create Date: 2025-10-01 01:17:38.642212
+Create Date: 2025-10-05 06:01:25.317532
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "8cf1c2dd718e"
+revision: str = "7218f47deeb1"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -261,6 +261,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_audit_logs_id"), "audit_logs", ["id"], unique=False)
     op.create_table(
         "country",
+        sa.Column("created_datetime", sa.TIMESTAMP(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("search_text", sa.TEXT(), nullable=True),
         sa.Column("search_vector", postgresql.TSVECTOR(), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),

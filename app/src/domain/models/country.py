@@ -5,14 +5,14 @@ from pycountries import Country as CountryEnum
 from pycountries import Language
 from sqlalchemy import TEXT, Boolean, Column, Index
 from sqlmodel import Field, Relationship
-from src.core.database.mixins import SearchableMixin, UUIDMixin
+from src.core.database.mixins import CreatedDateTimeMixin, SearchableMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from src.domain.models import Currency
     from src.domain.models.address import Address
 
 
-class Country(UUIDMixin, SearchableMixin, table=True):
+class Country(UUIDMixin, SearchableMixin, CreatedDateTimeMixin, table=True):
     """
     Represents a country with its ISO 3166-1 alpha-2 code and associated currency.
 
@@ -32,6 +32,7 @@ class Country(UUIDMixin, SearchableMixin, table=True):
     SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "name",
+        "language",
         "currency_id",
         "is_active",
     ]

@@ -32,7 +32,7 @@ class AddressCreate(AddressBase):
 class AddressUpdate(AddressBase):
     """Schema for updating an address."""
 
-    pass
+    country_id: UUID | None = Field(None, description="ID of the country")
 
 
 class AddressResponse(AddressBase):

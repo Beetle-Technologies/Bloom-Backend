@@ -6,6 +6,7 @@ from src.core.database.session import get_db_session
 from src.core.dependencies import api_rate_limit, is_bloom_client, requires_eligible_account
 from src.core.exceptions import errors
 from src.core.helpers.response import IResponseBase, build_json_response
+from src.core.logging import get_logger
 from src.core.types import BloomClientInfo
 from src.domain.schemas import (
     AccountBasicProfileResponse,
@@ -16,6 +17,8 @@ from src.domain.schemas import (
     AuthSessionState,
 )
 from src.domain.services import AccountService, AddressService
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -44,6 +47,7 @@ async def me(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error("Error retrieving current account profile", exc_info=e)
         raise errors.ServiceError(
             detail="Failed to retrieve current account profile",
         ) from e
@@ -85,6 +89,7 @@ async def update_me(
             detail="Failed to update account profile",
         ) from ae
     except Exception as e:
+        logger.error("Error updating current account profile", exc_info=e)
         raise errors.ServiceError(
             detail="Failed to update account profile",
         ) from e
@@ -120,6 +125,7 @@ async def delete_me(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error("Error deleting current account", exc_info=e)
         raise errors.ServiceError(
             detail="Failed to delete account",
         ) from e
@@ -150,6 +156,7 @@ async def get_addresses(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error("Error retrieving current account addresses", exc_info=e)
         raise errors.ServiceError(
             detail="Failed to retrieve addresses",
         ) from e
@@ -178,9 +185,7 @@ async def create_addresses(
             account_type_info_id=auth_state.type_info_id, address_request=address_data
         )
 
-        assert created_address.friendly_id is not None
-
-        address = await address_service.get_address_by_friendly_id(created_address.friendly_id, auth_state.type_info_id)
+        address = await address_service.get_address_by_friendly_id(created_address.friendly_id, auth_state.type_info_id)  # type: ignore
 
         assert address is not None
 
@@ -191,6 +196,7 @@ async def create_addresses(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error("Error creating address for current account", exc_info=e)
         raise errors.ServiceError(
             detail="Failed to create address",
         ) from e
@@ -222,11 +228,7 @@ async def update_addresses(
             address_request=address_data,
         )
 
-        assert updated_address is not None
-
-        assert updated_address.friendly_id is not None
-
-        address = await address_service.get_address_by_friendly_id(updated_address.friendly_id, auth_state.type_info_id)
+        address = await address_service.get_address_by_friendly_id(updated_address.friendly_id, auth_state.type_info_id)  # type: ignore
 
         data = AddressResponse.from_obj(address)
 
@@ -234,11 +236,8 @@ async def update_addresses(
 
     except errors.ServiceError as se:
         raise se
-    except AssertionError as ae:
-        raise errors.ServiceError(
-            detail="Failed to update address",
-        ) from ae
     except Exception as e:
+        logger.error("Error updating address for current account", exc_info=e)
         raise errors.ServiceError(
             detail="Failed to update address",
         ) from e
@@ -271,7 +270,6 @@ async def delete_addresses(
         if not deleted:
             raise errors.ServiceError(
                 detail="Address not found or access denied",
-                status=404,
             )
 
         return build_json_response(data=None, message="Address deleted successfully")
@@ -279,6 +277,7 @@ async def delete_addresses(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error("Error deleting address for current account", exc_info=e)
         raise errors.ServiceError(
             detail="Failed to delete address",
         ) from e

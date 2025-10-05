@@ -35,7 +35,7 @@
         <mj-section css-class="gradient-bg" padding="40px 0">
             <mj-column>
                 <mj-image
-                    src="{{ base64image('bloom_purple_logo.png' if client_type == 'bloom-business' else 'bloom_blue_logo.png') }}"
+                    src="{{ raw_image('bloom_logo_purple.png' if client_type == 'bloom-business' else 'bloom_logo_blue.png') }}"
                     alt="{{ APP_NAME }} Logo"
                     width="150px"
                     align="center"
@@ -176,9 +176,9 @@
                     line-height="20px"
                 >
                     🔒 <strong>Security Notice:</strong> {{ APP_NAME }} will
-                    never ask for your password via email. {% if mode ==
-                    'state_key' %}This link{% else %}This code{% endif %} will
-                    expire in {{ validity_time }} hours.
+                    never ask for your password via email.
+                    {% if mode == 'state_key' %}This link{% else %}This code{% endif %} will
+                    expire in {{ validity_time }} {% if mode == 'state_key' %}hours{% else %}minutes{% endif %}.
                 </mj-text>
             </mj-column>
         </mj-section>
@@ -193,9 +193,7 @@
                     line-height="20px"
                 >
                     Need help? Contact our support team at
-                    <a
-                        href="mailto:{{ SUPPORT_EMAIL }}"
-                        class="primary-color"
+                    <a href="mailto:{{ SUPPORT_EMAIL }}" class="primary-color"
                         >{{ SUPPORT_EMAIL }}</a
                     >
                 </mj-text>

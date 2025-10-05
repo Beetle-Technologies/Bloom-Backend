@@ -92,3 +92,26 @@ CREATE TRIGGER currency_search_update
     EXECUTE FUNCTION update_currency_search_vector();
 """
 )
+
+ACCOUNT_SEARCH_TRIGGER_FUNCTION = DDL(
+    """
+CREATE OR REPLACE FUNCTION update_account_search_vector()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.search_text := COALESCE(NEW.first_name, '') || ' ' || COALESCE(NEW.last_name, '') || ' ' || COALESCE(NEW.email, '') || ' ' || COALESCE(NEW.username, '') || ' ' || COALESCE(NEW.phone_number, '');
+    NEW.search_vector := to_tsvector('english', NEW.search_text);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+"""
+)
+
+ACCOUNT_SEARCH_TRIGGER = DDL(
+    """
+DROP TRIGGER IF EXISTS account_search_update ON accounts;
+CREATE TRIGGER account_search_update
+    BEFORE INSERT OR UPDATE ON accounts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_account_search_vector();
+"""
+)

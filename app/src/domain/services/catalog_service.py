@@ -271,7 +271,6 @@ class CatalogService:
                 if len(form_data.attachments) != len(form_data.attachment_names):
                     raise errors.ServiceError(
                         detail="Number of attachments must match number of names",
-                        status=400,
                     )
 
                 for file, attachment_name in zip(form_data.attachments, form_data.attachment_names):

@@ -89,9 +89,9 @@ class AccountTypeInfo(GUIDMixin, TimestampMixin, table=True):
     attachment: Optional["Attachment"] = Relationship(
         sa_relationship_kwargs={
             "lazy": "selectin",
-            "primaryjoin": "Attachment.id == AccountTypeInfo.attachment_id",
-            "foreign_keys": "[AccountTypeInfo.attachment_id]",
+            "primaryjoin": "and_(Attachment.attachable_id == foreign(AccountTypeInfo.account_id), Attachment.attachable_type == 'Account')",
             "uselist": False,
+            "viewonly": True,
         }
     )
 

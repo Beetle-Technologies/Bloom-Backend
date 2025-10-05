@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import status
 from pydantic import EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
@@ -14,7 +13,7 @@ from src.core.logging import get_logger
 from src.core.types import IDType, Password, PhoneNumber
 from src.domain.models import Account
 from src.domain.repositories import AccountRepository, AccountTypeInfoRepository
-from src.domain.schemas import AccountBasicProfileResponse, AccountCreate, AccountUpdate
+from src.domain.schemas import AccountBasicProfileResponse, AccountCreate, AccountUpdate, AttachmentBasicResponse
 from src.domain.services.security_service import security_service
 from src.libs.query_engine.schemas import BaseQueryEngineParams
 
@@ -37,7 +36,11 @@ class AccountService:
         Returns:
             Account | None: The account if found, otherwise None.
         """
-        return await self.account_repository.find_one_by_or_none(**kwargs)
+        return await self.account_repository.query(
+            params=BaseQueryEngineParams(
+                filters=kwargs,
+            ),
+        )
 
     async def create_account(
         self,
@@ -110,7 +113,13 @@ class AccountService:
         """
 
         try:
-            account = await self.account_repository.get_by_email(email)
+            account = await self.account_repository.query(
+                params=BaseQueryEngineParams(
+                    filters={"email__eq": email},
+                    include=["type_infos.account_type"],
+                ),
+            )
+
             if not account or account.deleted_datetime is not None:
                 raise errors.AccountNotFoundError()
 
@@ -157,7 +166,6 @@ class AccountService:
             )
             raise errors.AuthenticationError(
                 detail="Failed to authenticate account.",
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             ) from de
         except errors.ServiceError as se:
             raise se
@@ -254,10 +262,10 @@ class AccountService:
 
             await self.account_repository.update(
                 account.id,
-                AccountUpdate(
-                    password_reset_token=password_reset_token,
-                    password_reset_token_created_at=datetime.now(UTC),
-                ),
+                {
+                    "password_reset_token": password_reset_token,
+                    "password_reset_token_created_at": datetime.now(UTC),
+                },
             )
 
             return password_reset_token
@@ -438,7 +446,7 @@ class AccountService:
             type_info_id (IDType): The ID of the account type info.
 
         Returns:
-            Account | None: The account if found, otherwise None.
+            AccountBasicProfileResponse: The account profile response.
         """
         try:
             existing_account = await self.account_repository.find_one_by(id=id)
@@ -458,17 +466,38 @@ class AccountService:
                 type_attributes = type_info.attributes
 
             if type_info and type_info.attachment:
-                attachment = type_info.attachment.get_presigned_url()  # type: ignore
+
+                from src.domain.services import AttachmentService
+                from src.libs.storage import storage_service
+
+                attachment_fid = type_info.attachment.friendly_id
+
+                attachment_service = AttachmentService(session=self.session)
+                attachment_url = await attachment_service.get_attachment_url(attachment_fid=attachment_fid, storage_service=storage_service)  # type: ignore
+
+                if not attachment_url:
+                    attachment_url = None
+
+                attachment = AttachmentBasicResponse(
+                    id=type_info.attachment.id,
+                    fid=type_info.attachment.friendly_id,  # type: ignore
+                    url=attachment_url,
+                )
 
             assert existing_account.friendly_id is not None
 
+            phone_number = existing_account.phone_number
+            if phone_number == "None" or phone_number is None:
+                phone_number = None
+
             return AccountBasicProfileResponse(
+                id=existing_account.id,
                 fid=existing_account.friendly_id,
                 first_name=existing_account.first_name,
                 last_name=existing_account.last_name,
                 email=existing_account.email,
                 username=existing_account.username,
-                phone_number=existing_account.phone_number,
+                phone_number=phone_number,  # Use the corrected value
                 attachment=attachment,
                 is_active=existing_account.is_active,
                 is_verified=existing_account.is_verified,
@@ -491,7 +520,10 @@ class AccountService:
 
     @transactional
     async def update_profile_by(
-        self, id: IDType, type_info_id: IDType, profile_update: AccountUpdate | dict[str, Any]
+        self,
+        id: IDType,
+        type_info_id: IDType,
+        profile_update: AccountUpdate | dict[str, Any],
     ) -> AccountBasicProfileResponse:
         """
         Update account profile details.
@@ -532,15 +564,32 @@ class AccountService:
 
                     updated_type_attributes.update(updated_type_info_attributes.copy())
 
-                    if type_info.attachment:
-                        attachment = type_info.attachment.get_presigned_url()  # type: ignore
+                    if type_info and type_info.attachment:
 
-                    await self.account_type_info_repository.update(
-                        type_info.id,
-                        {"attributes": updated_type_info_attributes},
-                    )
+                        from src.domain.services import AttachmentService
+                        from src.libs.storage import storage_service
+
+                        attachment_fid = type_info.attachment.friendly_id
+
+                        attachment_service = AttachmentService(session=self.session)
+                        attachment_url = await attachment_service.get_attachment_url(attachment_fid=attachment_fid, storage_service=storage_service)  # type: ignore
+
+                        if not attachment_url:
+                            attachment_url = None
+
+                        attachment = AttachmentBasicResponse(
+                            id=type_info.attachment.id,
+                            fid=type_info.attachment.friendly_id,  # type: ignore
+                            url=attachment_url,
+                        )
+
+                        await self.account_type_info_repository.update(
+                            type_info.id,
+                            {"attributes": updated_type_info_attributes},
+                        )
 
             return AccountBasicProfileResponse(
+                id=update_account.id,
                 fid=update_account.friendly_id,  # type: ignore
                 first_name=update_account.first_name,
                 last_name=update_account.last_name,

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import col, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.exceptions import errors
 from src.core.logging import get_logger
@@ -35,7 +33,7 @@ class AddressRepository(BaseRepository[Address, AddressCreate, AddressUpdate]):
             logger.error(f"Error getting address by friendly_id {friendly_id}: {str(e)}")
             raise errors.DatabaseError(detail="Failed to retrieve address") from e
 
-    async def get_addresses_for_entity(self, addressable_type: str, addressable_id: GUID) -> Sequence[Address]:
+    async def get_addresses_for_entity(self, addressable_type: str, addressable_id: GUID) -> list[Address]:
         """
         Get all addresses for a specific entity.
 
@@ -47,16 +45,14 @@ class AddressRepository(BaseRepository[Address, AddressCreate, AddressUpdate]):
             Sequence[Address]: List of addresses for the entity
         """
         try:
-            statement = (
-                select(Address)
-                .where(
-                    Address.addressable_type == addressable_type,
-                    Address.addressable_id == addressable_id,
+            return await self.query_all(
+                params=BaseQueryEngineParams(
+                    filters={
+                        "addressable_type__eq": addressable_type,
+                        "addressable_id__eq": str(addressable_id),
+                    },
                 )
-                .order_by(col(Address.is_default).desc(), col(Address.created_datetime).desc())
             )
-            result = await self.session.exec(statement)
-            return result.all()
         except SQLAlchemyError as e:
             logger.error(f"Error getting addresses for {addressable_type} {addressable_id}: {str(e)}")
             raise errors.DatabaseError(detail="Failed to retrieve addresses") from e
@@ -76,9 +72,9 @@ class AddressRepository(BaseRepository[Address, AddressCreate, AddressUpdate]):
             result = await self.query(
                 params=BaseQueryEngineParams(
                     filters={
-                        "addressable_type": addressable_type,
-                        "addressable_id": addressable_id,
-                        "is_default": True,
+                        "addressable_type__eq": addressable_type,
+                        "addressable_id__eq": str(addressable_id),
+                        "is_default__eq": True,
                     }
                 )
             )
@@ -102,7 +98,7 @@ class AddressRepository(BaseRepository[Address, AddressCreate, AddressUpdate]):
         try:
             addresses = await self.get_addresses_for_entity(addressable_type, addressable_id)
             for address in addresses:
-                if address.is_default:
+                if address.is_default is True:
                     await self.update(address.id, {"is_default": False})
         except SQLAlchemyError as e:
             logger.error(f"Error clearing default addresses for {addressable_type} {addressable_id}: {str(e)}")
@@ -126,7 +122,7 @@ class AddressRepository(BaseRepository[Address, AddressCreate, AddressUpdate]):
             Address: The created address
         """
         try:
-            if address_data.is_default:
+            if address_data.is_default is True:
                 await self.clear_default_addresses_for_entity(addressable_type, addressable_id)
 
             full_address_data = AddressCreate(
@@ -172,7 +168,7 @@ class AddressRepository(BaseRepository[Address, AddressCreate, AddressUpdate]):
             if address_data.is_default:  # type: ignore
                 await self.clear_default_addresses_for_entity(addressable_type, addressable_id)
 
-            return await self.update(address_id, address_data)
+            return await self.update(address_id, address_data.model_dump(exclude_unset=True, exclude_none=True))
         except SQLAlchemyError as e:
             logger.error(f"Error updating address {address_id}: {str(e)}")
             raise errors.DatabaseError(detail="Failed to update address") from e
@@ -195,18 +191,20 @@ class AddressRepository(BaseRepository[Address, AddressCreate, AddressUpdate]):
             bool: True if the address was deleted, False if not found
         """
         try:
-            existing_address = await self.find_one_by_or_none(
-                id=address_id,
-                addressable_type=addressable_type,
-                addressable_id=addressable_id,
+            existing_address = await self.query(
+                params=BaseQueryEngineParams(
+                    filters={
+                        "id__eq": str(address_id),
+                        "addressable_type__eq": addressable_type,
+                        "addressable_id__eq": str(addressable_id),
+                    }
+                )
             )
 
             if not existing_address:
                 return False
 
-            await self.session.delete(existing_address)
-            await self.session.commit()
-            return True
+            return await self.delete(existing_address.id)
         except SQLAlchemyError as e:
             logger.error(f"Error deleting address {address_id}: {str(e)}")
             raise errors.DatabaseError(detail="Failed to delete address") from e

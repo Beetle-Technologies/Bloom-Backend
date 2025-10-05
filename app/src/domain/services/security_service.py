@@ -101,6 +101,7 @@ class SecurityService:
         try:
             return jwt.decode(
                 jwt=token,
+                audience=settings.APP_NAME,
                 key=self.secret_key,
                 options={"require": ["exp", "iat", "nbf", "sub", "aud"]},
                 algorithms=[self.algorithm],
@@ -292,12 +293,13 @@ class SecurityService:
         Returns:
             4-digit OTP string
         """
-        totp = pyotp.TOTP(secret, digits=digits, interval=interval)
+        totp = pyotp.TOTP(secret, digits=digits, issuer=settings.APP_NAME, interval=interval)
         return totp.now()
 
     def verify_totp(
         self,
         token: str,
+        digits: int = 4,
         secret: str = settings.AUTH_OTP_SECRET_KEY,
         interval: int = settings.AUTH_OTP_MAX_AGE,
         window: int = 1,
@@ -315,7 +317,7 @@ class SecurityService:
             True if the token is valid, False otherwise
         """
         try:
-            totp = pyotp.TOTP(secret, interval=interval)
+            totp = pyotp.TOTP(secret, digits=digits, issuer=settings.APP_NAME, interval=interval)
             return totp.verify(token, valid_window=window)
         except Exception as e:
             logger.error(f"Error verifying TOTP: {e}")

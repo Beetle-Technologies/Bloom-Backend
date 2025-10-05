@@ -74,6 +74,41 @@ class QueryEngineService(QueryEngineInterface):
 
         return item
 
+    async def query_all(
+        self,
+        filters: Optional[dict[str, Any]] = None,
+        fields: Optional[str] = "*",
+        include: Optional[list[str]] = None,
+        order_by: Optional[list[str]] = None,
+    ) -> list[Any]:
+        """
+        Query for all entities matching the criteria.
+
+        Args:
+            filters: Dictionary of filter conditions
+            fields: Comma-separated string of fields to select or "*" for all fields
+            include: List of relationships to include
+            order_by: List of fields to order by
+
+        Returns:
+            List of entities
+        """
+        # Validate select fields
+        if fields:
+            self.selection_provider.validate_fields(fields)
+
+        # Build base query with field selection
+        query = self.selection_provider.build_select_query(fields)
+
+        # Apply joins, includes, filters, and ordering
+        query = self._build_complete_query(query, filters, include, order_by)
+
+        # Execute query
+        result = await self.session.exec(query)
+        items = result.all()
+
+        return list(items)
+
     async def paginate(
         self,
         pagination: GeneralPaginationRequest,
@@ -238,18 +273,26 @@ class QueryEngineService(QueryEngineInterface):
         return query
 
     def _apply_includes(self, query, includes: list[str]):
-        """Apply selectinload for relationships"""
+        """Apply selectinload for relationships, supporting nested paths."""
         for include in includes:
-            # Handle nested relationships (e.g., "account.profile")
             if "." in include:
-                # For nested relationships, we need to build the path
                 parts = include.split(".")
-                relationship = getattr(self.model, parts[0])
-                for part in parts[1:]:
-                    relationship = getattr(relationship.property.mapper.class_, part)
-                query = query.options(selectinload(relationship))
+                current_class = self.model
+                loader = None
+
+                for part in parts:
+                    attr = getattr(current_class, part)
+                    if loader is None:
+                        loader = selectinload(attr)
+                    else:
+                        loader = loader.selectinload(attr)
+
+                    if hasattr(attr, "property") and hasattr(attr.property, "mapper"):
+                        current_class = attr.property.mapper.class_
+
+                if loader:
+                    query = query.options(loader)
             else:
-                # Simple relationship
                 if hasattr(self.model, include):
                     relationship = getattr(self.model, include)
                     query = query.options(selectinload(relationship))

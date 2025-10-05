@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from src.core.types import GUID
 
 
 class CachedAccountData(BaseModel):
@@ -10,6 +11,7 @@ class CachedAccountData(BaseModel):
         username (str | None): The username of the account.
     """
 
-    email: EmailStr
+    id: GUID
     friendly_id: str | None = None
+    email: EmailStr
     username: str | None = None

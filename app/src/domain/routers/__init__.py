@@ -5,4 +5,5 @@ from .auth.endpoints import router as auth_router  # noqa: F401
 from .cart.endpoints import router as cart_router  # noqa: F401
 from .catalog.endpoints import router as catalog_router  # noqa: F401
 from .health.endpoints import router as health_router  # noqa: F401
+from .misc.endpoints import router as misc_router  # noqa: F401
 from .order.endpoints import router as order_router  # noqa: F401
