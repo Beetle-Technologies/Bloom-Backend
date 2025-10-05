@@ -149,7 +149,7 @@ async def register_triggers() -> None:
     """
     async with db_context_manager() as session:
         await _setup_product_item_triggers(session)
-        await _setup_audit_log_triggers(session)
+        # await _setup_audit_log_triggers(session)
         await _setup_token_cleanup_triggers(session)
         await _setup_search_triggers(session)
 

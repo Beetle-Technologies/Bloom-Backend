@@ -14,8 +14,10 @@ logger = get_logger(__name__)
 # otherwise, SQLModel might fail to initialize relationships properly
 # for more details: https://github.com/fastapi/full-stack-fastapi-template/issues/28
 
+DATABASE_URL = str(settings.SQLALCHEMY_DATABASE_URI)
+
 engine = create_async_engine(
-    url=str(settings.SQLALCHEMY_DATABASE_URI),
+    url=DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=3600,
     pool_size=20,

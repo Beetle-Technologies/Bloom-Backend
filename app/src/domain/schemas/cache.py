@@ -11,4 +11,5 @@ class CachedAccountData(BaseModel):
     """
 
     email: EmailStr
+    friendly_id: str | None = None
     username: str | None = None

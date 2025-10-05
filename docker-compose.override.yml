@@ -5,13 +5,14 @@ volumes:
 x-app-base: &app-base
     build:
         context: ./app
-        dockerfile: Dockerfile
+    env_file:
+        - .env
+    environment:
+        - PYTHONPATH=/app
+    volumes:
+        - ./app:/app:z
     networks:
         - default
-    env_file:
-        - ./app/.env
-    volumes:
-        - ./app:/app:Z
 
 services:
     postgres:
@@ -23,7 +24,7 @@ services:
         ports:
             - "5432:5432"
         env_file:
-            - ./app/.env
+            - .env
         environment:
             - PGDATA=/var/lib/postgresql/data/pgdata
             - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
@@ -55,36 +56,36 @@ services:
         container_name: bloom_api-1
         ports:
             - "5000:5000"
-        command: bash ./scripts/dev.sh
+        command: ./scripts/dev.sh
         depends_on:
-            postgres:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
+            - postgres
+            - redis
         healthcheck:
-            test: ["CMD-SHELL", "curl -f http://app:5000/health || exit 1"]
+            test: ["CMD-SHELL", "curl -f http://app:5000/health"]
             interval: 1m30s
             timeout: 30s
             retries: 5
             start_period: 30s
-        
-    
 
     celery_worker:
         <<: *app-base
         container_name: bloom_celery-worker-1
-        command: celery -A src.core.celery worker -l INFO
+        command: celery -A src.core.celery worker -Q bloom_default_tasks,bloom_recurring_tasks -l INFO
         depends_on:
-            - redis 
-            - postgres
+            app:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
 
     celery_beat:
         <<: *app-base
         container_name: bloom_celery-beat-1
         command: celery -A src.core.celery beat -l INFO
         depends_on:
-            - redis
-            - postgres
+            app:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
 
     mailcatcher:
         container_name: bloom_mailcatcher-1

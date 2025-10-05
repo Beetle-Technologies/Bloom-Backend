@@ -12,7 +12,7 @@ from src.core.config import settings
 from src.core.database.session import engine
 from src.core.database.utils import register_triggers
 from src.core.exceptions.handler import eh
-from src.core.logging import get_logger, get_logging_config, setup_exception_logging, setup_logging
+from src.core.logging import get_logger
 from src.core.middlewares import RequestThrottlerMiddleware, RequestUtilsMiddleware
 from src.core.openapi import OpenAPI
 from src.domain.routers import (
@@ -26,8 +26,8 @@ from src.domain.routers import (
     order_router,
 )
 
-setup_logging(config_override=get_logging_config())
-setup_exception_logging()
+# setup_logging(config_override=get_logging_config())
+# setup_exception_logging()
 
 logger = get_logger(__name__)
 

@@ -2,7 +2,8 @@ from sqlalchemy import DDL
 
 PRODUCT_ITEM_TRIGGER_FUNCTION = DDL(
     """
-CREATE OR REPLACE FUNCTION populate_product_item_fields()
+DROP FUNCTION IF EXISTS populate_product_item_fields() CASCADE;
+CREATE FUNCTION populate_product_item_fields()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Only populate fields if they are NULL (allows manual overrides)

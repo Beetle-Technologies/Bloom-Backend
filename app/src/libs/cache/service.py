@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import hashlib
+import json
 from typing import Any, Callable, Optional, ParamSpec, TypeVar
 
 from src.core.logging import get_logger
@@ -44,7 +45,12 @@ class CacheService:
         """
         try:
             response = await self._provider.get(key)
-            return response.value if response.success else None
+            if response.success:
+                if isinstance(response.value, str):
+                    return json.loads(response.value)
+                return response.value
+
+            return None
         except Exception as e:
             logger.error(f"Cache get failed for key {key}: {str(e)}")
             return None

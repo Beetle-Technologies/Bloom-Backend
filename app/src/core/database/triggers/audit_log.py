@@ -2,12 +2,16 @@ from sqlmodel import DDL
 
 AUDIT_LOG_TRIGGER_FUNCTION = DDL(
     """
-CREATE OR REPLACE FUNCTION create_audit_log()
+DROP FUNCTION IF EXISTS create_audit_log() CASCADE;
+CREATE FUNCTION create_audit_log()
 RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO audit_logs (account_id, action, resource_type, resource_id, details)
     VALUES (
-        COALESCE(NEW.account_id, NEW.created_by, OLD.account_id),
+        CASE
+            WHEN TG_TABLE_NAME = 'accounts' THEN COALESCE(NEW.id, OLD.id)
+            ELSE COALESCE(NEW.account_id, NEW.created_by, NEW.supplier_account_id, OLD.account_id, OLD.created_by, OLD.supplier_account_id)
+        END,
         TG_OP,
         TG_TABLE_NAME,
         COALESCE(NEW.id, OLD.id),

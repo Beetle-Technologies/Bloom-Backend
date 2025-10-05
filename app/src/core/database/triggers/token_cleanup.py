@@ -2,7 +2,8 @@ from sqlmodel import DDL
 
 TOKEN_CLEANUP_TRIGGER_FUNCTION = DDL(
     """
-CREATE OR REPLACE FUNCTION cleanup_expired_tokens()
+DROP FUNCTION IF EXISTS cleanup_expired_tokens() CASCADE;
+CREATE FUNCTION cleanup_expired_tokens()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Delete tokens that are revoked and past their deleted_datetime

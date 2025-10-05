@@ -451,7 +451,7 @@ class AuthService:
                         ),
                         "client_type": client_type.value,
                     },
-                )
+                ).model_dump()
             )
         except errors.ServiceError as se:
             logger.error(
@@ -557,7 +557,7 @@ class AuthService:
         self,
         *,
         access_token: str,
-        refresh_token: str,
+        refresh_token: str | None,
     ) -> None:
         """
         Logout a user by revoking their access and refresh tokens.
@@ -571,16 +571,18 @@ class AuthService:
         """
         try:
             access_revoked = await self.token_service.revoke_token(token=access_token)
-            refresh_revoked = await self.token_service.revoke_token(token=refresh_token)
 
-            if not access_revoked and not refresh_revoked:
-                logger.warning("src.domain.services.auth_service.logout:: No tokens were revoked during logout")
-                # We still consider it successful as the user wanted to logout
+            if not access_revoked:
+                logger.warning("src.domain.services.auth_service.logout:: Access token was not revoked during logout")
 
-            logger.debug(
-                f"src.domain.services.auth_service.logout:: Logout successful - "
-                f"access_token_revoked: {access_revoked}, refresh_token_revoked: {refresh_revoked}"
-            )
+            if refresh_token:
+                refresh_revoked = await self.token_service.revoke_token(token=refresh_token)
+
+                if not refresh_revoked:
+                    logger.warning(
+                        "src.domain.services.auth_service.logout:: Refresh token was not revoked during logout"
+                    )
+
         except Exception as e:
             logger.error(
                 f"src.domain.services.auth_service.logout:: Unexpected error during logout: {str(e)}",
@@ -614,7 +616,7 @@ class AuthService:
                 cached_data = await self.cache_service.get(cache_key)
 
                 if cached_data:
-                    return AuthPreCheckResponse(exists=True, is_verified=True, source="cache", can_login=True)
+                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, fid=cached_data.fid)
 
                 kwargs = {f"{type_check.value}": value}
                 account = await self.account_service.get_account_by(**kwargs)
@@ -626,18 +628,18 @@ class AuthService:
                     return AuthPreCheckResponse(
                         exists=True,
                         is_verified=account.is_verified,
-                        source="database",
+                        fid=account.friendly_id,
                         can_login=account.is_verified,
                     )
 
-                return AuthPreCheckResponse(exists=False, is_verified=False, source="database", can_login=False)
+                return AuthPreCheckResponse(exists=False, is_verified=False, fid=None, can_login=False)
 
             elif mode == "login":
                 cache_key = f"accounts:verified:{type_check}:{value}"
                 cached_data = await self.cache_service.get(cache_key)
 
                 if cached_data:
-                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, source="cache")
+                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, fid=cached_data.fid)
 
                 kwargs = {f"{type_check.value}": value, "is_verified": True}
                 account = await self.account_service.get_account_by(**kwargs)
@@ -645,7 +647,7 @@ class AuthService:
                 if account:
                     await self._cache_verified_account(account)
 
-                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, source="database")
+                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, fid=account.friendly_id)
 
                 kwargs = {f"{type_check.value}": value, "is_verified": True}
                 account = await self.account_service.get_account_by(**kwargs)
@@ -653,7 +655,7 @@ class AuthService:
                 if account:
                     await self._cache_verified_account(account)
 
-                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, source="database")
+                    return AuthPreCheckResponse(exists=True, is_verified=True, can_login=True, fid=account.friendly_id)
 
                 kwargs = {f"{type_check.value}": value}
                 account = await self.account_service.get_account_by(**kwargs)
@@ -663,10 +665,10 @@ class AuthService:
                         exists=True,
                         is_verified=False,
                         can_login=False,
-                        source="database",
+                        fid=account.friendly_id,
                     )
 
-                return AuthPreCheckResponse(exists=False, is_verified=False, can_login=False, source="database")
+                return AuthPreCheckResponse(exists=False, is_verified=False, can_login=False, fid=None)
 
             else:
                 raise ValueError(f"Invalid mode: {mode}")
@@ -1040,7 +1042,9 @@ class AuthService:
             account: The verified account to cache
         """
         try:
-            cached_data = CachedAccountData(email=account.email, username=account.username)
+            cached_data = CachedAccountData(
+                friendly_id=account.friendly_id, email=account.email, username=account.username
+            )
 
             email_key = f"accounts:verified:email:{account.email}"
             await self.cache_service.set(

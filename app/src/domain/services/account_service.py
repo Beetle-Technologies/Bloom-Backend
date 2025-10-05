@@ -77,7 +77,7 @@ class AccountService:
                 password=password,
                 phone_number=phone_number,
             )
-            return await self.account_repository.create(account_data)
+            return await self.account_repository.create_account(account_data)
         except errors.DatabaseError as de:
             logger.exception(
                 f"src.domain.services.account_service.create_account:: error while creating account for {email}: {de!s}",
@@ -112,9 +112,7 @@ class AccountService:
         try:
             account = await self.account_repository.get_by_email(email)
             if not account or account.deleted_datetime is not None:
-                raise errors.AccountNotFoundError(
-                    # detail="The requested account does not exist"
-                )
+                raise errors.AccountNotFoundError()
 
             if account.is_eligible():
                 raise errors.AccountIneligibleError(

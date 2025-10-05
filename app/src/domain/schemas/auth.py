@@ -143,8 +143,8 @@ class AuthPreCheckResponse(BaseModel):
 
     exists: bool
     is_verified: bool
+    fid: str | None = Field(None, description="The friendly identifier for the account (if exists)")
     can_login: bool = Field(..., description="Whether the account can login (only for login mode)")
-    source: Literal["cache", "database"]
 
 
 class AuthLogoutRequest(BaseModel):
@@ -157,7 +157,7 @@ class AuthLogoutRequest(BaseModel):
     """
 
     access_token: str = Field(..., description="The access token to be invalidated")
-    refresh_token: str = Field(..., description="The refresh token to be invalidated")
+    refresh_token: str | None = Field(..., description="The refresh token to be invalidated")
 
 
 class AuthTokenRefreshRequest(AuthLogoutRequest):

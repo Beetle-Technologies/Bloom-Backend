@@ -2,7 +2,8 @@ from sqlalchemy import DDL
 
 PRODUCT_SEARCH_TRIGGER_FUNCTION = DDL(
     """
-CREATE OR REPLACE FUNCTION update_product_search_vector()
+DROP FUNCTION IF EXISTS update_product_search_vector() CASCADE;
+CREATE FUNCTION update_product_search_vector()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.search_text := COALESCE(NEW.name, '') || ' ' || COALESCE(NEW.description, '');

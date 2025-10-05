@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 from sqlmodel import select
@@ -7,8 +8,8 @@ from src.core.database.session import engine
 from src.core.logging import get_logger
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 
-max_tries = 60 * 5
-wait_seconds = 1
+max_tries = 10
+wait_seconds = timedelta(seconds=2)
 
 logger = get_logger(__name__)
 
@@ -24,6 +25,7 @@ async def init_db_with_retry(db_engine: AsyncEngine) -> None:
         try:
             (await session.exec(select(1))).all()
         except Exception as e:
+            logger.exception("Database not ready, error: %s", e)
             raise e
 
 

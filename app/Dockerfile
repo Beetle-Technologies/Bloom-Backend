@@ -39,14 +39,18 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY ./pyproject.toml /app/
 COPY ./uv.lock /app/
 COPY ./scripts/ /app/scripts/
-COPY ./alembic /app/alembic
-COPY ./static /app/static
-COPY ./templates /app/templates
+COPY ./alembic /app/alembic/
+COPY ./static /app/static/
+COPY ./templates /app/templates/
 COPY ./alembic.ini /app/
-COPY ./tests /app/tests
-COPY ./src /app/src
+COPY ./tests /app/tests/
+COPY ./src /app/src/
 
 # Sync the project
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
+
+RUN chown -R nobody:nogroup /app
+
+RUN chmod -R 755 /app

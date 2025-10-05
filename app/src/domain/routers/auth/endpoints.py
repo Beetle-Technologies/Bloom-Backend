@@ -16,6 +16,7 @@ from src.core.dependencies import (
 from src.core.exceptions import errors
 from src.core.helpers.request import get_request_info
 from src.core.helpers.response import IResponseBase, build_json_response
+from src.core.logging import get_logger
 from src.core.types import BloomClientInfo, Password
 from src.domain.schemas import (
     AuthForgotPasswordRequest,
@@ -35,6 +36,8 @@ from src.domain.schemas import (
     AuthVerificationRequest,
 )
 from src.domain.services import AuthService
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -70,6 +73,7 @@ async def pre_check(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during pre-check: {e}")
         raise errors.ServiceError(
             detail="Failed to perform pre-check",
         ) from e
@@ -104,11 +108,12 @@ async def request_email_verification(
 
         return build_json_response(
             data=None,
-            message=f"If the email is registered, { 'a verification link' if body.mode.value == "state_key" else 'an OTP' } has been sent",
+            message=f"If your account is registered and not verified, { 'a verification link' if body.mode.value == "state_key" else 'an OTP' } has been sent to your email.",
         )
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during email verification request: {e}")
         raise errors.ServiceError(
             detail="Failed to request email verification",
         ) from e
@@ -146,6 +151,7 @@ async def verify_email(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during email verification: {e}")
         raise errors.ServiceError(
             detail="Failed to verify email",
         ) from e
@@ -190,6 +196,7 @@ async def register(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during registration: {e}")
         raise errors.ServiceError(detail="Failed to register account") from e
 
 
@@ -228,6 +235,7 @@ async def login(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during login: {e}")
         raise errors.ServiceError(detail="Failed to login") from e
 
 
@@ -276,6 +284,7 @@ async def request_session(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during session request: {e}")
         raise errors.ServiceError(
             detail="Failed to request new session",
         ) from e
@@ -311,6 +320,7 @@ async def logout(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during logout: {e}")
         raise errors.ServiceError(
             detail="Failed to logout",
         ) from e
@@ -346,6 +356,7 @@ async def refresh(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during token refresh: {e}")
         raise errors.ServiceError(
             detail="Failed to refresh tokens",
         ) from e
@@ -378,6 +389,7 @@ async def forgot_password(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during password reset request: {e}")
         raise errors.ServiceError(
             detail="Failed to request password reset",
         ) from e
@@ -412,6 +424,7 @@ async def reset_password(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during password reset: {e}")
         raise errors.ServiceError(
             detail="Failed to reset password",
         ) from e
@@ -448,6 +461,7 @@ async def change_password(
     except errors.ServiceError as se:
         raise se
     except Exception as e:
+        logger.error(f"Error occurred during password change: {e}")
         raise errors.ServiceError(
             detail="Failed to change password",
         ) from e

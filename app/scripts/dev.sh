@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-TAILWIND_PID=""
 UVICORN_PID=""
 
 cleanup() {
@@ -46,7 +45,7 @@ echo "Current directory: $(pwd)"
 
 
 echo "Starting Uvicorn server..."
-uvicorn --reload --host $HOST --port $PORT --log-level $LOG_LEVEL "$APP_MODULE" &
+uvicorn --reload --reload-dir /app/src --host $HOST --port $PORT --log-level $LOG_LEVEL "$APP_MODULE" &
 UVICORN_PID=$!
 echo "Uvicorn started with PID: $UVICORN_PID"
 

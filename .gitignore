@@ -29,5 +29,5 @@ venv.bak/
 *logs/
 *.log   
 
-*celerybeat-schedule
 celerybeat.pid
+celerybeat-*

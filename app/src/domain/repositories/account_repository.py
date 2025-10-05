@@ -126,7 +126,7 @@ class AccountRepository(BaseRepository[Account, AccountCreate, AccountUpdate]):
                 encrypted_password=hashed_password,  # type: ignore[assignment]
                 password_salt=salt,  # type: ignore[assignment]
                 is_active=True,
-                is_verified=True,
+                is_verified=False,
                 is_suspended=False,
             )
             new_account.save_friendly_fields()

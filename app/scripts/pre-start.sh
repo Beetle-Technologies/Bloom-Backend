@@ -2,8 +2,6 @@
 
 echo "Running pre-start script..."
 
-export PYTHONPATH=/app
-
 echo "Checking database connection..."
 python ./src/core/initializers/database.py
 if [ $? -ne 0 ]; then
