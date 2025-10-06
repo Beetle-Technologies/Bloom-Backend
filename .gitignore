@@ -31,3 +31,5 @@ venv.bak/
 
 celerybeat.pid
 celerybeat-*
+
+media/

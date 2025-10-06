@@ -254,15 +254,12 @@ async def _load_default_categories(session: AsyncSession) -> None:
             "parent_id": None,
             "sort_order": 1,
         },
-        {
-            "title": "Shoes",
-            "description": "Footwear for all occasions and styles",
-            "sort_order": 2,
-        },
+        {"title": "Shoes", "description": "Footwear for all occasions and styles", "sort_order": 2, "parent_id": None},
         {
             "title": "Perfumes",
             "description": "Fragrances, colognes, and scented products",
             "sort_order": 3,
+            "parent_id": None,
         },
     ]
 
