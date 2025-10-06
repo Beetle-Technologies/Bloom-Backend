@@ -61,6 +61,7 @@ class MailerFactory:
             use_ssl=settings.SMTP_SSL,
             use_tls=settings.SMTP_TLS,
         )
+
         smtp_provider = MailerFactory.create_provider("smtp", smtp_config)
 
         if provider_type == "aws_ses":

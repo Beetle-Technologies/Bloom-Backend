@@ -130,7 +130,7 @@ class AttachmentService:
             if is_image(mime_type) and settings.FILE_STORAGE_GENERATE_THUMBNAILS:
                 thumbnail_content = await generate_thumbnail(file_content, mime_type)
                 if thumbnail_content:
-                    thumbnail_key = f"thumbnails-{file_key}"
+                    thumbnail_key = f"Thumbnails-{file_key}"
                     try:
                         await storage_service.upload_file(thumbnail_content, thumbnail_key, "image/jpeg")
                         thumbnail_url = await storage_service.get_file_url(thumbnail_key)
@@ -479,7 +479,7 @@ class AttachmentService:
             if is_image(mime_type) and settings.FILE_STORAGE_GENERATE_THUMBNAILS:
                 thumbnail_content = await generate_thumbnail(file_content, mime_type)
                 if thumbnail_content:
-                    thumbnail_key = f"thumbnails-{blob.key}"
+                    thumbnail_key = f"Thumbnails-{blob.key}"
                     try:
                         await storage_service.upload_file(thumbnail_content, thumbnail_key, "image/jpeg")
                         thumbnail_url = await storage_service.get_file_url(thumbnail_key)
