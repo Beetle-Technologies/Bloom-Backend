@@ -1,8 +1,8 @@
 """init_tables
 
-Revision ID: 7218f47deeb1
+Revision ID: 7db4b9f07219
 Revises:
-Create Date: 2025-10-05 06:01:25.317532
+Create Date: 2025-10-06 22:08:08.129249
 
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "7218f47deeb1"
+revision: str = "7db4b9f07219"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -109,6 +109,8 @@ def upgrade() -> None:
     op.create_index(op.f("ix_attachment_blobs_key"), "attachment_blobs", ["key"], unique=True)
     op.create_table(
         "category",
+        sa.Column("search_text", sa.TEXT(), nullable=True),
+        sa.Column("search_vector", postgresql.TSVECTOR(), nullable=True),
         sa.Column("friendly_id", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("friendly_slug", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),

@@ -47,6 +47,29 @@ CREATE TRIGGER product_item_search_update
 """
 )
 
+CATEGORY_SEARCH_TRIGGER_FUNCTION = DDL(
+    """
+CREATE OR REPLACE FUNCTION update_category_search_vector()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.search_text := COALESCE(NEW.title, '') || ' ' || COALESCE(NEW.description, '');
+    NEW.search_vector := to_tsvector('english', NEW.search_text);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+"""
+)
+
+CATEGORY_SEARCH_TRIGGER = DDL(
+    """
+DROP TRIGGER IF EXISTS category_search_update ON category;
+CREATE TRIGGER category_search_update
+    BEFORE INSERT OR UPDATE ON category
+    FOR EACH ROW
+    EXECUTE FUNCTION update_category_search_vector();
+"""
+)
+
 COUNTRY_SEARCH_TRIGGER_FUNCTION = DDL(
     """
 CREATE OR REPLACE FUNCTION update_country_search_vector()

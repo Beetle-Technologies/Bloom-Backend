@@ -7,6 +7,8 @@ from src.core.database.triggers import (
     ACCOUNT_SEARCH_TRIGGER,
     ACCOUNT_SEARCH_TRIGGER_FUNCTION,
     AUDIT_LOG_TRIGGER_FUNCTION,
+    CATEGORY_SEARCH_TRIGGER,
+    CATEGORY_SEARCH_TRIGGER_FUNCTION,
     COUNTRY_SEARCH_TRIGGER,
     COUNTRY_SEARCH_TRIGGER_FUNCTION,
     CURRENCY_SEARCH_TRIGGER,
@@ -25,9 +27,6 @@ from src.core.database.triggers import (
     TOKEN_CLEANUP_TRIGGER_FUNCTION,
 )
 from src.core.logging import get_logger
-
-max_tries = 60 * 5  # 5 minutes
-wait_seconds = 1
 
 logger = get_logger(__name__)
 
@@ -127,6 +126,9 @@ async def _setup_search_triggers(session: AsyncSession) -> None:
     await session.exec(PRODUCT_ITEM_SEARCH_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(PRODUCT_ITEM_SEARCH_TRIGGER)  # type: ignore
 
+    await session.exec(CATEGORY_SEARCH_TRIGGER_FUNCTION)  # type: ignore
+    await session.exec(CATEGORY_SEARCH_TRIGGER)  # type: ignore
+
     await session.exec(COUNTRY_SEARCH_TRIGGER_FUNCTION)  # type: ignore
     await session.exec(COUNTRY_SEARCH_TRIGGER)  # type: ignore
 
@@ -143,10 +145,12 @@ async def _drop_search_triggers(session: AsyncSession) -> None:
     await session.exec(DDL("DROP FUNCTION IF EXISTS update_account_search_vector();"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_search_update ON products;"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS product_item_search_update ON product_items;"))  # type: ignore
+    await session.exec(DDL("DROP TRIGGER IF EXISTS category_search_update ON category;"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS country_search_update ON country;"))  # type: ignore
     await session.exec(DDL("DROP TRIGGER IF EXISTS currency_search_update ON currency;"))  # type: ignore
     await session.exec(DDL("DROP FUNCTION IF EXISTS update_product_search_vector();"))  # type: ignore
     await session.exec(DDL("DROP FUNCTION IF EXISTS update_product_item_search_vector();"))  # type: ignore
+    await session.exec(DDL("DROP FUNCTION IF EXISTS update_category_search_vector();"))  # type: ignore
     await session.exec(DDL("DROP FUNCTION IF EXISTS update_country_search_vector();"))  # type: ignore
     await session.exec(DDL("DROP FUNCTION IF EXISTS update_currency_search_vector();"))  # type: ignore
 

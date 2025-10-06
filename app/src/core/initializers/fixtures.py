@@ -46,8 +46,14 @@ from src.domain.models import (
     Wishlist,
     WishlistItem,
 )
-from src.domain.repositories import AccountTypeRepository, CountryRepository, CurrencyRepository, PermissionRepository
-from src.domain.schemas import AccountTypeCreate, CountryCreate, CurrencyCreate, PermissionCreate
+from src.domain.repositories import (
+    AccountTypeRepository,
+    CategoryRepository,
+    CountryRepository,
+    CurrencyRepository,
+    PermissionRepository,
+)
+from src.domain.schemas import AccountTypeCreate, CategoryCreate, CountryCreate, CurrencyCreate, PermissionCreate
 
 MODEL_CLASSES = [
     Account,
@@ -237,6 +243,45 @@ async def _load_default_countries(session: AsyncSession) -> None:
     await country_repo.bulk_create_if_not_exists(countries_to_create)
 
 
+async def _load_default_categories(session: AsyncSession) -> None:
+    """
+    Load default categories into the system.
+    """
+    default_categories = [
+        {
+            "title": "Jewelries",
+            "description": "Jewelry, watches, and precious accessories",
+            "parent_id": None,
+            "sort_order": 1,
+        },
+        {
+            "title": "Shoes",
+            "description": "Footwear for all occasions and styles",
+            "sort_order": 2,
+        },
+        {
+            "title": "Perfumes",
+            "description": "Fragrances, colognes, and scented products",
+            "sort_order": 3,
+        },
+    ]
+
+    categories_to_create: list[CategoryCreate] = []
+    category_repo = CategoryRepository(session=session)
+
+    for category_data in default_categories:
+        category_create = CategoryCreate(
+            title=category_data["title"],
+            description=category_data["description"],
+            parent_id=category_data["parent_id"],
+            is_active=True,
+            sort_order=category_data["sort_order"],
+        )
+        categories_to_create.append(category_create)
+
+    await category_repo.bulk_create_if_not_exists(categories_to_create)
+
+
 async def load() -> None:
     if settings.LOAD_FIXTURES:
         async with db_context_manager() as session:
@@ -244,6 +289,7 @@ async def load() -> None:
             await _load_default_permissions(session=session)
             await _load_default_currencies(session=session)
             await _load_default_countries(session=session)
+            await _load_default_categories(session=session)
     else:
         print("Skipping loading fixtures as per configuration.")
 

@@ -76,6 +76,7 @@ from .catalog import (  # noqa: F401
     CatalogItemUpdateRequest,
     RequestItemRequest,
 )
+from .category import CategoryCreate, CategoryResponse, CategoryUpdate  # noqa: F401
 from .country import CountryCreate, CountryResponse, CountryUpdate  # noqa: F401
 from .currency import CurrencyCreate, CurrencyResponse, CurrencyUpdate  # noqa: F401
 from .inventory import InventoryCreate, InventoryResponse, InventoryUpdate  # noqa: F401
