@@ -39,7 +39,7 @@ class SMTPProvider(EmailProvider):
         self.password = config.password
         self.use_tls = config.use_tls
         self.use_ssl = config.use_ssl
-        self.timeout = config.timeout
+        self.timeout = config.timeout or 30
 
     async def verify_configuration(self) -> bool:
         """

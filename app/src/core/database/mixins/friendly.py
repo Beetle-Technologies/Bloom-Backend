@@ -5,7 +5,7 @@ from typing import ClassVar
 from uuid import UUID
 
 from sqlmodel import Field
-from src.core.types import GUID
+from src.core.types import GUID, IDType
 
 
 class FriendlyMixin:
@@ -96,7 +96,7 @@ class FriendlyMixin:
         return result
 
     @classmethod
-    def to_slug(cls, id_value: int | UUID, name_value: str) -> str:
+    def to_slug(cls, id_value: IDType, name_value: str) -> str:
         """
         Convert ID and name to a URL-friendly slug in format "id-name".
 
@@ -110,6 +110,8 @@ class FriendlyMixin:
 
         if isinstance(id_value, UUID):
             id_str = str(id_value).replace("-", "")[:8]  # Use first 8 chars of UUID
+        elif isinstance(id_value, GUID):
+            id_str = id_value.split("/")[-1]
         else:
             id_str = str(id_value)
 

@@ -44,7 +44,8 @@ async def get_categories(
         if pagination.filters.get("search") is not None:
             pagination.filters["search_vector__search"] = pagination.filters.pop("search")
 
-        pagination.fields = "id,friendly_id,title,sort_order"
+        pagination.fields = "id,friendly_id,friendly_slug,title,sort_order"
+        pagination.order_by = ["-title"]
 
         category_repo = CategoryRepository(session)
         result = await category_repo.find(pagination=pagination)
