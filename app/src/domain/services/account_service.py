@@ -11,6 +11,7 @@ from src.core.exceptions import errors
 from src.core.helpers.misc import call
 from src.core.logging import get_logger
 from src.core.types import IDType, Password, PhoneNumber
+from src.domain.enums import AccountTypeEnum
 from src.domain.models import Account
 from src.domain.repositories import AccountRepository, AccountTypeInfoRepository
 from src.domain.schemas import AccountBasicProfileResponse, AccountCreate, AccountUpdate, AttachmentBasicResponse
@@ -455,11 +456,12 @@ class AccountService:
 
             attachment = None
             type_attributes = {}
+            cart = None
 
             type_info = await self.account_type_info_repository.find_one_by(
                 id=type_info_id,
                 params=BaseQueryEngineParams(
-                    include=["attachment"],
+                    include=["attachment", "account_type"],
                 ),
             )
             if type_info and type_info.attributes:
@@ -478,13 +480,22 @@ class AccountService:
                 if not attachment_url:
                     attachment_url = None
 
-                attachment = AttachmentBasicResponse(
-                    id=type_info.attachment.id,
-                    fid=type_info.attachment.friendly_id,  # type: ignore
-                    url=attachment_url,
-                )
+                if attachment_url:
+                    attachment = AttachmentBasicResponse(
+                        id=type_info.attachment.id,
+                        fid=type_info.attachment.friendly_id,  # type: ignore
+                        url=attachment_url,
+                    )
 
-            assert existing_account.friendly_id is not None
+            if type_info and type_info.account_type and type_info.account_type.key == AccountTypeEnum.USER.value:
+                from src.domain.repositories.cart_repository import CartRepository
+                from src.domain.schemas.cart import CartBasicResponse
+
+                cart_repository = CartRepository(session=self.session)
+                user_cart = await cart_repository.get_cart_by_account_type_info(type_info.id)
+
+                if user_cart and user_cart.friendly_id:
+                    cart = CartBasicResponse(fid=user_cart.friendly_id)
 
             phone_number = existing_account.phone_number
             if phone_number == "None" or phone_number is None:
@@ -492,18 +503,19 @@ class AccountService:
 
             return AccountBasicProfileResponse(
                 id=existing_account.id,
-                fid=existing_account.friendly_id,
+                fid=existing_account.friendly_id,  # type: ignore
                 first_name=existing_account.first_name,
                 last_name=existing_account.last_name,
                 email=existing_account.email,
                 username=existing_account.username,
-                phone_number=phone_number,  # Use the corrected value
+                phone_number=phone_number,
                 attachment=attachment,
                 is_active=existing_account.is_active,
                 is_verified=existing_account.is_verified,
                 is_suspended=existing_account.is_suspended,
                 locked_at=existing_account.locked_at,
                 type_attributes=type_attributes,
+                cart=cart,
             )
         except errors.ServiceError as se:
             raise se
@@ -511,12 +523,12 @@ class AccountService:
             logger.exception(
                 f"src.domain.services.account_service.get_profile_by:: assertion error while fetching profile for account {id}: {ae}",
             )
-            raise errors.DatabaseError(detail="Failed to fetch account profile") from ae
+            raise errors.ServiceError(detail="Failed to fetch account profile") from ae
         except errors.DatabaseError as e:
             logger.exception(
                 f"src.domain.services.account_service.get_profile_by:: error while fetching profile for account {id}: {e}",
             )
-            raise errors.DatabaseError(detail="Failed to fetch account profile") from e
+            raise errors.ServiceError(detail="Failed to fetch account profile") from e
 
     @transactional
     async def update_profile_by(
@@ -549,12 +561,13 @@ class AccountService:
             type_attributes = call(profile_update, "type_attributes")
             updated_type_attributes = {}
             attachment = None
+            cart = None
 
             if type_attributes is not None:
                 type_info = await self.account_type_info_repository.find_one_by(
                     id=type_info_id,
                     params=BaseQueryEngineParams(
-                        include=["attachment"],
+                        include=["attachment", "account_type"],
                     ),
                 )
 
@@ -588,6 +601,20 @@ class AccountService:
                             {"attributes": updated_type_info_attributes},
                         )
 
+                    if (
+                        type_info
+                        and type_info.account_type
+                        and type_info.account_type.key == AccountTypeEnum.USER.value
+                    ):
+                        from src.domain.repositories.cart_repository import CartRepository
+                        from src.domain.schemas.cart import CartBasicResponse
+
+                        cart_repository = CartRepository(session=self.session)
+                        user_cart = await cart_repository.get_cart_by_account_type_info(type_info.id)
+
+                        if user_cart and user_cart.friendly_id:
+                            cart = CartBasicResponse(fid=user_cart.friendly_id)
+
             return AccountBasicProfileResponse(
                 id=update_account.id,
                 fid=update_account.friendly_id,  # type: ignore
@@ -602,8 +629,11 @@ class AccountService:
                 is_suspended=update_account.is_suspended,
                 locked_at=update_account.locked_at,
                 type_attributes=updated_type_attributes,
+                cart=cart,
             )
 
+        except errors.ServiceError as se:
+            raise se
         except errors.DatabaseError as de:
             logger.exception(
                 f"src.domain.services.account_service.update_profile_by:: error while updating profile for account {id}: {de!s}",
@@ -611,5 +641,3 @@ class AccountService:
             raise errors.AccountUpdateError(
                 detail="Failed to update account profile",
             ) from de
-        except errors.ServiceError as se:
-            raise se

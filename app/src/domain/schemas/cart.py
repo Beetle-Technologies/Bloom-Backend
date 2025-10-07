@@ -56,3 +56,9 @@ class UpdateCartItemRequest(BaseModel):
     """
 
     quantity: PositiveInt = Field(gt=0)
+
+
+class CartBasicResponse(BaseModel):
+    """Schema for basic cart information."""
+
+    fid: str = Field(..., description="Friendly ID of the cart")

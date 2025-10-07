@@ -12,7 +12,7 @@ class PhoneNumber(str):
     Pydantic type for international phone numbers in E.164 format.
     """
 
-    DEFAULT_REGION: str | None = None  # No default region
+    DEFAULT_REGION: str | None = None
 
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:

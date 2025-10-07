@@ -7,6 +7,7 @@ from pydantic import BaseModel, EmailStr, Field, JsonValue, model_validator
 from src.core.helpers import optional
 from src.core.types import GUID, Password, PhoneNumber
 from src.domain.schemas.attachment import AttachmentBasicResponse
+from src.domain.schemas.cart import CartBasicResponse
 
 
 class AuthAccount(BaseModel):
@@ -111,6 +112,7 @@ class AccountBasicProfileResponse(BaseModel):
     username: str | None
     phone_number: PhoneNumber | None
     attachment: Optional[AttachmentBasicResponse] = Field(None, description="URL/Path to the profile attachment")
+    cart: Optional[CartBasicResponse] = Field(None, description="Cart information for user accounts")
     is_active: bool
     is_verified: bool
     is_suspended: bool
