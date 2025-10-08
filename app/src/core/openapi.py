@@ -20,8 +20,8 @@ class OpenAPI:
         docs_url: str = settings.OPENAPI_DOCS_URL,
         schema_path: str = settings.OPENAPI_JSON_SCHEMA_URL,
     ) -> None:
-        self.docs_url = docs_url
-        self.schema_url = f"{docs_url}{schema_path}"
+        self.docs_url = docs_url.rstrip("/")
+        self.schema_url = f"{self.docs_url}{schema_path}"
 
     def setup(self, app: FastAPI) -> None:
         if settings.ENVIRONMENT != "local":
@@ -30,8 +30,20 @@ class OpenAPI:
         @app.get(
             self.docs_url,
             include_in_schema=False,
+            response_class=HTMLResponse,
         )
         async def get_swagger_documentation() -> HTMLResponse:
+            return get_swagger_ui_html(
+                openapi_url=self.schema_url,
+                title=settings.APP_NAME,
+            )
+
+        @app.get(
+            f"{self.docs_url}/",
+            include_in_schema=False,
+            response_class=HTMLResponse,
+        )
+        async def get_swagger_documentation_trailing() -> HTMLResponse:
             return get_swagger_ui_html(
                 openapi_url=self.schema_url,
                 title=settings.APP_NAME,

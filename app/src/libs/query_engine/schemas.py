@@ -43,9 +43,11 @@ class KeysetCursor(BaseModel):
 
     Attributes:\n
         fields (list[KeysetField]): List of fields that define the cursor.
+        is_previous (bool): Indicates if this cursor is for backward pagination (previous page).
     """
 
     fields: list[KeysetField]
+    is_previous: bool = False
 
     def to_base64(self) -> str:
         """Encode cursor to base64 string"""
@@ -65,7 +67,11 @@ class KeysetCursor(BaseModel):
         }
 
         json_str = json.dumps(cursor_dict, default=str, sort_keys=True)
-        return base64.b64encode(json_str.encode()).decode()
+        encoded = base64.b64encode(json_str.encode()).decode()
+
+        if self.is_previous:
+            return "-" + encoded
+        return encoded
 
     @classmethod
     def from_base64(cls, cursor_str: str) -> "KeysetCursor":
@@ -74,6 +80,11 @@ class KeysetCursor(BaseModel):
         import json
         from datetime import datetime
         from uuid import UUID
+
+        is_previous = False
+        if cursor_str.startswith("-"):
+            is_previous = True
+            cursor_str = cursor_str[1:]
 
         try:
             json_str = base64.b64decode(cursor_str.encode()).decode()
@@ -104,7 +115,7 @@ class KeysetCursor(BaseModel):
                     )
                 )
 
-            return cls(fields=fields)
+            return cls(fields=fields, is_previous=is_previous)
         except Exception as e:
             raise ValueError(f"Invalid cursor format: {e}")
 
@@ -193,6 +204,7 @@ class GeneralPaginationRequest(BasePaginationRequest):
 
     def to_keyset_request(self) -> KeysetPaginationRequest:
         """Convert to keyset pagination request"""
+
         return KeysetPaginationRequest(
             limit=self.limit,
             cursor=self.cursor,
@@ -355,7 +367,7 @@ class GeneralPaginationResponse(BaseModel, Generic[T]):
                 has_previous=response.has_previous,
                 next_cursor=response.next_cursor,
                 previous_cursor=response.previous_cursor,
-                limit=getattr(response, "limit", None),
+                limit=response.limit,
                 total_count=response.total_count,
             )
         else:

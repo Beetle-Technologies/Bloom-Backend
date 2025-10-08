@@ -44,9 +44,10 @@ async def get_categories(
         if pagination.filters.get("search") is not None:
             pagination.filters["search_vector__search"] = pagination.filters.pop("search")
 
-        pagination.fields = "id,friendly_id,friendly_slug,title,sort_order"
-        pagination.order_by = ["-title"]
-
+        pagination.fields = parsed_params.get("fields", "id,friendly_id,friendly_slug,parent_id,title,sort_order")
+        pagination.order_by = parsed_params.get("order_by", ["-title"])
+        pagination.limit = parsed_params.get("limit", 2)
+        #
         category_repo = CategoryRepository(session)
         result = await category_repo.find(pagination=pagination)
 
@@ -82,7 +83,8 @@ async def get_currencies(
         if pagination.filters.get("search") is not None:
             pagination.filters["search_vector__search"] = pagination.filters.pop("search")
 
-        pagination.fields = "id,code"
+        pagination.fields = parsed_params.get("fields", "id,code")
+        pagination.limit = parsed_params.get("limit", 20)
 
         currency_repo = CurrencyRepository(session)
         result = await currency_repo.find(pagination=pagination)
@@ -122,7 +124,8 @@ async def get_countries(
         if pagination.filters.get("search") is not None:
             pagination.filters["search_vector__search"] = pagination.filters.pop("search")
 
-        pagination.fields = "id,name,language,currency_id"
+        pagination.fields = parsed_params.get("fields", "id,name,language,currency_id")
+        pagination.limit = parsed_params.get("limit", 20)
 
         country_repo = CountryRepository(session)
         result = await country_repo.find(pagination=pagination)

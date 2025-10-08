@@ -122,6 +122,7 @@ class QueryEngineService(QueryEngineInterface):
         Returns:
             Pagination response (keyset or offset based on type)
         """
+
         # Validate select fields
         if pagination.fields:
             self.selection_provider.validate_fields(pagination.fields)
@@ -131,7 +132,6 @@ class QueryEngineService(QueryEngineInterface):
         else:
             response = await self._paginate_offset(pagination.to_offset_request())
 
-        # Convert to GeneralPaginationResponse to ensure consistent format
         return GeneralPaginationResponse.from_existing_response(response)
 
     async def _paginate_keyset(
@@ -149,15 +149,16 @@ class QueryEngineService(QueryEngineInterface):
         query = self._build_complete_query(query, pagination.filters, pagination.include)
 
         # Apply cursor-based WHERE clause if cursor is provided
+        cursor = None
         if pagination.cursor:
             try:
                 cursor = KeysetCursor.from_base64(pagination.cursor)
-                where_clause = self.keyset_provider.build_where_clause(cursor)
+                where_clause = self.keyset_provider.build_where_clause(cursor, reverse=cursor.is_previous)
                 if where_clause is not None:
                     query = query.where(where_clause)
             except ValueError:
                 # Invalid cursor, ignore it and start from beginning
-                pass
+                cursor = None
 
         # Apply ordering
         order_clauses = self.keyset_provider.build_order_clause(sort_fields)
@@ -171,41 +172,46 @@ class QueryEngineService(QueryEngineInterface):
         result = await self.session.exec(query)
         items = list(result.all())
 
-        # Check if there are more items
-        has_next = len(items) > pagination.limit
-        if has_next:
-            items = items[:-1]  # Remove the extra item
+        # Determine has_next and has_previous based on cursor type
+        if cursor and cursor.is_previous:
+            # Backward navigation: has_next is always true (navigated from next page), has_previous based on extra items
+            has_more_previous = len(items) > pagination.limit
+            has_next = True
+            has_previous = has_more_previous
+            if has_more_previous:
+                items = items[:-1]
+        else:
+            # Forward or initial navigation
+            has_next = len(items) > pagination.limit
+            has_previous = pagination.cursor is not None
+            if has_next:
+                items = items[:-1]
 
         # Create response
         response = KeysetPaginationResponse(
             items=items,
             has_next=has_next,
-            has_previous=pagination.cursor is not None,
+            has_previous=has_previous,
         )
 
-        # Generate next cursor if there are more items
         if has_next and items:
             last_item = items[-1]
             next_cursor = self.keyset_provider.create_cursor_from_row(last_item, sort_fields)
             response.next_cursor = next_cursor.to_base64()
 
-        # Generate previous cursor if this isn't the first page
-        if pagination.cursor is not None and items:
+        if has_previous and items:
             first_item = items[0]
-            # For previous cursor, we need to reverse the sort direction
-            reverse_sort_fields = [
-                (
-                    name,
-                    (SortDirection.DESC if direction == SortDirection.ASC else SortDirection.ASC),
-                )
-                for name, direction in sort_fields
-            ]
-            previous_cursor = self.keyset_provider.create_cursor_from_row(first_item, reverse_sort_fields)
+            # For previous cursor, use the original sort_fields (do not reverse them)
+            previous_cursor = self.keyset_provider.create_cursor_from_row(first_item, sort_fields)
+            previous_cursor.is_previous = True
             response.previous_cursor = previous_cursor.to_base64()
 
         # Include total count if requested (this can be expensive)
         if pagination.include_total_count:
             response.total_count = await self._get_total_count(pagination.filters, pagination.include)
+
+        if pagination.limit is not None:
+            pagination.limit = min(pagination.limit, 20)
 
         return response
 
@@ -224,6 +230,9 @@ class QueryEngineService(QueryEngineInterface):
         total_count = None
         if pagination.include_total_count:
             total_count = await self._get_total_count(pagination.filters, pagination.include)
+
+        if pagination.limit is not None:
+            pagination.limit = min(pagination.limit, 20)
 
         # Use the offset provider to handle pagination
         return await self.offset_provider.paginate(query, pagination, total_count)

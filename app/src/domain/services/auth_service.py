@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -28,6 +28,10 @@ from src.domain.services.token_service import TokenService
 from src.domain.tasks.mailer import send_email_task
 from src.libs.cache import get_cache_service
 from src.libs.mailer import MailerRequest
+
+if TYPE_CHECKING:
+    from src.domain.models.account import Account
+
 
 logger = get_logger(__name__)
 
@@ -1090,7 +1094,7 @@ class AuthService:
                 detail="Failed to change password",
             ) from e
 
-    async def _cache_verified_account(self, account) -> None:
+    async def _cache_verified_account(self, account: "Account") -> None:
         """
         Cache verified account data for pre-check functionality.
 

@@ -107,7 +107,7 @@ class PermissionService:
             "reviews:read",
         ],
         AccountTypeEnum.ADMIN: [
-            "accounts:manage",
+            "accounts:read",
             "account_types:manage",
             "account_type_infos:manage",
             "account_type_permissions:manage",

@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     MAX_LOGIN_RETRY_TIME: int = 60 * 30  # 30 minutes
     MAX_PASSWORD_RESET_TIME: int = 60 * 60 * 24  # 24 hours
     DOMAIN: str = "localhost"
-    PORT: str = "5000"
+    PORT: str
     V1_STR: str = "v1"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
     LOAD_FIXTURES: bool = True

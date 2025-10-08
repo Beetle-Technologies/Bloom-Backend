@@ -87,7 +87,7 @@ class KeysetProvider:
             value = getattr(row, field_name)
             fields.append(KeysetField(name=field_name, value=value, direction=direction))
 
-        return KeysetCursor(fields=fields)
+        return KeysetCursor(fields=fields, is_previous=False)
 
     def ensure_unique_sort(self, sort_fields: list[tuple[str, SortDirection]]) -> list[tuple[str, SortDirection]]:
         """

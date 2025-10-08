@@ -109,8 +109,9 @@ app = FastAPI(
     description=settings.APP_DESCRIPTION,
     version=settings.APP_VERSION,
     lifespan=lifespan,
+    docs_url=settings.OPENAPI_DOCS_URL,
+    openapi_url=settings.OPENAPI_JSON_SCHEMA_URL,
     redoc_url=None,
-    openapi_url=None,
 )
 
 add_exception_handler(app, eh)

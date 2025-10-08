@@ -36,7 +36,7 @@ VARIABLE_NAME=${VARIABLE_NAME:-app}
 export APP_MODULE=${APP_MODULE:-"$MODULE_NAME:$VARIABLE_NAME"}
 
 HOST=${HOST:-0.0.0.0}
-PORT=${PORT:-5000}
+PORT=${PORT:-3000}
 LOG_LEVEL=${LOG_LEVEL:-info}
 
 echo "Starting development servers..."

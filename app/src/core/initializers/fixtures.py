@@ -247,26 +247,37 @@ async def _load_default_categories(session: AsyncSession) -> None:
     """
     Load default categories into the system.
     """
-    default_categories = [
+    category_repo = CategoryRepository(session=session)
+
+    parent_categories = [
         {
-            "title": "Jewelries",
+            "title": "Jewelry",
             "description": "Jewelry, watches, and precious accessories",
             "parent_id": None,
             "sort_order": 1,
         },
-        {"title": "Shoes", "description": "Footwear for all occasions and styles", "sort_order": 2, "parent_id": None},
         {
-            "title": "Perfumes",
+            "title": "Shoes",
+            "description": "Footwear for all occasions and styles",
+            "sort_order": 2,
+            "parent_id": None,
+        },
+        {
+            "title": "Fragrance",
             "description": "Fragrances, colognes, and scented products",
             "sort_order": 3,
             "parent_id": None,
         },
+        {
+            "title": "Skincare",
+            "description": "Skincare products and beauty essentials",
+            "sort_order": 4,
+            "parent_id": None,
+        },
     ]
 
-    categories_to_create: list[CategoryCreate] = []
-    category_repo = CategoryRepository(session=session)
-
-    for category_data in default_categories:
+    parent_categories_to_create: list[CategoryCreate] = []
+    for category_data in parent_categories:
         category_create = CategoryCreate(
             title=category_data["title"],
             description=category_data["description"],
@@ -274,9 +285,56 @@ async def _load_default_categories(session: AsyncSession) -> None:
             is_active=True,
             sort_order=category_data["sort_order"],
         )
-        categories_to_create.append(category_create)
+        parent_categories_to_create.append(category_create)
 
-    await category_repo.bulk_create_if_not_exists(categories_to_create)
+    await category_repo.bulk_create_if_not_exists(parent_categories_to_create)
+
+    jewelry_parent = await category_repo.find_by_title("Jewelry")
+    fragrance_parent = await category_repo.find_by_title("Fragrance")
+
+    if not jewelry_parent or not fragrance_parent:
+        print("Warning: Could not find parent categories for subcategories")
+        return
+
+    subcategories = [
+        {
+            "title": "Necklaces",
+            "description": "Necklaces and pendants",
+            "parent_id": jewelry_parent.id,
+            "sort_order": 1,
+        },
+        {
+            "title": "Earrings",
+            "description": "Earrings and ear accessories",
+            "parent_id": jewelry_parent.id,
+            "sort_order": 2,
+        },
+        {
+            "title": "Bracelets",
+            "description": "Bracelets and wrist accessories",
+            "parent_id": jewelry_parent.id,
+            "sort_order": 3,
+        },
+        {
+            "title": "Perfumes",
+            "description": "Premium perfumes and eau de toilette",
+            "parent_id": fragrance_parent.id,
+            "sort_order": 1,
+        },
+    ]
+
+    subcategories_to_create: list[CategoryCreate] = []
+    for category_data in subcategories:
+        category_create = CategoryCreate(
+            title=category_data["title"],
+            description=category_data["description"],
+            parent_id=category_data["parent_id"],
+            is_active=True,
+            sort_order=category_data["sort_order"],
+        )
+        subcategories_to_create.append(category_create)
+
+    await category_repo.bulk_create_if_not_exists(subcategories_to_create)
 
 
 async def load() -> None:

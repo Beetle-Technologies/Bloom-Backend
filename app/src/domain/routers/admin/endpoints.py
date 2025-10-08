@@ -11,6 +11,14 @@ async def get_accounts():
     pass
 
 
+@router.post("/accounts", status_code=status.HTTP_200_OK)
+async def create_account():
+    """
+    Create a new account.
+    """
+    pass
+
+
 @router.post("/catalog", status_code=status.HTTP_200_OK)
 async def add_to_catalog():
     """
