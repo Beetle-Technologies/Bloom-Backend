@@ -124,7 +124,7 @@ class AccountService:
             if not account or account.deleted_datetime is not None:
                 raise errors.AccountNotFoundError()
 
-            if account.is_eligible():
+            if not account.is_eligible():
                 raise errors.AccountIneligibleError(
                     metadata={
                         "verified": account.is_verified,
