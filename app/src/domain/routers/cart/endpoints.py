@@ -23,6 +23,7 @@ router = APIRouter()
     dependencies=[api_rate_limit],
     status_code=status.HTTP_200_OK,
     response_model=IResponseBase[dict[str, Any]],
+    operation_id="add_to_cart",
 )
 async def add_to_cart(
     request: Request,  # noqa: ARG001
@@ -56,6 +57,7 @@ async def add_to_cart(
     dependencies=[api_rate_limit],
     status_code=status.HTTP_200_OK,
     response_model=IResponseBase[dict[str, Any]],
+    operation_id="get_cart",
 )
 async def get_cart(
     request: Request,
@@ -90,6 +92,7 @@ async def get_cart(
     dependencies=[api_rate_limit],
     response_model=IResponseBase[None],
     status_code=status.HTTP_200_OK,
+    operation_id="clear_cart",
 )
 async def clear_cart(
     cart_fid: Annotated[str, Path(..., description="The friendly ID of the cart to clear")],
@@ -122,6 +125,7 @@ async def clear_cart(
     dependencies=[api_rate_limit],
     response_model=IResponseBase[CartItem],
     status_code=status.HTTP_200_OK,
+    operation_id="update_cart_item",
 )
 async def update_cart_item(
     cart_fid: Annotated[str, Path(..., description="The friendly ID of the cart")],
@@ -154,6 +158,7 @@ async def update_cart_item(
     dependencies=[api_rate_limit],
     status_code=status.HTTP_200_OK,
     response_model=IResponseBase[None],
+    operation_id="remove_from_cart",
 )
 async def remove_from_cart(
     cart_fid: Annotated[str, Path(..., description="The friendly ID of the cart")],

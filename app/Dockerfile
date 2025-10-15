@@ -39,6 +39,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY ./pyproject.toml /app/
 COPY ./uv.lock /app/
 COPY ./scripts/ /app/scripts/
+
+RUN chmod +x /app/scripts/*.sh
+
 COPY ./alembic /app/alembic/
 COPY ./static /app/static/
 COPY ./templates /app/templates/

@@ -46,6 +46,7 @@ router = APIRouter()
     "/pre_check",
     dependencies=[strict_rate_limit],
     response_model=IResponseBase[AuthPreCheckResponse],
+    operation_id="auth_pre_check",
     status_code=status.HTTP_200_OK,
 )
 async def pre_check(
@@ -83,6 +84,7 @@ async def pre_check(
     "/request_email_verification",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    operation_id="request_email_verification",
     status_code=status.HTTP_200_OK,
 )
 async def request_email_verification(
@@ -123,6 +125,7 @@ async def request_email_verification(
     "/verify_email",
     dependencies=[per_minute_rate_limit],
     response_model=IResponseBase[None],
+    operation_id="verify_email",
     status_code=status.HTTP_200_OK,
 )
 async def verify_email(
@@ -162,6 +165,7 @@ async def verify_email(
     "/register",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[AuthRegisterResponse],
+    operation_id="register_account",
     status_code=status.HTTP_200_OK,
 )
 async def register(
@@ -205,6 +209,7 @@ async def register(
     "/login",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[AuthSessionResponse],
+    operation_id="login",
     status_code=status.HTTP_200_OK,
 )
 async def login(
@@ -244,6 +249,7 @@ async def login(
     "/request_new_session",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[AuthUserSessionResponse | None],
+    operation_id="request_new_user_session",
     status_code=status.HTTP_200_OK,
 )
 async def request_session(
@@ -295,6 +301,7 @@ async def request_session(
     "/logout",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    operation_id="logout",
     status_code=status.HTTP_200_OK,
 )
 async def logout(
@@ -331,6 +338,7 @@ async def logout(
     "/refresh",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[AuthSessionResponse],
+    operation_id="refresh_auth",
     status_code=status.HTTP_200_OK,
 )
 async def refresh(
@@ -367,6 +375,7 @@ async def refresh(
     "/request_forgot_password",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    operation_id="request_forgot_password",
     status_code=status.HTTP_200_OK,
 )
 async def forgot_password(
@@ -400,6 +409,7 @@ async def forgot_password(
     "/verify_password_reset",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    operation_id="verify_password_reset",
     status_code=status.HTTP_200_OK,
 )
 async def reset_password(
@@ -436,6 +446,7 @@ async def reset_password(
     "/request_password_change",
     dependencies=[auth_rate_limit],
     response_model=IResponseBase[None],
+    operation_id="change_password",
     status_code=status.HTTP_200_OK,
 )
 async def change_password(

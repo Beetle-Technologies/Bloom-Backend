@@ -10,7 +10,7 @@ x-app-base: &app-base
     environment:
         - PYTHONPATH=/app
     volumes:
-        - ./app:/app:z
+        - ${DEV_MOUNT:-./app}:/app:z
     networks:
         - default
 
@@ -56,7 +56,7 @@ services:
         container_name: bloom_api-1
         expose:
             - "3000"
-        command: ./scripts/dev.sh
+        command: sh -c "chmod +x ./scripts/dev.sh && ./scripts/dev.sh"
         depends_on:
             postgres:
                 condition: service_healthy

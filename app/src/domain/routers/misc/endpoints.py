@@ -24,6 +24,7 @@ router = APIRouter()
     "/categories",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[dict[str, Any]],
+    operation_id="get_categories",
 )
 async def get_categories(
     request: Request,
@@ -39,6 +40,7 @@ async def get_categories(
 
         if not pagination.filters:
             pagination.filters = {}
+
         pagination.filters["is_active__eq"] = True
 
         if pagination.filters.get("search") is not None:
@@ -63,6 +65,7 @@ async def get_categories(
     "/currencies",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[dict[str, Any]],
+    operation_id="get_currencies",
 )
 async def get_currencies(
     request: Request,
@@ -104,6 +107,7 @@ async def get_currencies(
     "/countries",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[dict[str, Any]],
+    operation_id="get_countries",
 )
 async def get_countries(
     request: Request,

@@ -27,6 +27,7 @@ router = APIRouter()
     "/me",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[AccountBasicProfileResponse],
+    operation_id="get_current_account",
 )
 async def me(
     request: Request,  # noqa: ARG001
@@ -57,6 +58,7 @@ async def me(
     "/me",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[AccountBasicProfileResponse],
+    operation_id="update_current_account",
     status_code=status.HTTP_200_OK,
 )
 async def update_me(
@@ -99,6 +101,7 @@ async def update_me(
     "/me",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[None],
+    operation_id="delete_current_account",
     status_code=status.HTTP_200_OK,
 )
 async def delete_me(
@@ -135,6 +138,7 @@ async def delete_me(
     "/me/addresses",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[list[AddressResponse]],
+    operation_id="get_current_account_addresses",
     status_code=status.HTTP_200_OK,
 )
 async def get_addresses(
@@ -166,6 +170,7 @@ async def get_addresses(
     "/me/addresses",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[AddressResponse],
+    operation_id="create_current_account_address",
     status_code=status.HTTP_200_OK,
 )
 async def create_addresses(
@@ -206,6 +211,7 @@ async def create_addresses(
     "/me/addresses/{address_fid}",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[AddressResponse],
+    operation_id="update_current_account_address",
     status_code=status.HTTP_200_OK,
 )
 async def update_addresses(
@@ -247,6 +253,7 @@ async def update_addresses(
     "/me/addresses/{address_fid}",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[None],
+    operation_id="delete_current_account_address",
     status_code=status.HTTP_200_OK,
 )
 async def delete_addresses(

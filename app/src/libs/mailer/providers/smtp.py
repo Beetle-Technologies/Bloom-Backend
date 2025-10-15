@@ -3,6 +3,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import make_msgid
+from typing import Any
 
 from src.core.logging import get_logger
 from src.core.mjml import mjml_templates
@@ -145,18 +146,19 @@ class SMTPProvider(EmailProvider):
                 payload=payload,
             )
 
-            all_recipients = payload.recipients.copy()
+            all_recipients: list[str] = payload.recipients.copy()
             if payload.cc:
                 all_recipients.extend(payload.cc)
             if payload.bcc:
                 all_recipients.extend(payload.bcc)
 
+            result: Any | None = None
             if self.use_ssl:
                 with smtplib.SMTP_SSL(host=self.host, port=self.port, timeout=self.timeout) as smtp:
                     if self.username and self.password:
                         smtp.login(self.username, self.password)
 
-                    smtp.send_message(msg, from_addr=payload.sender, to_addrs=all_recipients)
+                    result = smtp.send_message(msg, from_addr=payload.sender, to_addrs=all_recipients)
             else:
                 with smtplib.SMTP(host=self.host, port=self.port, timeout=self.timeout) as smtp:
                     if self.use_tls:
@@ -165,13 +167,13 @@ class SMTPProvider(EmailProvider):
                     if self.username and self.password:
                         smtp.login(self.username, self.password)
 
-                    smtp.send_message(msg, from_addr=payload.sender, to_addrs=all_recipients)
+                    result = smtp.send_message(msg, from_addr=payload.sender, to_addrs=all_recipients)
 
             return MailerResponse(
                 provider="smtp",
                 message_id=msg["Message-ID"],
                 status="sent",
-                raw_response={"message": "Email sent successfully"},
+                raw_response={"message": "Email sent successfully", "smtp_response": result},
             )
         except smtplib.SMTPRecipientsRefused as e:
             logger.exception(f"src.libs.mailer.providers.smtp:: SMTP recipients refused: {e.recipients}")
