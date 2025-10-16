@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlmodel.ext.asyncio.session import AsyncSession
-from src.core.constants import get_currency_symbol
+from src.core.constants import DEFAULT_CATALOG_RETURN_FIELDS, get_currency_symbol
 from src.core.database.decorators import transactional
 from src.core.dependencies import get_storage_service
 from src.core.exceptions import errors
@@ -20,7 +20,6 @@ from src.domain.repositories.inventory_action_repository import InventoryActionR
 from src.domain.repositories.product_item_repository import ProductItemRepository
 from src.domain.repositories.product_repository import ProductRepository
 from src.domain.schemas import (
-    DEFAULT_CATALOG_RETURN_FIELDS,
     AdjustInventoryRequest,
     AuthSessionState,
     CatalogItemCreateRequest,
@@ -50,26 +49,6 @@ class CatalogService:
         self.session = session
         self.product_repository = ProductRepository(session=self.session)
         self.product_item_repository = ProductItemRepository(session=self.session)
-
-    async def _get_inventory_for_item(
-        self, inventoriable_type: InventoriableType, inventoriable_id: GUID
-    ) -> Inventory | None:
-        """
-        Get inventory for an inventoriable item.
-        """
-        try:
-            inventory_service = InventoryService(self.session)
-            return await inventory_service.get_inventory_by_item(inventoriable_type, inventoriable_id)
-        except errors.ServiceError as se:
-            logger.exception(
-                f"src.domain.services.catalog_service._get_inventory_for_item:: Service error getting inventory for {inventoriable_type}:{inventoriable_id}: {se.detail}"
-            )
-            return None
-        except Exception as e:
-            logger.exception(
-                f"src.domain.services.catalog_service._get_inventory_for_item:: Error getting inventory for {inventoriable_type}:{inventoriable_id}: {e}"
-            )
-            return None
 
     async def browse_catalog(
         self,
@@ -111,46 +90,6 @@ class CatalogService:
             raise errors.ServiceError(
                 detail="Failed to browse catalog",
             ) from e
-
-    async def _browse_catalog_internal(
-        self,
-        auth_state: AuthSessionState | None,
-        pagination: GeneralPaginationRequest,
-    ) -> GeneralPaginationResponse[Product] | GeneralPaginationResponse[ProductItem]:
-        """
-        Internal browse method without attachments.
-        """
-
-        if pagination.include and ("currency" in pagination.include or "category" in pagination.include):
-            current_fields = pagination.fields
-
-            query_fields = []
-            if "currency" in pagination.include:
-                query_fields.extend(["currency.id as currency_id", "currency.code as currency_code"])
-            if "category" in pagination.include:
-                query_fields.extend(["category.id as category_id", "category.title as category_name"])
-
-            if query_fields:
-                pagination.fields = current_fields + "," + ",".join(query_fields)
-
-        is_product_check = pagination.filters.pop("is_product", None)
-
-        if auth_state is None or auth_state.type.is_user():
-            return await self.product_item_repository.find(pagination=pagination)
-        elif auth_state.type.is_supplier():
-            pagination.filters = pagination.filters or {}
-            pagination.filters["supplier_account_id__eq"] = str(auth_state.id)
-            return await self.product_repository.find(pagination=pagination)
-        elif auth_state.type.is_business():
-            pagination.filters = pagination.filters or {}
-
-            if is_product_check is not None and is_product_check is True:
-                return await self.product_repository.find(pagination=pagination)
-            else:
-                pagination.filters["seller_account_id__eq"] = str(auth_state.id)
-                return await self.product_item_repository.find(pagination=pagination)
-        else:
-            return await self.product_item_repository.find(pagination=pagination)
 
     @transactional
     async def create_catalog_item(
@@ -212,50 +151,31 @@ class CatalogService:
                 detail="Failed to create catalog item",
             ) from e
 
-    async def get_catalog_item(self, item_fid: str, auth_state: AuthSessionState | None) -> dict[str, Any]:
+    async def get_catalog_item(
+        self, item_fid: str, auth_state: AuthSessionState | None, is_product=False
+    ) -> dict[str, Any]:
         """
         Get a catalog item by friendly ID, including its attachments.
 
         Returns the item (Product or ProductItem) and a list of attachment info.
         """
         try:
-            filters = {
-                "friendly_id__eq": item_fid,
-            }
+            pagination = GeneralPaginationRequest(
+                limit=1,
+                filters={"friendly_id__eq": item_fid, "is_product": is_product},
+                fields=",".join(DEFAULT_CATALOG_RETURN_FIELDS),
+                include=["category", "currency"],
+                order_by=["-created_datetime"],
+            )
+            result = await self.browse_catalog(auth_state, pagination)
 
-            query_fields = [
-                "currency.id as currency_id",
-                "currency.code as currency_code",
-                "category.id as category_id",
-                "category.title as category_name",
-            ]
-            fields = ",".join(DEFAULT_CATALOG_RETURN_FIELDS) + "," + ",".join(query_fields)
+            result_dict = result.to_dict()
 
-            if auth_state and auth_state.type.is_supplier():
-                item = await self.product_repository.query(
-                    params=BaseQueryEngineParams(
-                        filters=filters,
-                        fields=fields,
-                        include=["currency", "category"],
-                    )
-                )
-            else:
-                item = await self.product_item_repository.query(
-                    params=BaseQueryEngineParams(
-                        filters=filters,
-                        fields=fields,
-                        include=["currency", "category"],
-                    )
-                )
-            if not item:
+            items = result_dict.get("items", [])
+            if len(items) == 0:
                 raise errors.NotFoundError(detail="Item not found")
 
-            item_info = await self._format_item_info(item, auth_state)
-
-            if item_info is None:
-                raise errors.ServiceError(detail="Item not found")
-
-            return item_info
+            return items[0]
         except errors.ServiceError as se:
             raise se
         except errors.NotFoundError as nfe:
@@ -265,53 +185,6 @@ class CatalogService:
             raise errors.ServiceError(
                 detail="Failed to retrieve catalog item",
             ) from e
-
-    async def _get_attachments_for_catalog_item(
-        self, attachable_type: str, attachable_id: GUID
-    ) -> list[dict[str, str]]:
-        """
-        Get attachment info for an attachable entity.
-        """
-
-        try:
-            attachment_repo = AttachmentRepository(self.session)
-
-            attachments = await attachment_repo.query_all(
-                params=BaseQueryEngineParams(
-                    filters={
-                        "attachable_type__eq": attachable_type,
-                        "attachable_id__eq": str(attachable_id),
-                    },
-                    fields="id,friendly_id,name,blob_id",
-                )
-            )
-
-            result = []
-            storage_service = get_storage_service()
-
-            for att in attachments:
-                blob_repo = AttachmentBlobRepository(self.session)
-                blob = await blob_repo.find_one_by(id=att.blob_id)
-                if blob:
-                    assert att.friendly_id is not None, "Attachment friendly_id should not be None"
-
-                    attachment_service = AttachmentService(self.session)
-                    attachment_url = await attachment_service.get_attachment_url(
-                        attachment_fid=att.friendly_id,
-                        storage_service=storage_service,
-                    )
-                    result.append(
-                        {
-                            "friendly_id": att.friendly_id,
-                            "name": att.name,
-                            "url": attachment_url,
-                        }
-                    )
-
-            return result
-        except Exception as e:
-            logger.exception(f"Error getting attachments for {attachable_type}:{attachable_id}: {e}")
-            return []
 
     async def update_catalog_item(
         self,
@@ -377,11 +250,25 @@ class CatalogService:
                 attachment_service = AttachmentService(self.session)
                 inventory_service = InventoryService(self.session)
 
-                await inventory_service.delete_inventory_for_item(InventoriableType.PRODUCT, product.id)
-                await attachment_service.mark_attachments_as_deleted_for_attachable(
-                    attachable_type=InventoriableType.PRODUCT, attachable_id=product.id
+                is_inventory_deleted = await inventory_service.delete_inventory_for_item(
+                    InventoriableType.PRODUCT, product.id
                 )
-                return await self.product_repository.delete(product.id)
+
+                if not is_inventory_deleted:
+                    raise errors.ServiceError("Failed to delete associated inventory")
+
+                is_attachment_deleted = await attachment_service.mark_attachments_as_deleted_for_attachable(
+                    attachable_type=InventoriableType.PRODUCT.value, attachable_id=product.id
+                )
+
+                if not is_attachment_deleted:
+                    raise errors.ServiceError("Failed to delete associated attachments")
+
+                is_product_deleted = await self.product_repository.delete(product.id)
+                if not is_product_deleted:
+                    raise errors.ServiceError("Failed to delete item")
+
+                return is_product_deleted
             elif auth_state.type.is_business():
                 product_item = await self.product_item_repository.get_by_friendly_id(item_fid)
                 if not product_item:
@@ -390,7 +277,11 @@ class CatalogService:
                 if product_item.seller_account_id != auth_state.id:
                     raise errors.InvalidPermissionError(detail="You do not have permission to delete this item")
 
-                return await self.product_item_repository.delete(product_item.id)
+                is_product_item_deleted = await self.product_item_repository.delete(product_item.id)
+
+                if not is_product_item_deleted:
+                    raise errors.ServiceError("Failed to delete item")
+                return is_product_item_deleted
             else:
                 raise errors.ServiceError("Unauthorized to delete items")
         except errors.ServiceError as se:
@@ -565,6 +456,113 @@ class CatalogService:
                 f"src.domain.services.catalog_service.adjust_catalog_item_inventory:: Error adjusting inventory for {item_fid}: {e}"
             )
             raise errors.ServiceError("Failed to adjust inventory")
+
+    async def _get_attachments_for_catalog_item(
+        self, attachable_type: str, attachable_id: GUID
+    ) -> list[dict[str, str]]:
+        """
+        Get attachment info for an attachable entity.
+        """
+
+        try:
+            attachment_repo = AttachmentRepository(self.session)
+
+            attachments = await attachment_repo.query_all(
+                params=BaseQueryEngineParams(
+                    filters={
+                        "attachable_type__eq": attachable_type,
+                        "attachable_id__eq": str(attachable_id),
+                    },
+                    fields="id,friendly_id,name,blob_id",
+                )
+            )
+
+            result = []
+            storage_service = get_storage_service()
+
+            for att in attachments:
+                blob_repo = AttachmentBlobRepository(self.session)
+                blob = await blob_repo.find_one_by(id=att.blob_id)
+                if blob:
+                    assert att.friendly_id is not None, "Attachment friendly_id should not be None"
+
+                    attachment_service = AttachmentService(self.session)
+                    attachment_url = await attachment_service.get_attachment_url(
+                        attachment_fid=att.friendly_id,
+                        storage_service=storage_service,
+                    )
+                    result.append(
+                        {
+                            "friendly_id": att.friendly_id,
+                            "name": att.name,
+                            "url": attachment_url,
+                        }
+                    )
+
+            return result
+        except Exception as e:
+            logger.exception(f"Error getting attachments for {attachable_type}:{attachable_id}: {e}")
+            return []
+
+    async def _get_inventory_for_item(
+        self, inventoriable_type: InventoriableType, inventoriable_id: GUID
+    ) -> Inventory | None:
+        """
+        Get inventory for an inventoriable item.
+        """
+        try:
+            inventory_service = InventoryService(self.session)
+            return await inventory_service.get_inventory_by_item(inventoriable_type, inventoriable_id)
+        except errors.ServiceError as se:
+            logger.exception(
+                f"src.domain.services.catalog_service._get_inventory_for_item:: Service error getting inventory for {inventoriable_type}:{inventoriable_id}: {se.detail}"
+            )
+            return None
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.catalog_service._get_inventory_for_item:: Error getting inventory for {inventoriable_type}:{inventoriable_id}: {e}"
+            )
+            return None
+
+    async def _browse_catalog_internal(
+        self,
+        auth_state: AuthSessionState | None,
+        pagination: GeneralPaginationRequest,
+    ) -> GeneralPaginationResponse[Product] | GeneralPaginationResponse[ProductItem]:
+        """
+        Internal browse method without attachments.
+        """
+
+        if pagination.include and ("currency" in pagination.include or "category" in pagination.include):
+            current_fields = pagination.fields
+
+            query_fields = []
+            if "currency" in pagination.include:
+                query_fields.extend(["currency.id as currency_id", "currency.code as currency_code"])
+            if "category" in pagination.include:
+                query_fields.extend(["category.id as category_id", "category.title as category_name"])
+
+            if query_fields:
+                pagination.fields = current_fields + "," + ",".join(query_fields)
+
+        is_product_check = pagination.filters.pop("is_product", None)
+
+        if auth_state is None or auth_state.type.is_user():
+            return await self.product_item_repository.find(pagination=pagination)
+        elif auth_state.type.is_supplier():
+            pagination.filters = pagination.filters or {}
+            pagination.filters["supplier_account_id__eq"] = str(auth_state.id)
+            return await self.product_repository.find(pagination=pagination)
+        elif auth_state.type.is_business():
+            pagination.filters = pagination.filters or {}
+
+            if is_product_check is not None and is_product_check is True:
+                return await self.product_repository.find(pagination=pagination)
+            else:
+                pagination.filters["seller_account_id__eq"] = str(auth_state.id)
+                return await self.product_item_repository.find(pagination=pagination)
+        else:
+            return await self.product_item_repository.find(pagination=pagination)
 
     async def _format_item_info(
         self,

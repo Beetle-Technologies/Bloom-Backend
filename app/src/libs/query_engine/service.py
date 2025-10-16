@@ -255,7 +255,8 @@ class QueryEngineService(QueryEngineInterface):
             query = self._apply_joins_for_fields(query, fields)
 
         # Only apply includes if we're selecting the full entity
-        if include and self.selection_provider.is_full_entity_selection(fields):
+        # FIX: Check if it's a full entity selection before applying includes
+        if include and (not fields or self.selection_provider.is_full_entity_selection(fields)):
             query = self._apply_includes(query, include)
 
         # Apply filters

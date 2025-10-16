@@ -42,22 +42,6 @@ class CatalogBrowseParams(BaseModel):
     include_total_count: bool = False
 
 
-DEFAULT_CATALOG_RETURN_FIELDS = [
-    "id",
-    "friendly_id",
-    "name",
-    "description",
-    "price",
-    "status",
-    "currency_id",
-    "category_id",
-    "attributes",
-    "is_digital",
-    "created_datetime",
-    "updated_datetime",
-]
-
-
 class CatalogItemCreateRequest(BaseModel):
     """
     Schema for creating a new catalog item

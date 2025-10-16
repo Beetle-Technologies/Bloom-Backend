@@ -72,6 +72,19 @@ ALLOWED_MIME_TYPES = [
     "application/x-7z-compressed",
 ]
 
+DEFAULT_CATALOG_RETURN_FIELDS = [
+    "id",
+    "friendly_id",
+    "name",
+    "description",
+    "price",
+    "status",
+    "attributes",
+    "is_digital",
+    "created_datetime",
+    "updated_datetime",
+]
+
 
 CURRENCY_SYMBOL_MAP: dict[str, str] = {
     "US Dollar": "$",

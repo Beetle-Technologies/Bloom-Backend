@@ -1,7 +1,8 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, Path, Request, status
+from fastapi import APIRouter, Body, Depends, Path, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.constants import DEFAULT_CATALOG_RETURN_FIELDS
 from src.core.database.session import get_db_session
 from src.core.dependencies import (
     api_rate_limit,
@@ -22,12 +23,7 @@ from src.core.logging import get_logger
 from src.core.types import BloomClientInfo
 from src.domain.enums import ProductStatus
 from src.domain.models.inventory import Inventory
-from src.domain.schemas import (
-    DEFAULT_CATALOG_RETURN_FIELDS,
-    AuthSessionState,
-    CatalogBrowseParams,
-    CatalogItemCreateRequest,
-)
+from src.domain.schemas import AuthSessionState, CatalogBrowseParams, CatalogItemCreateRequest
 from src.domain.schemas.catalog import AdjustInventoryRequest, CatalogItemUpdateRequest, RequestItemRequest
 from src.domain.services.catalog_service import CatalogService
 from src.libs.query_engine import GeneralPaginationRequest
@@ -152,6 +148,9 @@ async def get_item(
     item_fid: Annotated[str, Path(..., description="The friendly ID of the item to retrieve")],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     auth_state: Annotated[AuthSessionState | None, Depends(require_noauth_or_eligible_account)],
+    is_product: Annotated[
+        bool, Query(..., description="Whether to retrieve the item as a `Product` when querying as a business")
+    ] = False,
 ) -> IResponseBase[dict[str, Any]]:
     """
     Get item details by item friendly ID
@@ -160,7 +159,7 @@ async def get_item(
     """
     try:
         catalog_service = CatalogService(session)
-        item = await catalog_service.get_catalog_item(item_fid, auth_state)
+        item = await catalog_service.get_catalog_item(item_fid, auth_state, is_product=is_product)
 
         return build_json_response(
             data={
@@ -194,7 +193,7 @@ async def update_item(
         CatalogItemUpdateRequest,
         Body(..., description="The update data for the catalog item"),
     ],
-):
+) -> IResponseBase[dict[str, Any]]:
     """
     Update an item by its friendly ID
 
@@ -204,7 +203,13 @@ async def update_item(
     try:
         catalog_service = CatalogService(session)
         updated_item = await catalog_service.update_catalog_item(item_fid, update_data, auth_state)
-        return build_json_response(data=updated_item, message="Item updated successfully")
+        return build_json_response(
+            data={
+                "id": str(updated_item.id),  # type: ignore
+                "fid": updated_item.friendly_id,
+            },
+            message="Item updated successfully",
+        )
     except errors.ServiceError as se:
         raise se
     except Exception as e:
@@ -239,28 +244,11 @@ async def delete_item(
         return build_json_response(data=None, message="Item deleted successfully")
     except errors.ServiceError as se:
         raise se
+    except errors.NotFoundError as e:
+        raise e
     except Exception as e:
         logger.exception(f"Error deleting item {item_fid}: {e}")
         raise errors.ServiceError("Failed to delete item")
-
-
-@router.get(
-    "/items/{item_fid}/analytics",
-    dependencies=[medium_api_rate_limit],
-    response_model=IResponseBase[dict[str, Any]],
-    operation_id="get_item_analytics",
-)
-async def get_item_analytics(
-    request: Request,
-    request_client: Annotated[BloomClientInfo, is_bloom_supplier_client],  # noqa: ARG001
-    item_fid: Annotated[str, Path(..., description="The friendly ID of the item to get analytics for")],
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    auth_state: Annotated[AuthSessionState, Depends(require_eligible_supplier_or_seller_account)],
-):
-    """
-    Get analytics for an item by its friendly ID
-    """
-    pass
 
 
 @router.post(
@@ -291,14 +279,14 @@ async def request_item(
         product_item = await catalog_service.request_catalog_item(item_fid, request_data, auth_state)
 
         return build_json_response(
-            data={"product_item_id": str(product_item.id)},  # type: ignore
-            message="Item requested successfully",
+            data={"id": str(product_item.id), "fid": product_item.friendly_id},  # type: ignore
+            message="Item added successfully",
         )
     except errors.ServiceError as se:
         raise se
     except Exception as e:
         logger.exception(f"Error requesting item {item_fid}: {e}")
-        raise errors.ServiceError("Failed to request item")
+        raise errors.ServiceError("Failed to add item to catalog")
 
 
 @router.get(

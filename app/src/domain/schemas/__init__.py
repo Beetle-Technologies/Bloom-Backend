@@ -69,7 +69,6 @@ from .cart import (  # noqa: F401
     UpdateCartItemRequest,
 )
 from .catalog import (  # noqa: F401
-    DEFAULT_CATALOG_RETURN_FIELDS,
     AdjustInventoryRequest,
     CatalogBrowseParams,
     CatalogFilterParams,
