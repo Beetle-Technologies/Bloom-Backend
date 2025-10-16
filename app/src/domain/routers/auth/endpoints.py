@@ -345,6 +345,7 @@ async def refresh(
     request: Request,  # noqa: ARG001
     request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    auth_state: Annotated[AuthSessionState, Depends(requires_eligible_account)],  # noqa: ARG001
     body: Annotated[AuthTokenRefreshRequest, Body(..., description="Token refresh request body")],
 ) -> IResponseBase[AuthSessionResponse]:
     """
