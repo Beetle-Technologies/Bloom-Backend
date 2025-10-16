@@ -19,7 +19,7 @@ class ProductBase(BaseModel):
     supplier_account_id: GUID = Field(..., description="Reference to the supplier account")
     currency_id: UUID = Field(..., description="The currency for the product price")
     category_id: Optional[GUID] = Field(None, description="The category this product belongs to")
-    status: ProductStatus = Field(default=ProductStatus.DRAFT, description="The current status of the product")
+    status: ProductStatus = Field(default=ProductStatus.ACTIVE, description="The current status of the product")
     is_digital: bool = Field(default=False, description="Whether the product is a digital good")
     attributes: Dict[str, Any] = Field(
         default_factory=dict,
@@ -29,6 +29,8 @@ class ProductBase(BaseModel):
 
 class ProductCreate(ProductBase):
     """Schema for creating a new product."""
+
+    id: GUID = Field(..., description="The unique identifier for the product")
 
 
 @optional

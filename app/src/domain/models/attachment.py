@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from sqlalchemy import Column, String, UniqueConstraint
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field
 from src.core.database.mixins import CreatedDateTimeMixin, DeletableMixin, FriendlyMixin, GUIDMixin
 from src.core.types import GUID
@@ -46,11 +46,9 @@ class Attachment(GUIDMixin, FriendlyMixin, CreatedDateTimeMixin, DeletableMixin,
 
     name: str = Field(max_length=255, nullable=False)
     attachable_type: str = Field(
-        sa_column=Column(
-            String(120),
-            nullable=False,
-            index=True,
-        ),
+        max_length=120,
+        nullable=False,
+        index=True,
     )
     attachable_id: GUID = Field(nullable=False)
     blob_id: GUID = Field(foreign_key="attachment_blobs.id", nullable=False, index=True)

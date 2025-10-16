@@ -1,6 +1,6 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.constants import get_currency_symbol
 from src.core.database.session import get_db_session
@@ -9,10 +9,11 @@ from src.core.exceptions import errors
 from src.core.helpers.request import parse_nested_query_params
 from src.core.helpers.response import IResponseBase, build_json_response
 from src.core.logging import get_logger
-from src.core.types import BloomClientInfo
+from src.core.types import GUID, BloomClientInfo
 from src.domain.repositories.category_repository import CategoryRepository
 from src.domain.repositories.country_repository import CountryRepository
 from src.domain.repositories.currency_repository import CurrencyRepository
+from src.domain.schemas import GenerateGIDRequest
 from src.libs.query_engine import GeneralPaginationRequest
 
 logger = get_logger(__name__)
@@ -48,7 +49,7 @@ async def get_categories(
 
         pagination.fields = parsed_params.get("fields", "id,friendly_id,friendly_slug,parent_id,title,sort_order")
         pagination.order_by = parsed_params.get("order_by", ["-title"])
-        pagination.limit = parsed_params.get("limit", 2)
+        pagination.limit = parsed_params.get("limit", 20)
         #
         category_repo = CategoryRepository(session)
         result = await category_repo.find(pagination=pagination)
@@ -140,3 +141,31 @@ async def get_countries(
     except Exception:
         logger.exception("src.domain.routers.misc.endpoints.get_countries:: Error getting countries: {e}")
         raise errors.ServiceError("Failed to get countries")
+
+
+@router.post(
+    "/generate_gid",
+    dependencies=[api_rate_limit],
+    response_model=IResponseBase[dict[str, Any]],
+    operation_id="generate_gid",
+)
+async def generate_guid(
+    request: Request,
+    request_client: Annotated[BloomClientInfo, is_bloom_client],  # noqa: ARG001
+    body: Annotated[GenerateGIDRequest, Body(...)],
+) -> IResponseBase[dict[str, Any]]:
+    """
+    Generate a new GUID for the specified resource type.
+    """
+    try:
+        new_guid = GUID.encode_guid(resource_type=body.resource_type)
+
+        return build_json_response(
+            data={
+                "gid": str(new_guid),
+            },
+            message="GUID generated successfully",
+        )
+    except Exception as e:
+        logger.exception(f"src.domain.routers.misc.endpoints.generate_guid:: Error generating GUID: {e}")
+        raise errors.ServiceError("Failed to generate GUID")

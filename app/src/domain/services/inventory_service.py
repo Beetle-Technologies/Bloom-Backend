@@ -34,7 +34,6 @@ class InventoryService:
                         "inventoriable_type__eq": inventoriable_type,
                         "inventoriable_id__eq": inventoriable_id,
                     },
-                    fields="id,quantity_in_stock,reserved_stock",
                 )
             )
         except errors.DatabaseError as de:

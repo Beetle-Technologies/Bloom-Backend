@@ -84,7 +84,7 @@ class AttachmentService:
 
             mime_type, file_extension, file_size = get_file_info(file_content, file.filename or "")
 
-            file_key = generate_file_key(file.filename or name, attachable_type, str(attachable_id))
+            file_key = generate_file_key(name, attachable_type, str(attachable_id))
 
             file_path = await storage_service.upload_file(file_content, file_key, mime_type)
 

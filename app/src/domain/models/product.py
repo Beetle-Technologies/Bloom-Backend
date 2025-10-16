@@ -90,7 +90,7 @@ class Product(
 
     # Relationships
     supplier: "Account" = Relationship()
-    currency: "Currency" = Relationship()
-    category: Optional["Category"] = Relationship(back_populates="products")
+    currency: "Currency" = Relationship(sa_relationship_kwargs={"lazy": "joined"})
+    category: Optional["Category"] = Relationship(back_populates="products", sa_relationship_kwargs={"lazy": "joined"})
     product_items: List["ProductItem"] = Relationship(back_populates="product")
     resale_requests: List["ProductItemRequest"] = Relationship(back_populates="product")

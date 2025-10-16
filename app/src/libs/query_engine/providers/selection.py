@@ -11,6 +11,18 @@ class SelectionProvider:
     def __init__(self, model: type[SQLModel]):
         self.model = model
 
+    def is_full_entity_selection(self, select_fields: Optional[str] = None) -> bool:
+        """
+        Check if the selection represents the full entity or specific fields.
+
+        Args:
+            select_fields: Comma-separated string of fields to select or "*" for all fields
+
+        Returns:
+            True if selecting the full entity, False if selecting specific fields
+        """
+        return not select_fields or select_fields.strip() == "*"
+
     def build_select_query(self, select_fields: Optional[str] = None):
         """
         Build select query with optional field selection.
@@ -24,12 +36,12 @@ class SelectionProvider:
         Raises:
             InvalidFieldError: When one or more specified fields don't exist or aren't selectable
         """
-        if not select_fields or select_fields.strip() == "*":
+        if self.is_full_entity_selection(select_fields):
             # Select all fields (default behavior)
             return select(self.model)
 
         # Parse comma-separated field names
-        field_names = [field.strip() for field in select_fields.split(",") if field.strip()]
+        field_names = [field.strip() for field in (select_fields or "").split(",") if field.strip()]
 
         if not field_names:
             return select(self.model)

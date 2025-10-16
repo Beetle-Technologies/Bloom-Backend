@@ -2,7 +2,6 @@ from decimal import Decimal
 from typing import Annotated, Any, Dict, Optional
 from uuid import UUID
 
-from fastapi import File, UploadFile
 from pydantic import BaseModel, BeforeValidator, Field
 from src.core.helpers.request import parse_comma_separated_list
 from src.core.types import GUID
@@ -48,7 +47,6 @@ DEFAULT_CATALOG_RETURN_FIELDS = [
     "name",
     "description",
     "price",
-    "currency",
     "status",
     "currency_id",
     "category_id",
@@ -64,6 +62,9 @@ class CatalogItemCreateRequest(BaseModel):
     Schema for creating a new catalog item
     """
 
+    id: GUID = Field(
+        ..., description="The unique identifier for the product", examples=["gid://bloom/Product/dGVzdGluZ3Rlc3Rpbmc"]
+    )
     name: str = Field(..., description="The name of the product")
     description: str | None = Field(None, description="A description of the product")
     price: Decimal = Field(
@@ -73,12 +74,12 @@ class CatalogItemCreateRequest(BaseModel):
         description="The base price of the product as string",
     )
     currency_id: UUID = Field(..., description="The currency ID as string")
-    category_id: GUID = Field(..., description="The category ID as string")
+    category_id: GUID = Field(
+        ..., description="The category ID as string", examples=["gid://bloom/Category/dGVzdGluZ3Rlc3Rpbmc"]
+    )
     is_digital: bool = Field(False, description="Whether the product is a digital good")
-    attributes: str | None = Field(None, description="JSON string of product attributes")
+    attributes: dict[str, Any] = Field({}, description="JSON object of product attributes")
     initial_stock: int = Field(1, ge=1, description="Initial quantity in stock")
-    attachments: list[UploadFile] = File(..., description="List of attachment files")
-    attachment_names: list[str] = Field(..., description="Names for attachments")
 
 
 class AdjustInventoryRequest(BaseModel):

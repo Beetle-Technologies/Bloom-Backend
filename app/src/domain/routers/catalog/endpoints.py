@@ -1,11 +1,10 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, Form, Path, Request, status
+from fastapi import APIRouter, Body, Depends, Path, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.database.session import get_db_session
 from src.core.dependencies import (
     api_rate_limit,
-    get_storage_service,
     is_bloom_client,
     is_bloom_seller_client,
     is_bloom_supplier_client,
@@ -32,7 +31,6 @@ from src.domain.schemas import (
 from src.domain.schemas.catalog import AdjustInventoryRequest, CatalogItemUpdateRequest, RequestItemRequest
 from src.domain.services.catalog_service import CatalogService
 from src.libs.query_engine import GeneralPaginationRequest
-from src.libs.storage import StorageService
 
 logger = get_logger(__name__)
 
@@ -44,6 +42,7 @@ router = APIRouter()
     "/browse",
     dependencies=[api_rate_limit],
     response_model=IResponseBase[dict[str, Any]],
+    operation_id="browse_catalog",
 )
 async def browse_catalog(
     request: Request,
@@ -106,15 +105,15 @@ async def browse_catalog(
     dependencies=[medium_api_rate_limit],
     response_model=IResponseBase[dict[str, Any]],
     status_code=status.HTTP_200_OK,
+    operation_id="create_item",
 )
 async def create_item(
-    request: Request,
-    request_client: Annotated[BloomClientInfo, is_bloom_supplier_client],
-    storage_service: Annotated[StorageService, Depends(get_storage_service)],
+    request: Request,  # noqa: ARG001
+    request_client: Annotated[BloomClientInfo, is_bloom_supplier_client],  # noqa: ARG001
     session: Annotated[AsyncSession, Depends(get_db_session)],
     auth_state: Annotated[AuthSessionState, Depends(require_eligible_supplier_account)],
-    form_data: Annotated[CatalogItemCreateRequest, Form(..., media_type="multipart/form-data")],
-):
+    item_data: Annotated[CatalogItemCreateRequest, Body(...)],
+) -> IResponseBase[dict[str, Any]]:
     """
     Add a new item to the catalog
 
@@ -122,11 +121,12 @@ async def create_item(
     """
     try:
         catalog_service = CatalogService(session)
-        product = await catalog_service.create_catalog_item(form_data, auth_state, storage_service)
+
+        product = await catalog_service.create_catalog_item(item_data, auth_state)
 
         return build_json_response(
-            data={"product_id": str(product.id), "friendly_id": product.friendly_id},  # type: ignore
-            message="Catalog item created successfully",
+            data={"id": str(product.id), "fid": product.friendly_id},  # type: ignore
+            message="Item created successfully",
         )
     except errors.ServiceError as se:
         raise se
@@ -140,7 +140,8 @@ async def create_item(
 @router.get(
     "/items/{item_fid}",
     dependencies=[api_rate_limit],
-    response_model=IResponseBase[dict[str, dict[str, Any | list[dict[str, str]]]]],
+    operation_id="get_item",
+    response_model=IResponseBase[dict[str, Any]],
 )
 async def get_item(
     request: Request,
@@ -148,7 +149,7 @@ async def get_item(
     item_fid: Annotated[str, Path(..., description="The friendly ID of the item to retrieve")],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     auth_state: Annotated[AuthSessionState | None, Depends(require_noauth_or_eligible_account)],
-) -> IResponseBase[dict[str, dict[str, Any | list[dict[str, str]]]]]:
+) -> IResponseBase[dict[str, Any]]:
     """
     Get item details by item friendly ID
 
@@ -156,11 +157,11 @@ async def get_item(
     """
     try:
         catalog_service = CatalogService(session)
-        item, attachments = await catalog_service.get_catalog_item(item_fid, auth_state)
+        item_dict, attachments = await catalog_service.get_catalog_item(item_fid, auth_state)
 
         return build_json_response(
             data={
-                "item": {**item.model_dump(), "attachments": attachments},
+                "item": {**item_dict, "attachments": attachments},
             },
             message="Item retrieved successfully",
         )
@@ -177,6 +178,8 @@ async def get_item(
     "/items/{item_fid}",
     dependencies=[medium_api_rate_limit],
     status_code=status.HTTP_200_OK,
+    response_model=IResponseBase[dict[str, Any]],
+    operation_id="update_item",
 )
 async def update_item(
     request: Request,
@@ -211,6 +214,7 @@ async def update_item(
     dependencies=[medium_api_rate_limit],
     response_model=IResponseBase[None],
     status_code=status.HTTP_200_OK,
+    operation_id="delete_item",
 )
 async def delete_item(
     request: Request,
@@ -237,10 +241,30 @@ async def delete_item(
         raise errors.ServiceError("Failed to delete item")
 
 
+@router.get(
+    "/items/{item_fid}/analytics",
+    dependencies=[medium_api_rate_limit],
+    response_model=IResponseBase[dict[str, Any]],
+    operation_id="get_item_analytics",
+)
+async def get_item_analytics(
+    request: Request,
+    request_client: Annotated[BloomClientInfo, is_bloom_supplier_client],  # noqa: ARG001
+    item_fid: Annotated[str, Path(..., description="The friendly ID of the item to get analytics for")],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    auth_state: Annotated[AuthSessionState, Depends(require_eligible_supplier_or_seller_account)],
+):
+    """
+    Get analytics for an item by its friendly ID
+    """
+    pass
+
+
 @router.post(
     "/items/{item_fid}/request",
     dependencies=[medium_api_rate_limit],
     response_model=IResponseBase[dict[str, str]],
+    operation_id="request_item",
     status_code=status.HTTP_200_OK,
 )
 async def request_item(
@@ -278,6 +302,7 @@ async def request_item(
     "/items/{item_fid}/inventory",
     response_model=IResponseBase[Inventory],
     dependencies=[medium_api_rate_limit],
+    operation_id="get_item_inventory",
 )
 async def get_item_inventory(
     request: Request,
@@ -304,6 +329,7 @@ async def get_item_inventory(
     "/items/{item_fid}/inventory/history",
     dependencies=[medium_api_rate_limit],
     response_model=IResponseBase[dict[str, Any]],
+    operation_id="get_item_inventory_history",
 )
 async def get_item_inventory_history(
     request: Request,
@@ -337,6 +363,7 @@ async def get_item_inventory_history(
     dependencies=[medium_api_rate_limit],
     response_model=IResponseBase[Inventory],
     status_code=status.HTTP_200_OK,
+    operation_id="adjust_item_inventory",
 )
 async def adjust_item_inventory(
     request: Request,

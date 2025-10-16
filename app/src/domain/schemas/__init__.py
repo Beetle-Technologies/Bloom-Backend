@@ -82,6 +82,7 @@ from .country import CountryCreate, CountryResponse, CountryUpdate  # noqa: F401
 from .currency import CurrencyCreate, CurrencyResponse, CurrencyUpdate  # noqa: F401
 from .inventory import InventoryCreate, InventoryResponse, InventoryUpdate  # noqa: F401
 from .inventory_action import InventoryActionCreate, InventoryActionResponse, InventoryActionUpdate  # noqa: F401
+from .miscellaneous import GenerateGIDRequest  # noqa: F401
 from .permission import PermissionCreate, PermissionResponse, PermissionUpdate  # noqa: F401
 from .product import ProductCreate, ProductResponse, ProductUpdate  # noqa: F401
 from .product_item import ProductItemCreate, ProductItemResponse, ProductItemUpdate  # noqa

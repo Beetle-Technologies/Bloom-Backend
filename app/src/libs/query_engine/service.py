@@ -146,7 +146,7 @@ class QueryEngineService(QueryEngineInterface):
         query = self.selection_provider.build_select_query(pagination.fields)
 
         # Apply joins, includes, and filters
-        query = self._build_complete_query(query, pagination.filters, pagination.include)
+        query = self._build_complete_query(query, pagination.filters, pagination.include, fields=pagination.fields)
 
         # Apply cursor-based WHERE clause if cursor is provided
         cursor = None
@@ -243,14 +243,15 @@ class QueryEngineService(QueryEngineInterface):
         filters: Optional[dict[str, Any]] = None,
         include: Optional[list[str]] = None,
         order_by: Optional[list[str]] = None,
+        fields: Optional[str] = None,
     ):
         """Build a complete query with joins, includes, filters, and ordering"""
         # Apply joins for relationship filters
         if filters:
             query = self._apply_joins(query, filters)
 
-        # Apply includes (selectinload)
-        if include:
+        # Only apply includes if we're selecting the full entity
+        if include and self.selection_provider.is_full_entity_selection(fields):
             query = self._apply_includes(query, include)
 
         # Apply filters
@@ -269,6 +270,44 @@ class QueryEngineService(QueryEngineInterface):
                         query = query.order_by(col(field_attr).desc())
 
         return query
+
+    def _is_full_entity_query(self, query) -> bool:
+        """
+        Check if the query is selecting the full entity or just specific columns.
+
+        Returns True if selecting the full model, False if selecting specific columns.
+        """
+        # Check if the query's selected columns contain the model itself
+        if hasattr(query, "column_descriptions"):
+            # For queries with column_descriptions, check if any description represents the full entity
+            for desc in query.column_descriptions:
+                if desc.get("entity") is self.model:
+                    return True
+            return False
+
+        # Fallback: check the selected columns directly
+        if hasattr(query, "selected_columns"):
+            for column in query.selected_columns:
+                # If we find the model table itself in the selection, it's a full entity query
+                if hasattr(column, "table") and hasattr(self.model, "__table__"):
+                    if column.table is self.model.__table__:  # type: ignore
+                        # Check if it's selecting all columns of the table
+                        if str(column).endswith("*") or len(query.selected_columns) == 1:
+                            return True
+
+        # If the query was built with select(Model), it's a full entity query
+        # This is the most reliable check for our use case
+        try:
+            # Get the first selected column/entity
+            if hasattr(query, "_raw_columns") and query._raw_columns:
+                first_selection = query._raw_columns[0]
+                # If the first selection is the model class itself, it's a full entity query
+                return first_selection is self.model
+        except (AttributeError, IndexError):
+            pass
+
+        # Default to False for safety - if we can't determine, assume it's not a full entity query
+        return False
 
     def _apply_joins(self, query, filters: dict[str, Any]):
         """Apply necessary joins for relationship filters"""
@@ -290,14 +329,15 @@ class QueryEngineService(QueryEngineInterface):
                 loader = None
 
                 for part in parts:
-                    attr = getattr(current_class, part)
-                    if loader is None:
-                        loader = selectinload(attr)
-                    else:
-                        loader = loader.selectinload(attr)
+                    if hasattr(current_class, part):
+                        attr = getattr(current_class, part)
+                        if loader is None:
+                            loader = selectinload(attr)
+                        else:
+                            loader = loader.selectinload(attr)
 
-                    if hasattr(attr, "property") and hasattr(attr.property, "mapper"):
-                        current_class = attr.property.mapper.class_
+                        if hasattr(attr, "property") and hasattr(attr.property, "mapper"):
+                            current_class = attr.property.mapper.class_
 
                 if loader:
                     query = query.options(loader)

@@ -375,12 +375,23 @@ class GeneralPaginationResponse(BaseModel, Generic[T]):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format for frontend (without pagination_type)"""
+        converted_items = []
+        for item in self.items:
+            if isinstance(item, dict):
+                converted_items.append(item)
+            elif hasattr(item, "_asdict"):
+                converted_items.append(item._asdict())  # type: ignore
+            elif hasattr(item, "__dict__"):
+                converted_items.append(item.__dict__)
+            elif hasattr(item, "model_dump"):
+                converted_items.append(item.model_dump())  # type: ignore
+            else:
+                converted_items.append(str(item))
+
         base_data = {
             "has_next": self.has_next,
             "has_previous": self.has_previous,
-            "items": [
-                item._asdict() if hasattr(item, "_asdict") else item.__dict__ for item in self.items  # type: ignore
-            ],
+            "items": converted_items,
         }
 
         if self.pagination_type == PaginationType.OFFSET:
