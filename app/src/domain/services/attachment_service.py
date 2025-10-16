@@ -9,10 +9,13 @@ from fastapi import UploadFile
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
 from src.core.constants import ALLOWED_MIME_TYPES
+from src.core.database.decorators import transactional
 from src.core.exceptions import errors
 from src.core.logging import get_logger
 from src.core.types import GUID
-from src.domain.repositories.attachment_repository import AttachmentBlobRepository, AttachmentRepository
+from src.domain.repositories.attachment_blob_repository import AttachmentBlobRepository
+from src.domain.repositories.attachment_repository import AttachmentRepository
+from src.domain.repositories.attachment_variant_repository import AttachmentVariantRepository
 from src.domain.schemas.attachment import (
     AttachmentBlobCreate,
     AttachmentCreate,
@@ -20,6 +23,7 @@ from src.domain.schemas.attachment import (
     AttachmentPresignedUrlResponse,
     AttachmentUploadResponse,
 )
+from src.libs.query_engine.schemas import BaseQueryEngineParams
 from src.libs.storage.utils import calculate_checksum, generate_file_key, generate_thumbnail, get_file_info, is_image
 
 if TYPE_CHECKING:
@@ -33,6 +37,7 @@ class AttachmentService:
         self.session = session
         self.attachment_repository = AttachmentRepository(session=self.session)
         self.blob_repository = AttachmentBlobRepository(session=self.session)
+        self.variant_repository = AttachmentVariantRepository(session=self.session)
 
     async def upload_attachment(
         self,
@@ -513,4 +518,145 @@ class AttachmentService:
             logger.exception(f"Error replacing attachment: {e}")
             raise errors.ServiceError(
                 detail="Failed to replace attachment",
+            ) from e
+
+    async def mark_attachments_as_deleted_for_attachable(
+        self,
+        *,
+        attachable_type: str,
+        attachable_id: GUID,
+    ) -> bool:
+        """
+        Mark all attachments for a given entity as deleted and deletes the files.
+
+        Args:
+            attachable_type: The type of the attachable entity
+            attachable_id: The ID of the attachable entity
+        Returns:
+            bool: True if successful
+        """
+        try:
+            attachments = await self.attachment_repository.query_all(
+                params=BaseQueryEngineParams(
+                    filters={
+                        "attachable_type__eq": attachable_type,
+                        "attachable_id__eq": str(attachable_id),
+                        "deleted_datetime__is_null": True,
+                    },
+                )
+            )
+            for attachment in attachments:
+                await self.attachment_repository.update(
+                    attachment.id,
+                    {"deleted_datetime": datetime.now()},
+                )
+            return True
+        except Exception as e:
+            logger.exception(f"Error marking attachments as deleted: {e}")
+            raise errors.ServiceError(
+                detail="Failed to mark attachments as deleted",
+            ) from e
+
+    @transactional
+    async def delete_marked_attachments(
+        self,
+        *,
+        storage_service: StorageService,
+    ) -> int:
+        """
+        Delete attachments that have been marked as deleted before a certain date.
+
+        Args:
+            storage_service: Storage service instance
+        Returns:
+            int: Number of attachments deleted
+        """
+        try:
+            attachments = await self.attachment_repository.query_all(
+                params=BaseQueryEngineParams(
+                    filters={
+                        "deleted_datetime__is_not_null": True,
+                    },
+                )
+            )
+            deleted_count = 0
+
+            for attachment in attachments:
+                try:
+                    blob = await self.blob_repository.find_one_by_or_none(id=attachment.blob_id)
+
+                    if blob:
+                        # Step 1: Delete from storage
+                        try:
+                            is_deleted = await storage_service.delete_file(blob.key)
+
+                            if not is_deleted:
+                                logger.warning(f"File {blob.key} not found in storage for blob {blob.id}")
+                                continue  # Skip this attachment if file not found
+                        except Exception as e:
+                            logger.warning(f"Failed to delete file {blob.key} from storage: {e}")
+                            continue
+
+                        # Step 2: Delete attachment variants if any exist
+                        try:
+                            variants = await self.variant_repository.query_all(
+                                params=BaseQueryEngineParams(
+                                    filters={
+                                        "blob_id__eq": str(blob.id),
+                                    },
+                                )
+                            )
+
+                            if len(variants) > 0:
+                                for variant in variants:
+                                    try:
+                                        is_variant_deleted = await self.variant_repository.delete(variant.id)
+
+                                        if not is_variant_deleted:
+                                            logger.warning(
+                                                f"Failed to delete attachment variant {variant.id} from database"
+                                            )
+                                            continue  # Skip this variant if deletion fails
+                                    except (errors.DatabaseError, Exception) as e:
+                                        logger.warning(f"Failed to delete attachment variant {variant.id}: {e}")
+
+                        except Exception as e:
+                            logger.warning(f"Failed to delete attachment variants for blob {blob.id}: {e}")
+                            # Don't skip the whole attachment for variant deletion failures
+
+                        # Step 3: Delete the blob from database
+                        try:
+                            is_blob_deleted = await self.blob_repository.delete(blob.id)
+
+                            if not is_blob_deleted:
+                                logger.warning(f"Failed to delete blob {blob.id} from database")
+                                continue  # Skip this attachment if blob deletion fails
+                        except Exception as e:
+                            logger.warning(f"Failed to delete blob {blob.id} from database: {e}")
+                            continue  # Skip this attachment if blob deletion fails
+
+                    # Step 4: Delete the attachment from database
+                    try:
+                        is_attachment_deleted = await self.attachment_repository.delete(attachment.id)
+
+                        if not is_attachment_deleted:
+                            logger.warning(f"Failed to delete attachment {attachment.id} from database")
+                            continue  # Skip incrementing count if deletion fails
+                        else:
+                            deleted_count += 1  # Only increment if all steps succeeded
+                    except Exception as e:
+                        logger.warning(f"Failed to delete attachment {attachment.id} from database: {e}")
+                        continue  # Skip this attachment if attachment deletion fails
+
+                except Exception as e:
+                    logger.warning(f"Unexpected error deleting attachment {attachment.id}: {e}")
+                    continue  # Skip this attachment and move to the next one
+
+            logger.info(f"Successfully deleted {deleted_count} marked attachments")
+            return deleted_count
+
+        except Exception as e:
+            logger.exception(f"Error deleting marked attachments: {e}")
+            raise errors.ServiceError(
+                detail="Failed to delete marked attachments",
             ) from e

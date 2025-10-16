@@ -3,21 +3,24 @@ from __future__ import annotations
 from typing import Any
 
 from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.constants import get_currency_symbol
 from src.core.database.decorators import transactional
 from src.core.dependencies import get_storage_service
 from src.core.exceptions import errors
 from src.core.logging import get_logger
 from src.core.types import GUID
-from src.domain.enums import InventoriableType, InventoryActionType, ProductItemRequestStatus, ProductStatus
+from src.domain.enums import InventoriableType, InventoryActionType, ProductItemRequestStatus
 from src.domain.models.inventory import Inventory
 from src.domain.models.inventory_action import InventoryAction
 from src.domain.models.product import Product
 from src.domain.models.product_item import ProductItem
-from src.domain.repositories.attachment_repository import AttachmentBlobRepository, AttachmentRepository
+from src.domain.repositories.attachment_blob_repository import AttachmentBlobRepository
+from src.domain.repositories.attachment_repository import AttachmentRepository
 from src.domain.repositories.inventory_action_repository import InventoryActionRepository
 from src.domain.repositories.product_item_repository import ProductItemRepository
 from src.domain.repositories.product_repository import ProductRepository
 from src.domain.schemas import (
+    DEFAULT_CATALOG_RETURN_FIELDS,
     AdjustInventoryRequest,
     AuthSessionState,
     CatalogItemCreateRequest,
@@ -79,48 +82,17 @@ class CatalogService:
         try:
             result = await self._browse_catalog_internal(auth_state, pagination)
 
-            enriched_items = []
+            items = []
             for item in result.items:
-                if hasattr(item, "model_dump"):
-                    item_dict = item.model_dump()
-                    attachable_type = "Product" if auth_state and auth_state.type.is_supplier() else "ProductItem"
-                elif hasattr(item, "_mapping"):
-                    item_dict = dict(item._mapping)  # type: ignore
-                    attachable_type = "Product" if auth_state and auth_state.type.is_supplier() else "ProductItem"
-                else:
-                    try:
-                        item_dict = {key: getattr(item, key) for key in item.__table__.columns.keys()}  # type: ignore
-                        attachable_type = "Product" if isinstance(item, Product) else "ProductItem"
-                    except Exception:
-                        continue
+                item_info = await self._format_item_info(item, auth_state)
 
-                item_id = item_dict.get("id")
-                if not item_id:
+                if item_info is None:
                     continue
 
-                attachments = await self._get_attachments_for_attachable(attachable_type, item_id)
-
-                inventoriable_type = (
-                    InventoriableType.PRODUCT if attachable_type == "Product" else InventoriableType.PRODUCT_ITEM
-                )
-                inventory = await self._get_inventory_for_item(inventoriable_type, item_id)
-
-                item_dict["attachments"] = attachments
-                item_dict["inventory"] = (
-                    {"quantity_in_stock": inventory.quantity_in_stock, "reserved_stock": inventory.reserved_stock}
-                    if inventory
-                    else None
-                )
-
-                if item_dict["inventory"] is not None:
-                    item_dict["inventory"]["available_stock"] = (
-                        item_dict["inventory"]["quantity_in_stock"] - item_dict["inventory"]["reserved_stock"]
-                    )
-
-                enriched_items.append(item_dict)
+                items.append(item_info)
 
             return GeneralPaginationResponse(
-                items=enriched_items,
+                items=items,
                 total_count=result.total_count,
                 has_next=result.has_next,
                 has_previous=result.has_previous,
@@ -148,7 +120,20 @@ class CatalogService:
         """
         Internal browse method without attachments.
         """
-        print("pagination", pagination.model_dump())
+
+        if pagination.include and ("currency" in pagination.include or "category" in pagination.include):
+            current_fields = pagination.fields
+
+            query_fields = []
+            if "currency" in pagination.include:
+                query_fields.extend(["currency.id as currency_id", "currency.code as currency_code"])
+            if "category" in pagination.include:
+                query_fields.extend(["category.id as category_id", "category.title as category_name"])
+
+            if query_fields:
+                pagination.fields = current_fields + "," + ",".join(query_fields)
+
+        is_product_check = pagination.filters.pop("is_product", None)
 
         if auth_state is None or auth_state.type.is_user():
             return await self.product_item_repository.find(pagination=pagination)
@@ -158,8 +143,12 @@ class CatalogService:
             return await self.product_repository.find(pagination=pagination)
         elif auth_state.type.is_business():
             pagination.filters = pagination.filters or {}
-            pagination.filters["seller_account_id__eq"] = str(auth_state.id)
-            return await self.product_item_repository.find(pagination=pagination)
+
+            if is_product_check is not None and is_product_check is True:
+                return await self.product_repository.find(pagination=pagination)
+            else:
+                pagination.filters["seller_account_id__eq"] = str(auth_state.id)
+                return await self.product_item_repository.find(pagination=pagination)
         else:
             return await self.product_item_repository.find(pagination=pagination)
 
@@ -223,79 +212,50 @@ class CatalogService:
                 detail="Failed to create catalog item",
             ) from e
 
-    async def get_catalog_item(
-        self, item_fid: str, auth_state: AuthSessionState | None
-    ) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    async def get_catalog_item(self, item_fid: str, auth_state: AuthSessionState | None) -> dict[str, Any]:
         """
         Get a catalog item by friendly ID, including its attachments.
 
         Returns the item (Product or ProductItem) and a list of attachment info.
         """
         try:
+            filters = {
+                "friendly_id__eq": item_fid,
+            }
+
+            query_fields = [
+                "currency.id as currency_id",
+                "currency.code as currency_code",
+                "category.id as category_id",
+                "category.title as category_name",
+            ]
+            fields = ",".join(DEFAULT_CATALOG_RETURN_FIELDS) + "," + ",".join(query_fields)
+
             if auth_state and auth_state.type.is_supplier():
                 item = await self.product_repository.query(
                     params=BaseQueryEngineParams(
-                        filters={
-                            "friendly_id__eq": item_fid,
-                            "supplier_account_id__eq": str(auth_state.id),
-                            "status__eq": ProductStatus.ACTIVE,
-                        },
-                        # fields=",".join(DEFAULT_CATALOG_RETURN_FIELDS),
+                        filters=filters,
+                        fields=fields,
                         include=["currency", "category"],
                     )
                 )
-                attachable_type = "Product"
             else:
-                filters = {
-                    "friendly_id__eq": item_fid,
-                    "status__eq": ProductStatus.ACTIVE,
-                }
-
                 item = await self.product_item_repository.query(
                     params=BaseQueryEngineParams(
                         filters=filters,
-                        # fields=",".join(DEFAULT_CATALOG_RETURN_FIELDS),
+                        fields=fields,
                         include=["currency", "category"],
                     )
                 )
-                attachable_type = "ProductItem"
-
             if not item:
                 raise errors.NotFoundError(detail="Item not found")
 
-            if hasattr(item, "model_dump"):
-                item_dict = item.model_dump()
-            elif hasattr(item, "_mapping"):
-                item_dict = dict(item._mapping)  # type: ignore
-            else:
-                try:
-                    item_dict = {key: getattr(item, key) for key in item.__table__.columns.keys()}  # type: ignore
-                except Exception:
-                    raise errors.ServiceError("Failed to convert item to dictionary")
+            item_info = await self._format_item_info(item, auth_state)
 
-            item_id = item_dict.get("id")
-            if not item_id:
-                raise errors.ServiceError("Item not found")
+            if item_info is None:
+                raise errors.ServiceError(detail="Item not found")
 
-            attachments = await self._get_attachments_for_attachable(attachable_type, item_id)
-
-            inventoriable_type = (
-                InventoriableType.PRODUCT if attachable_type == "Product" else InventoriableType.PRODUCT_ITEM
-            )
-            inventory = await self._get_inventory_for_item(inventoriable_type, item_id)
-
-            item_dict["inventory"] = (
-                {"quantity_in_stock": inventory.quantity_in_stock, "reserved_stock": inventory.reserved_stock}
-                if inventory
-                else None
-            )
-
-            if item_dict["inventory"] is not None:
-                item_dict["inventory"]["available_stock"] = (
-                    item_dict["inventory"]["quantity_in_stock"] - item_dict["inventory"]["reserved_stock"]
-                )
-
-            return item_dict, attachments
+            return item_info
         except errors.ServiceError as se:
             raise se
         except errors.NotFoundError as nfe:
@@ -306,9 +266,11 @@ class CatalogService:
                 detail="Failed to retrieve catalog item",
             ) from e
 
-    async def _get_attachments_for_attachable(self, attachable_type: str, attachable_id: GUID) -> list[dict[str, str]]:
+    async def _get_attachments_for_catalog_item(
+        self, attachable_type: str, attachable_id: GUID
+    ) -> list[dict[str, str]]:
         """
-        Get simplified attachment info for an attachable entity.
+        Get attachment info for an attachable entity.
         """
 
         try:
@@ -345,8 +307,6 @@ class CatalogService:
                             "url": attachment_url,
                         }
                     )
-
-            print("Attachment result:", result)
 
             return result
         except Exception as e:
@@ -398,6 +358,7 @@ class CatalogService:
             )
             raise errors.ServiceError("Failed to update catalog item")
 
+    @transactional
     async def delete_catalog_item(self, item_fid: str, auth_state: AuthSessionState) -> bool:
         """
         Delete a catalog item by friendly ID based on auth state.
@@ -407,18 +368,35 @@ class CatalogService:
             if auth_state.type.is_supplier():
                 product = await self.product_repository.get_by_friendly_id(item_fid)
 
-                if not product or product.supplier_account_id != auth_state.id:
-                    raise errors.NotFoundError("Product not found or access denied")
+                if not product:
+                    raise errors.NotFoundError("Item not found")
+
+                if product.supplier_account_id != auth_state.id:
+                    raise errors.InvalidPermissionError(detail="You do not have permission to delete this item")
+
+                attachment_service = AttachmentService(self.session)
+                inventory_service = InventoryService(self.session)
+
+                await inventory_service.delete_inventory_for_item(InventoriableType.PRODUCT, product.id)
+                await attachment_service.mark_attachments_as_deleted_for_attachable(
+                    attachable_type=InventoriableType.PRODUCT, attachable_id=product.id
+                )
                 return await self.product_repository.delete(product.id)
             elif auth_state.type.is_business():
                 product_item = await self.product_item_repository.get_by_friendly_id(item_fid)
-                if not product_item or product_item.seller_account_id != auth_state.id:
-                    raise errors.NotFoundError("Product item not found or access denied")
+                if not product_item:
+                    raise errors.NotFoundError("Item not found")
+
+                if product_item.seller_account_id != auth_state.id:
+                    raise errors.InvalidPermissionError(detail="You do not have permission to delete this item")
+
                 return await self.product_item_repository.delete(product_item.id)
             else:
                 raise errors.ServiceError("Unauthorized to delete items")
         except errors.ServiceError as se:
             raise se
+        except (errors.InvalidPermissionError, errors.NotFoundError) as de:
+            raise de
         except Exception as e:
             logger.exception(
                 f"src.domain.services.catalog_service.delete_catalog_item:: Error deleting catalog item {item_fid}: {e}"
@@ -587,3 +565,75 @@ class CatalogService:
                 f"src.domain.services.catalog_service.adjust_catalog_item_inventory:: Error adjusting inventory for {item_fid}: {e}"
             )
             raise errors.ServiceError("Failed to adjust inventory")
+
+    async def _format_item_info(
+        self,
+        item: Any,
+        auth_state: AuthSessionState | None,
+    ):
+        if hasattr(item, "model_dump"):
+            item_dict = item.model_dump()
+            attachable_type = "Product" if auth_state and auth_state.type.is_supplier() else "ProductItem"
+        elif hasattr(item, "_mapping"):
+            item_dict = dict(item._mapping)  # type: ignore
+            attachable_type = "Product" if auth_state and auth_state.type.is_supplier() else "ProductItem"
+        else:
+            try:
+                item_dict = {key: getattr(item, key) for key in item.__table__.columns.keys()}  # type: ignore
+                attachable_type = "Product" if isinstance(item, Product) else "ProductItem"
+            except Exception:
+                return None
+
+        item_id = item_dict.get("id")
+        if not item_id:
+            return None
+
+        currency_symbol = get_currency_symbol(item_dict.get("currency_code", "$"))
+        if "currency_id" in item_dict:
+            item_dict["currency"] = {
+                "id": item_dict.pop("currency_id"),
+                "symbol": currency_symbol,
+            }
+            item_dict.pop("currency_code", None)
+
+        if "category_id" in item_dict and "category_name" in item_dict:
+            item_dict["category"] = {
+                "id": item_dict.pop("category_id"),
+                "name": item_dict.pop("category_name"),
+            }
+
+        price = item_dict.get("price", "0.00")
+        if isinstance(price, str):
+            try:
+                price_float = float(price)
+                price_formatted = f"{price_float:,.2f}"
+            except ValueError:
+                price_formatted = price
+        else:
+            price_formatted = f"{float(price):,.2f}"
+
+        item_dict["price_display"] = f"{currency_symbol}{price_formatted}"
+
+        attachments = await self._get_attachments_for_catalog_item(attachable_type, item_id)
+
+        inventoriable_type = (
+            InventoriableType.PRODUCT if attachable_type == "Product" else InventoriableType.PRODUCT_ITEM
+        )
+        inventory = await self._get_inventory_for_item(inventoriable_type, item_id)
+
+        item_dict["attachments"] = attachments
+        item_dict["inventory"] = (
+            {
+                "quantity_in_stock": inventory.quantity_in_stock,
+                "reserved_stock": inventory.reserved_stock,
+            }
+            if inventory
+            else None
+        )
+
+        if item_dict["inventory"] is not None:
+            item_dict["inventory"]["available_stock"] = (
+                item_dict["inventory"]["quantity_in_stock"] - item_dict["inventory"]["reserved_stock"]
+            )
+
+        return item_dict

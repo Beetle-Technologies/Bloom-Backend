@@ -18,10 +18,11 @@ class CatalogFilterParams(BaseModel):
         list[ProductStatus] | None,
         BeforeValidator(parse_comma_separated_list(ProductStatus)),
     ] = None
-    category: Annotated[list[str] | None, BeforeValidator(parse_comma_separated_list)] = None
+    category: Annotated[list[str] | list[GUID] | None, BeforeValidator(parse_comma_separated_list)] = None
     min_price: Optional[Decimal] = None
     max_price: Optional[Decimal] = None
     search: Optional[str] = None
+    is_product: bool = False
 
 
 class CatalogBrowseParams(BaseModel):

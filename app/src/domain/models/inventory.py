@@ -64,7 +64,9 @@ class Inventory(GUIDMixin, TimestampMixin, table=True):
         return self.quantity_in_stock - self.reserved_stock
 
     # Relationships
-    actions: list["InventoryAction"] = Relationship(back_populates="inventory")
+    actions: list["InventoryAction"] = Relationship(
+        back_populates="inventory", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
     async def get_inventoriable_item(self, session: AsyncSession) -> Union["Product", "ProductItem"]:
         """

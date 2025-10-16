@@ -139,15 +139,46 @@ class SelectionProvider:
         selectable_fields = self.get_selectable_fields()
 
         for field_name in field_names:
-            # Handle nested field paths (e.g., "account.display_name")
-            if "." in field_name:
-                # For now, we'll skip relationship fields in select
-                invalid_fields.append(field_name)
+            # Handle nested field paths with aliases (e.g., "currency.code as currency_symbol")
+            if " as " in field_name:
+                field_path, alias = field_name.split(" as ", 1)
+                field_path = field_path.strip()
+                alias = alias.strip()
+            else:
+                field_path = field_name
+                alias = None
+
+            # Handle nested field paths (e.g., "currency.code")
+            if "." in field_path:
+                parts = field_path.split(".")
+                if len(parts) == 2 and hasattr(self.model, parts[0]):
+                    # Get the relationship
+                    relationship_attr = getattr(self.model, parts[0])
+
+                    # Get the target model class from the relationship
+                    if hasattr(relationship_attr.property, "mapper"):
+                        target_model = relationship_attr.property.mapper.class_
+                        if hasattr(target_model, parts[1]):
+                            target_field = getattr(target_model, parts[1])
+                            if alias:
+                                select_columns.append(target_field.label(alias))
+                            else:
+                                select_columns.append(target_field)
+                        else:
+                            invalid_fields.append(field_name)
+                    else:
+                        invalid_fields.append(field_name)
+                else:
+                    invalid_fields.append(field_name)
                 continue
 
             # Check if field exists on model and is selectable
-            if hasattr(self.model, field_name) and field_name in selectable_fields:
-                select_columns.append(getattr(self.model, field_name))
+            if hasattr(self.model, field_path) and field_path in selectable_fields:
+                field_attr = getattr(self.model, field_path)
+                if alias:
+                    select_columns.append(field_attr.label(alias))
+                else:
+                    select_columns.append(field_attr)
             else:
                 invalid_fields.append(field_name)
 

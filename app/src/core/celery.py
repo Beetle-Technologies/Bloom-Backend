@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from src.core.config import settings
 
 celery_app = Celery(
@@ -12,5 +13,13 @@ celery_app.conf.result_expires = 4 * 60 * 60  # 4 hours
 celery_app.conf.task_acks_late = True
 celery_app.conf.result_backend = str(settings.REDIS_URL)  # type: ignore[arg-type]
 celery_app.conf.task_default_queue = settings.CELERY_DEFAULT_TASKS_QUEUE
+
+celery_app.conf.beat_schedule = {
+    "delete_marked_attachments_task": {
+        "task": "delete_marked_attachments_task",
+        "schedule": crontab(hour="*/2"),  # every 2 hours
+    },
+}
+
 celery_app.conf.broker_connection_retry_on_startup = True
 celery_app.conf.timezone = "UTC"  # type: ignore[assignment]

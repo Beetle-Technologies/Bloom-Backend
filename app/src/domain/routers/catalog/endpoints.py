@@ -60,9 +60,10 @@ async def browse_catalog(
 
         pagination_filters: dict[str, Any] = {}
         if browse_params.filters:
-            if browse_params.filters.status:
-                pagination_filters["status__in"] = [s.value for s in browse_params.filters.status]
-            if browse_params.filters.category:
+            if browse_params.filters.status is not None and len(browse_params.filters.status) > 0:
+                status_values = [s.value for s in browse_params.filters.status]
+                pagination_filters["status__in"] = status_values
+            if browse_params.filters.category is not None and len(browse_params.filters.category) > 0:
                 pagination_filters["category_id__in"] = browse_params.filters.category
             if browse_params.filters.min_price is not None:
                 pagination_filters["price__gte"] = browse_params.filters.min_price
@@ -70,9 +71,11 @@ async def browse_catalog(
                 pagination_filters["price__lte"] = browse_params.filters.max_price
             if browse_params.filters.search:
                 pagination_filters["search_vector__search"] = browse_params.filters.search
+            if browse_params.filters.is_product is True:
+                pagination_filters["is_product"] = True
 
-            if not browse_params.filters.status:
-                pagination_filters["status__eq"] = ProductStatus.ACTIVE
+        if not browse_params.filters:
+            pagination_filters["status__eq"] = ProductStatus.ACTIVE.value
 
         pagination = GeneralPaginationRequest(
             limit=browse_params.limit,
@@ -157,11 +160,11 @@ async def get_item(
     """
     try:
         catalog_service = CatalogService(session)
-        item_dict, attachments = await catalog_service.get_catalog_item(item_fid, auth_state)
+        item = await catalog_service.get_catalog_item(item_fid, auth_state)
 
         return build_json_response(
             data={
-                "item": {**item_dict, "attachments": attachments},
+                "item": item,
             },
             message="Item retrieved successfully",
         )

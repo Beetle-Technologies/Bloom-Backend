@@ -250,6 +250,10 @@ class QueryEngineService(QueryEngineInterface):
         if filters:
             query = self._apply_joins(query, filters)
 
+        # Apply joins for relationship field selection
+        if fields and not self.selection_provider.is_full_entity_selection(fields):
+            query = self._apply_joins_for_fields(query, fields)
+
         # Only apply includes if we're selecting the full entity
         if include and self.selection_provider.is_full_entity_selection(fields):
             query = self._apply_includes(query, include)
@@ -268,6 +272,35 @@ class QueryEngineService(QueryEngineInterface):
                         query = query.order_by(col(field_attr).asc())
                     else:
                         query = query.order_by(col(field_attr).desc())
+
+        return query
+
+    def _apply_joins_for_fields(self, query, fields: str):
+        """Apply necessary joins for relationship fields in field selection"""
+        if not fields or fields == "*":
+            return query
+
+        field_names = [field.strip() for field in fields.split(",") if field.strip()]
+        required_joins = set()
+
+        for field_name in field_names:
+            # Handle fields with aliases
+            if " as " in field_name:
+                field_path = field_name.split(" as ")[0].strip()
+            else:
+                field_path = field_name
+
+            # Handle nested field paths (e.g., "currency.code")
+            if "." in field_path:
+                parts = field_path.split(".")
+                if len(parts) == 2 and hasattr(self.model, parts[0]):
+                    required_joins.add(parts[0])
+
+        # Apply the joins
+        for join_relationship in required_joins:
+            if hasattr(self.model, join_relationship):
+                relationship = getattr(self.model, join_relationship)
+                query = query.join(relationship)
 
         return query
 

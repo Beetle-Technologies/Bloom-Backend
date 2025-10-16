@@ -226,7 +226,9 @@ class AttachmentBulkUploadRequest(BaseModel):
     files: list[Annotated[UploadFile, File(description="Files to be uploaded")]]
     names: list[str] = Field(..., description="Name identifiers for the attachments")
     attachable_type: str = Field(
-        ..., max_length=120, description="Type of the attachable entity e.g., 'Account', 'Product', 'ProductItem"
+        ...,
+        max_length=120,
+        description="Type of the attachable entity e.g., 'Account', 'Product', 'ProductItem",
     )
     attachable_id: GUID = Field(..., description="Friendly ID of the attachable entity")
     tags: str | None = None
@@ -306,3 +308,16 @@ class AttachmentBasicResponse(BaseModel):
     id: GUID
     fid: str
     url: str | None
+
+
+class AttachmentVariantCreate(BaseModel):
+    """Schema for creating attachment variants."""
+
+    blob_id: GUID
+    variation_digest: str
+
+
+class AttachmentVariantUpdate(BaseModel):
+    """Schema for updating attachment variants."""
+
+    variation_digest: str | None = None

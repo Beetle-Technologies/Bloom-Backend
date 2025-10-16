@@ -175,3 +175,33 @@ class InventoryService:
         if not updated_inventory:
             raise errors.ServiceError(message="Failed to update inventory", detail="Could not release stock")
         return updated_inventory
+
+    async def delete_inventory_for_item(self, inventoriable_type: InventoriableType, inventoriable_id: GUID) -> bool:
+        """
+        Delete inventory for a specific item.
+
+        Args:
+            inventoriable_type (InventoriableType): The type of the inventoriable item
+            inventoriable_id (GUID): The ID of the inventoriable item
+        """
+
+        try:
+            inventory = await self.get_inventory_by_item(inventoriable_type, inventoriable_id)
+            if not inventory:
+                return False  # Nothing to delete
+
+            return await self.inventory_repository.delete(inventory.id)
+        except errors.DatabaseError as de:
+            logger.exception(
+                f"src.domain.services.inventory_service.delete_inventory_for_item:: Database error deleting inventory: {de}"
+            )
+            raise errors.ServiceError(
+                message="Failed to delete inventory",
+            ) from de
+        except Exception as e:
+            logger.exception(
+                f"src.domain.services.inventory_service.delete_inventory_for_item:: Unexpected error deleting inventory: {e}"
+            )
+            raise errors.ServiceError(
+                message="An unexpected error occurred while deleting inventory",
+            ) from e

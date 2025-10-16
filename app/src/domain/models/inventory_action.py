@@ -33,7 +33,6 @@ class InventoryAction(GUIDMixin, TimestampMixin, table=True):
         "created_datetime",
         "updated_datetime",
     ]
-
     inventory_id: GUID = Field(foreign_key="inventory.id", nullable=False, index=True)
     action_type: InventoryActionType = Field(sa_column=Column(TEXT(), nullable=False))
     quantity: int = Field(nullable=False)

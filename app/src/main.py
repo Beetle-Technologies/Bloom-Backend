@@ -25,6 +25,7 @@ from src.domain.routers import (
     health_router,
     misc_router,
     order_router,
+    stores_router,
 )
 
 if settings.ENVIRONMENT in ["staging", "production"]:
@@ -162,6 +163,7 @@ app.include_router(cart_router, prefix=f"{settings.api_v1_str}/cart", tags=["Car
 app.include_router(health_router, prefix="/health", include_in_schema=False)
 app.include_router(misc_router, prefix=f"{settings.api_v1_str}/misc", tags=["Miscellaneous"])
 app.include_router(order_router, prefix=f"{settings.api_v1_str}/orders", tags=["Orders"])
+app.include_router(stores_router, prefix=f"{settings.api_v1_str}/stores", tags=["Stores"])
 
 
 openapi.setup(app)
