@@ -17,7 +17,7 @@ celery_app.conf.task_default_queue = settings.CELERY_DEFAULT_TASKS_QUEUE
 celery_app.conf.beat_schedule = {
     "delete_marked_attachments_task": {
         "task": "delete_marked_attachments_task",
-        "schedule": crontab(hour="*/2"),  # every 2 hours
+        "schedule": crontab(minute=0, hour="*/2"),  # every 2 hours
     },
 }
 

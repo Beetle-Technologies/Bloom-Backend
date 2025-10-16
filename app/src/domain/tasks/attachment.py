@@ -17,12 +17,11 @@ from src.libs.storage import StorageError, storage_service
     queue=settings.CELERY_RECURRING_TASKS_QUEUE,
 )
 def delete_marked_attachments_task() -> None:
-
     async def _task() -> None:
         async with db_context_manager() as session:
             from src.domain.services.attachment_service import AttachmentService
 
-            service = AttachmentService(session)
-            await service.delete_marked_attachments(storage_service)
+            attachment_service = AttachmentService(session)
+            await attachment_service.delete_marked_attachments(storage_service=storage_service)
 
     asyncio.run(_task())
