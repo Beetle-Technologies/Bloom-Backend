@@ -5,9 +5,11 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import File, UploadFile
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, Field, field_validator, model_validator
 from src.core.helpers import optional
 from src.core.types import GUID
+
+from app.src.core.helpers.request import parse_comma_separated_list
 
 
 class AttachmentBase(BaseModel):
@@ -224,7 +226,9 @@ class AttachmentBulkUploadRequest(BaseModel):
     """
 
     files: list[Annotated[UploadFile, File(description="Files to be uploaded")]]
-    names: list[str] = Field(..., description="Name identifiers for the attachments")
+    names: Annotated[list[str], BeforeValidator(parse_comma_separated_list)] = Field(
+        ..., description="JSON string array identifiers for the attachments"
+    )
     attachable_type: str = Field(
         ...,
         max_length=120,
@@ -234,13 +238,6 @@ class AttachmentBulkUploadRequest(BaseModel):
     tags: str | None = None
     expires_at: datetime | None = None
     auto_delete_after: str | None = None
-
-    @field_validator("names")
-    @classmethod
-    def validate_names_length(cls, v, info):
-        if "files" in info.data and len(v) != len(info.data["files"]):
-            raise ValueError("Number of names must match number of files")
-        return v
 
     @field_validator("expires_at", mode="before")
     @classmethod
@@ -258,6 +255,15 @@ class AttachmentBulkUploadRequest(BaseModel):
         if v == "" or v is None:
             return None
         return v
+
+    @model_validator(mode="before")
+    def validate_files_not_empty_and_names_length(self):
+        if not self.files or len(self.files) == 0:
+            raise ValueError("At least one file must be provided for bulk upload")
+
+        if len(self.names) != len(self.files):
+            raise ValueError("Number of names must match number of files")
+        return self
 
     @field_validator("auto_delete_after", mode="before")
     @classmethod
