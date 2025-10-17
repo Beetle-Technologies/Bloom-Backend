@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     LOAD_FIXTURES: bool = True
     RATE_LIMIT_PER_MINUTE: int = 15
     RATE_LIMIT_NAMESPACE: str = "bloom_base_throttler"
+    TUNNELING_SERVICE_URL: AnyUrl | str | None = None
 
     CACHE_DEFAULT_TTL: int = 3600
     CACHE_KEY_PREFIX: str = "bloom_cache"
@@ -104,6 +105,14 @@ class Settings(BaseSettings):
         if self.ENVIRONMENT == "local":
             return int(self.PORT)
         return 443 if self.ENVIRONMENT == "production" else 80
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def LOCAL_MEDIA_URL(self) -> str:
+        if self.TUNNELING_SERVICE_URL is not None:
+            return f"{self.TUNNELING_SERVICE_URL}/media"
+
+        return f"{self.SERVER_URL}/media"
 
     BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
