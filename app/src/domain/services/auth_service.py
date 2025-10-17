@@ -618,8 +618,13 @@ class AuthService:
                 cached_data = await self.cache_service.get(cache_key)
 
                 if cached_data:
+                    cached_account = CachedAccountData(**cached_data)
                     return AuthPreCheckResponse(
-                        exists=True, is_verified=True, can_login=True, gid=cached_data.id, fid=cached_data.fid
+                        exists=True,
+                        is_verified=True,
+                        can_login=True,
+                        gid=cached_account.id,
+                        fid=cached_account.friendly_id,
                     )
 
                 kwargs = {f"{type_check.value}": value}
@@ -644,8 +649,13 @@ class AuthService:
                 cached_data = await self.cache_service.get(cache_key)
 
                 if cached_data:
+                    cached_account = CachedAccountData(**cached_data)
                     return AuthPreCheckResponse(
-                        exists=True, is_verified=True, can_login=True, gid=cached_data.id, fid=cached_data.fid
+                        exists=True,
+                        is_verified=True,
+                        can_login=True,
+                        gid=cached_account.id,
+                        fid=cached_account.friendly_id,
                     )
 
                 kwargs = {f"{type_check.value}": value, "is_verified": True}
