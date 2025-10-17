@@ -382,7 +382,6 @@ class AttachmentService:
 
             blob = await self.blob_repository.find_one_by_or_none(id=attachment.blob_id)
             if blob:
-                # Delete from storage
                 await storage_service.delete_file(blob.key)
 
                 await self.blob_repository.update(blob.id, {"deleted_datetime": datetime.now()})

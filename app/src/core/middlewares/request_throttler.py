@@ -63,7 +63,7 @@ class RequestThrottlerMiddleware(BaseHTTPMiddleware):
                 response = Response(
                     content=json.dumps(
                         errors.RateLimitExceededError().marshal(
-                            uri=f"{settings.server_url}/errors/{{type}}", strict=True
+                            uri=f"{settings.SERVER_URL}/errors/{{type}}", strict=True
                         )
                     ),
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,

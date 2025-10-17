@@ -88,19 +88,19 @@ class Settings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def server_url(self) -> str:
+    def SERVER_URL(self) -> str:
         if self.ENVIRONMENT == "local":
             return f"http://{self.DOMAIN}:{self.PORT}"
         return f"https://{self.DOMAIN}"
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def api_v1_str(self) -> str:
+    def API_V1_STR(self) -> str:
         return f"/api/{self.V1_STR}"
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def server_port(self) -> int:
+    def SERVER_PORT(self) -> int:
         if self.ENVIRONMENT == "local":
             return int(self.PORT)
         return 443 if self.ENVIRONMENT == "production" else 80

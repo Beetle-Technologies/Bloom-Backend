@@ -17,7 +17,7 @@ class OrderInvoice(GUIDMixin, TimestampMixin, table=True):
     Attributes:
         id (GUID): The unique identifier for the invoice.
         order_id (GUID): ID of the order.
-        invoiceable_type (str | None): Optional type ('product' or 'resale_product' for item-level).
+        invoiceable_type (str | None): Optional type ('roduct' or 'ProductItem' for item-level).
         invoiceable_id (GUID | None): Optional ID for item-level invoicing.
         amount (Decimal): Invoice amount.
         created_datetime (datetime): When the invoice was created.

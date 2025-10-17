@@ -12,7 +12,7 @@ def setup_template_environment(env: Any):
 
     env.filters["rawjson"] = json.dumps
     env.globals["STATIC_PREFIX"] = "/static/"
-    env.globals["SERVER_URL"] = settings.server_url
+    env.globals["SERVER_URL"] = settings.SERVER_URL
     env.globals["FRONTEND_URL"] = settings.FRONTEND_URL
     env.globals["APP_NAME"] = settings.APP_NAME
     env.globals["APP_VERSION"] = settings.APP_VERSION

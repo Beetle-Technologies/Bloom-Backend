@@ -225,7 +225,7 @@ class AttachmentBulkUploadRequest(BaseModel):
     """
 
     files: list[Annotated[UploadFile, File(description="Files to be uploaded")]]
-    names: Annotated[list[str], BeforeValidator(parse_comma_separated_list)] = Field(
+    names: Annotated[list[str], BeforeValidator(parse_comma_separated_list())] = Field(
         ..., description="Comma separated string identifiers for the attachments"
     )
     attachable_type: str = Field(
@@ -233,7 +233,7 @@ class AttachmentBulkUploadRequest(BaseModel):
         max_length=120,
         description="Type of the attachable entity e.g., 'Account', 'Product', 'ProductItem",
     )
-    attachable_id: GUID = Field(..., description="Friendly ID of the attachable entity")
+    attachable_id: GUID = Field(..., description="ID of the attachable entity")
     tags: str | None = None
     expires_at: datetime | None = None
     auto_delete_after: str | None = None
@@ -278,7 +278,7 @@ class AttachmentBulkDirectUploadRequest(BaseModel):
     """
 
     filenames: list[str] = Field(..., description="Names of the files")
-    names: Annotated[list[str], BeforeValidator(parse_comma_separated_list)] = Field(
+    names: Annotated[list[str], BeforeValidator(parse_comma_separated_list())] = Field(
         ..., description="Name identifiers for the attachments"
     )
     attachable_type: str = Field(..., max_length=120, description="Type of the attachable entity")

@@ -20,7 +20,7 @@ class Order(GUIDMixin, FriendlyMixin, TimestampMixin, table=True):
         id (GUID): The unique identifier for the order.
         friendly_id (str): A human-readable identifier for the order.
         account_type_info_id (GUID | None): ID of the account type info placing the order.
-        session_id (str | None): Session identifier for guest orders.
+        session_id (str): Session identifier for orders.
         status (OrderStatus): Current status of the order.
         total_amount (Decimal): Total amount of the order.
         created_datetime (datetime): When the order was created.
@@ -48,7 +48,7 @@ class Order(GUIDMixin, FriendlyMixin, TimestampMixin, table=True):
     )
     status: OrderStatus = Field(sa_column=Column(VARCHAR(150), nullable=False, default=OrderStatus.PENDING))
 
-    session_id: str | None = Field(max_length=255, default=None, nullable=True, index=True)
+    session_id: str = Field(max_length=255, nullable=False, index=True, unique=True)
     total_amount: Decimal = Field(sa_column=Column(NUMERIC(12, 2), nullable=False))
 
     # Relationships

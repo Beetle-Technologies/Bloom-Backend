@@ -23,7 +23,7 @@ from src.libs.throttler import limiter
 def get_security_schemes() -> tuple[HTTPBearer, OAuth2PasswordBearer]:
     return (
         HTTPBearer(),
-        OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_str}/auth/login"),
+        OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login"),
     )
 
 

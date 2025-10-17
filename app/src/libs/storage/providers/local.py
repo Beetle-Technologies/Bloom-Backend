@@ -128,7 +128,7 @@ class LocalStorage(StorageInterface):
         Returns:
             str: The URL to access the file.
         """
-        return f"/media/{file_key}"
+        return f"{settings.SERVER_URL}/media/{file_key}"
 
     async def generate_presigned_upload_url(
         self,

@@ -9,6 +9,6 @@ eh = new_exception_handler(
         allow_headers=["*"],
         allow_credentials=True,
     ),
-    documentation_uri_template=f"{settings.server_url}/errors/{{type}}",
+    documentation_uri_template=f"{settings.SERVER_URL}/errors/{{type}}",
     strict_rfc9457=True,
 )

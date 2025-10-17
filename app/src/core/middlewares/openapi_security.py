@@ -17,7 +17,11 @@ class OpenAPISecurityMiddleware(BaseHTTPMiddleware):
     """
 
     def __init__(
-        self, app: ASGIApp, *, username: str = settings.OPENAPI_USERNAME, password: str = settings.OPENAPI_PASSWORD
+        self,
+        app: ASGIApp,
+        *,
+        username: str = settings.OPENAPI_USERNAME,
+        password: str = settings.OPENAPI_PASSWORD,
     ) -> None:
         super().__init__(app)
 
@@ -25,7 +29,10 @@ class OpenAPISecurityMiddleware(BaseHTTPMiddleware):
         self.password = password
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        if request.url.path in [settings.OPENAPI_DOCS_URL, settings.OPENAPI_JSON_SCHEMA_URL]:
+        if request.url.path in [
+            settings.OPENAPI_DOCS_URL,
+            settings.OPENAPI_JSON_SCHEMA_URL,
+        ]:
             auth_header = request.headers.get("Authorization")
             if not auth_header:
                 return self._unauthorized_response()
@@ -44,7 +51,10 @@ class OpenAPISecurityMiddleware(BaseHTTPMiddleware):
                 response = await call_next(request)
                 return response
             except Exception:
-                logger.error(f"{__name__}.dispatch:: Invalid Authorization header format", exc_info=True)
+                logger.error(
+                    f"{__name__}.dispatch:: Invalid Authorization header format",
+                    exc_info=True,
+                )
                 return self._unauthorized_response()
 
         return await call_next(request)
@@ -52,7 +62,7 @@ class OpenAPISecurityMiddleware(BaseHTTPMiddleware):
     def _unauthorized_response(self):
         error = errors.UnauthorizedError()
         return Response(
-            content=json.dumps(error.marshal(uri=f"{settings.server_url}/errors/{{type}}", strict=True)),
+            content=json.dumps(error.marshal(uri=f"{settings.SERVER_URL}/errors/{{type}}", strict=True)),
             status_code=error.status,
             headers={
                 "content-type": "application/problem+json",
