@@ -579,6 +579,7 @@ class AttachmentService:
                     },
                 )
             )
+
             deleted_count = 0
 
             for attachment in attachments:

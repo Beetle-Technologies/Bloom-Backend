@@ -44,13 +44,10 @@ class FiltersProvider:
     def _parse_filter_condition(self, filter_key: str, value: Any):
         """Parse a single filter condition"""
         if "__" not in filter_key:
-            # Simple equality filter
             return self._build_simple_condition(filter_key, "eq", value)
 
-        # Handle complex filter patterns like "account.first_name__or__account.email__ilike"
         parts = filter_key.split("__")
 
-        # Find logical operators and operator
         logical_ops = []
         field_parts = []
         operator = None
@@ -89,7 +86,6 @@ class FiltersProvider:
 
             i += 1
 
-        # Add any remaining field
         if current_field and operator:
             field_parts.append(current_field)
 
@@ -97,7 +93,6 @@ class FiltersProvider:
         if logical_ops and len(field_parts) > 1:
             return self._build_logical_condition(field_parts, logical_ops, operator, value)
 
-        # Standard field__operator pattern
         if len(parts) >= 2:
             field_path = "__".join(parts[:-1])
             operator = parts[-1]
@@ -123,7 +118,6 @@ class FiltersProvider:
         if not conditions:
             return None
 
-        # Apply logical operators
         if "or" in logical_operators:
             result = or_(*conditions)
         elif "and" in logical_operators:
@@ -161,12 +155,10 @@ class FiltersProvider:
                 else:
                     return None
             else:
-                # Simple field
                 if not hasattr(self.model, field_path):
                     return None
                 field_attr = getattr(self.model, field_path)
 
-            # Apply operator
             return self._apply_operator(field_attr, operator, value)
 
         except (AttributeError, TypeError):
