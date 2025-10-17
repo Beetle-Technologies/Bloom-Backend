@@ -7,9 +7,8 @@ from typing import Annotated
 from fastapi import File, UploadFile
 from pydantic import BaseModel, BeforeValidator, Field, field_validator, model_validator
 from src.core.helpers import optional
+from src.core.helpers.request import parse_comma_separated_list
 from src.core.types import GUID
-
-from app.src.core.helpers.request import parse_comma_separated_list
 
 
 class AttachmentBase(BaseModel):
@@ -256,7 +255,14 @@ class AttachmentBulkUploadRequest(BaseModel):
             return None
         return v
 
-    @model_validator(mode="before")
+    @field_validator("auto_delete_after", mode="before")
+    @classmethod
+    def validate_auto_delete_after(cls, v):
+        if v == "" or v is None:
+            return None
+        return v
+
+    @model_validator(mode="after")
     def validate_files_not_empty_and_names_length(self):
         if not self.files or len(self.files) == 0:
             raise ValueError("At least one file must be provided for bulk upload")
@@ -265,13 +271,6 @@ class AttachmentBulkUploadRequest(BaseModel):
             raise ValueError("Number of names must match number of files")
         return self
 
-    @field_validator("auto_delete_after", mode="before")
-    @classmethod
-    def validate_auto_delete_after(cls, v):
-        if v == "" or v is None:
-            return None
-        return v
-
 
 class AttachmentBulkDirectUploadRequest(BaseModel):
     """
@@ -279,7 +278,9 @@ class AttachmentBulkDirectUploadRequest(BaseModel):
     """
 
     filenames: list[str] = Field(..., description="Names of the files")
-    names: list[str] = Field(..., description="Name identifiers for the attachments")
+    names: Annotated[list[str], BeforeValidator(parse_comma_separated_list)] = Field(
+        ..., description="Name identifiers for the attachments"
+    )
     attachable_type: str = Field(..., max_length=120, description="Type of the attachable entity")
     attachable_id: GUID = Field(..., description="ID of the attachable entity")
     expires_in: int = Field(3600, description="Expiration time in seconds for the presigned URLs")
