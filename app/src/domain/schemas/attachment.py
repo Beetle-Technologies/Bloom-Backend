@@ -226,7 +226,7 @@ class AttachmentBulkUploadRequest(BaseModel):
 
     files: list[Annotated[UploadFile, File(description="Files to be uploaded")]]
     names: Annotated[list[str], BeforeValidator(parse_comma_separated_list)] = Field(
-        ..., description="JSON string array identifiers for the attachments"
+        ..., description="Comma separated string identifiers for the attachments"
     )
     attachable_type: str = Field(
         ...,
