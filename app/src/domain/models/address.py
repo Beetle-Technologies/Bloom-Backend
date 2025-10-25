@@ -122,3 +122,13 @@ class Address(GUIDMixin, FriendlyMixin, TimestampMixin, table=True):
             "viewonly": True,
         }
     )
+
+    def format_full_address(self) -> str:
+        parts = [self.address, self.city, self.state]
+        if self.postal_code:
+            parts.append(self.postal_code)
+
+        if self.country:
+            parts.append(self.country.name.name)
+
+        return ", ".join(parts)

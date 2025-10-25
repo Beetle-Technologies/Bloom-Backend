@@ -181,6 +181,12 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if hasattr(db_obj, "save_friendly_fields"):
             call(db_obj, "save_friendly_fields")
 
+        if hasattr(db_obj, "save_order_tag"):
+            call(db_obj, "save_order_tag")
+
+        if hasattr(db_obj, "save_invoice_tag"):
+            call(db_obj, "save_invoice_tag")
+
         self.session.add(db_obj)
         await self._save_changes(refresh_obj=db_obj)
         return db_obj

@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, ClassVar, Optional
 
@@ -37,7 +38,9 @@ class Order(GUIDMixin, FriendlyMixin, TimestampMixin, table=True):
     SELECTABLE_FIELDS: ClassVar[list[str]] = [
         "id",
         "account_type_info_id",
+        "order_tag",
         "status",
+        "session_id",
         "total_amount",
         "created_datetime",
         "updated_datetime",
@@ -47,6 +50,7 @@ class Order(GUIDMixin, FriendlyMixin, TimestampMixin, table=True):
         foreign_key="account_type_infos.id", nullable=True, index=True, default=None
     )
     status: OrderStatus = Field(sa_column=Column(VARCHAR(150), nullable=False, default=OrderStatus.PENDING))
+    order_tag: str = Field(max_length=255, nullable=False, index=True, unique=True)
 
     session_id: str = Field(max_length=255, nullable=False, index=True, unique=True)
     total_amount: Decimal = Field(sa_column=Column(NUMERIC(12, 2), nullable=False))
@@ -54,4 +58,10 @@ class Order(GUIDMixin, FriendlyMixin, TimestampMixin, table=True):
     # Relationships
     account_type_info: Optional["AccountTypeInfo"] = Relationship(back_populates="orders")
     items: list["OrderItem"] = Relationship(back_populates="order")
-    invoices: list["OrderInvoice"] = Relationship(back_populates="order")
+    invoice: Optional["OrderInvoice"] = Relationship(back_populates="order")
+
+    def save_order_tag(self) -> None:
+        if not self.friendly_id:
+            raise ValueError("Friendly ID must be set before generating order tag.")
+
+        self.order_tag = f"ORD-{datetime.now().strftime('%Y-%m-%d')}-{self.friendly_id.upper()}"
