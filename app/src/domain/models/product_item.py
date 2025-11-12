@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, Optional
 from uuid import UUID
 
-from sqlalchemy import TEXT, Boolean, CheckConstraint, Column, Index, UniqueConstraint
+from sqlalchemy import TEXT, Boolean, CheckConstraint, Column, Index
 from sqlalchemy.dialects.postgresql import JSONB, NUMERIC
 from sqlmodel import Field, Relationship
 from src.core.database.mixins import DeletableMixin, FriendlyMixin, GUIDMixin, SearchableMixin, TimestampMixin
@@ -49,11 +49,17 @@ class ProductItem(
     __table_args__ = (
         Index("idx_product_item_search_vector", "search_vector", postgresql_using="gin"),
         Index("idx_product_item_attributes", "attributes", postgresql_using="gin"),
+        Index(
+            "uq_product_item_seller",
+            "product_id",
+            "seller_account_id",
+            unique=True,
+            postgresql_where="product_id IS NOT NULL",
+        ),
         CheckConstraint(
             "markup_percentage >= 0",
             name="chk_product_item_markup_percentage_non_negative",
         ),
-        UniqueConstraint("product_id", "seller_account_id", name="uq_product_item_seller"),
     )
 
     SELECTABLE_FIELDS: ClassVar[list[str]] = [
@@ -78,7 +84,7 @@ class ProductItem(
     ]
 
     # Core references
-    product_id: GUID = Field(foreign_key="products.id", nullable=False, index=True)
+    product_id: GUID = Field(foreign_key="products.id", nullable=True, index=True)
     seller_account_id: GUID = Field(foreign_key="accounts.id", nullable=False, index=True)
     markup_percentage: Decimal = Field(
         sa_column=Column(NUMERIC(6, 2), nullable=False, default=0),
@@ -111,7 +117,7 @@ class ProductItem(
         description="Category ID (copied from product if null, overrideable)",
     )
     status: ProductStatus | None = Field(
-        sa_column=Column(TEXT(), nullable=True, index=True),
+        sa_column=Column(TEXT(), nullable=True, index=True, default=ProductStatus.ACTIVE),
         description="Item status (copied from product if null, overrideable)",
     )
     is_digital: bool | None = Field(
@@ -124,7 +130,7 @@ class ProductItem(
     )
 
     # Relationships
-    product: "Product" = Relationship()
     seller: "Account" = Relationship()
+    product: Optional["Product"] = Relationship()
     currency: Optional["Currency"] = Relationship()
     category: Optional["Category"] = Relationship()

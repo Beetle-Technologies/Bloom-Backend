@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -9,7 +10,7 @@ from src.core.dependencies import get_storage_service
 from src.core.exceptions import errors
 from src.core.logging import get_logger
 from src.core.types import GUID
-from src.domain.enums import InventoriableType, InventoryActionType, ProductItemRequestStatus
+from src.domain.enums import InventoriableType, InventoryActionType, ProductItemRequestStatus, ProductStatus
 from src.domain.models.inventory import Inventory
 from src.domain.models.inventory_action import InventoryAction
 from src.domain.models.product import Product
@@ -96,48 +97,88 @@ class CatalogService:
         self,
         item_data: CatalogItemCreateRequest,
         auth_state: AuthSessionState,
-    ) -> Product:
+    ) -> Product | ProductItem:
         """
-        Create a new catalog item (product) with inventory, inventory action, and attachments.
+        Create a new catalog item (product or product item) based on auth state.
         """
 
         try:
-            product_data = ProductCreate(
-                id=item_data.id,
-                name=item_data.name,
-                description=item_data.description,
-                price=item_data.price,
-                supplier_account_id=auth_state.id,
-                currency_id=item_data.currency_id,
-                category_id=item_data.category_id,
-                is_digital=item_data.is_digital,
-                attributes=item_data.attributes,
-            )
-
-            product_service = ProductService(self.session)
             inventory_service = InventoryService(self.session)
             inventory_action_service = InventoryActionService(self.session)
 
-            product = await product_service.create_product(product_data)
-
-            inventory_data = InventoryCreate(
-                inventoriable_type=InventoriableType.PRODUCT,
-                inventoriable_id=product.id,
-                quantity_in_stock=item_data.initial_stock,
-                reserved_stock=0,
-            )
-            inventory = await inventory_service.create_inventory(inventory_data)
-
-            if item_data.initial_stock > 0:
-                action_data = InventoryActionCreate(
-                    inventory_id=inventory.id,
-                    action_type=InventoryActionType.STOCK_IN,
-                    quantity=item_data.initial_stock,
-                    reason="Initial stock for new product",
+            if auth_state.type.is_supplier():
+                product_data = ProductCreate(
+                    id=item_data.id,
+                    name=item_data.name,
+                    description=item_data.description,
+                    price=item_data.price,
+                    supplier_account_id=auth_state.id,
+                    currency_id=item_data.currency_id,
+                    category_id=item_data.category_id,
+                    is_digital=item_data.is_digital,
+                    attributes=item_data.attributes,
                 )
-                await inventory_action_service.create_action(action_data)
 
-            return product
+                product_service = ProductService(self.session)
+                product = await product_service.create_product(product_data)
+
+                inventory_data = InventoryCreate(
+                    inventoriable_type=InventoriableType.PRODUCT,
+                    inventoriable_id=product.id,
+                    quantity_in_stock=item_data.initial_stock,
+                    reserved_stock=0,
+                )
+                inventory = await inventory_service.create_inventory(inventory_data)
+
+                if item_data.initial_stock > 0:
+                    action_data = InventoryActionCreate(
+                        inventory_id=inventory.id,
+                        action_type=InventoryActionType.STOCK_IN,
+                        quantity=item_data.initial_stock,
+                        reason="Initial stock for new product",
+                    )
+                    await inventory_action_service.create_action(action_data)
+
+                return product
+            elif auth_state.type.is_business():
+                product_item_data = ProductItemCreate(
+                    id=item_data.id,
+                    product_id=None,
+                    seller_account_id=auth_state.id,
+                    name=item_data.name,
+                    description=item_data.description,
+                    price=item_data.price,
+                    markup_percentage=Decimal(0),
+                    currency_id=item_data.currency_id,
+                    category_id=item_data.category_id,
+                    status=ProductStatus.ACTIVE,
+                    is_digital=item_data.is_digital,
+                    attributes=item_data.attributes,
+                )
+
+                product_item_service = ProductItemService(self.session)
+                product_item = await product_item_service.create_product_item(product_item_data)
+
+                inventory_data = InventoryCreate(
+                    inventoriable_type=InventoriableType.PRODUCT_ITEM,
+                    inventoriable_id=product_item.id,
+                    quantity_in_stock=item_data.initial_stock,
+                    reserved_stock=0,
+                )
+                inventory = await inventory_service.create_inventory(inventory_data)
+
+                if item_data.initial_stock > 0:
+                    action_data = InventoryActionCreate(
+                        inventory_id=inventory.id,
+                        action_type=InventoryActionType.STOCK_IN,
+                        quantity=item_data.initial_stock,
+                        reason="Initial stock for new product item",
+                    )
+                    await inventory_action_service.create_action(action_data)
+
+                return product_item
+            else:
+                raise errors.ServiceError("Unauthorized to create catalog items")
         except errors.ServiceError as se:
             logger.exception(
                 f"src.domain.services.catalog_service.create_catalog_item:: Error in create_catalog_item: {se.detail}"
@@ -258,7 +299,8 @@ class CatalogService:
                     raise errors.ServiceError("Failed to delete associated inventory")
 
                 is_attachment_deleted = await attachment_service.mark_attachments_as_deleted_for_attachable(
-                    attachable_type=InventoriableType.PRODUCT.value, attachable_id=product.id
+                    attachable_type=InventoriableType.PRODUCT.value,
+                    attachable_id=product.id,
                 )
 
                 if not is_attachment_deleted:

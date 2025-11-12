@@ -108,9 +108,9 @@ async def browse_catalog(
 )
 async def create_item(
     request: Request,  # noqa: ARG001
-    request_client: Annotated[BloomClientInfo, is_bloom_supplier_client],  # noqa: ARG001
+    request_client: Annotated[BloomClientInfo, is_either_bloom_supplier_or_seller_client],  # noqa: ARG001
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    auth_state: Annotated[AuthSessionState, Depends(require_eligible_supplier_account)],
+    auth_state: Annotated[AuthSessionState, Depends(require_eligible_supplier_or_seller_account)],
     item_data: Annotated[CatalogItemCreateRequest, Body(...)],
 ) -> IResponseBase[dict[str, Any]]:
     """
@@ -121,10 +121,10 @@ async def create_item(
     try:
         catalog_service = CatalogService(session)
 
-        product = await catalog_service.create_catalog_item(item_data, auth_state)
+        item = await catalog_service.create_catalog_item(item_data, auth_state)
 
         return build_json_response(
-            data={"id": str(product.id), "fid": product.friendly_id},  # type: ignore
+            data={"id": str(item.id), "fid": item.friendly_id},  # type: ignore
             message="Item created successfully",
         )
     except errors.ServiceError as se:

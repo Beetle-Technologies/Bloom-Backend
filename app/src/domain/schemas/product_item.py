@@ -13,7 +13,7 @@ from src.domain.enums import ProductStatus
 class ProductItemBase(BaseModel):
     """Base product item schema with common fields."""
 
-    product_id: GUID = Field(..., description="Reference to the original product")
+    product_id: Optional[GUID] = Field(None, description="Reference to the original product")
     seller_account_id: GUID = Field(..., description="Reference to the reseller account")
     markup_percentage: Decimal = Field(
         default=Decimal(0),
@@ -32,6 +32,8 @@ class ProductItemBase(BaseModel):
 
 class ProductItemCreate(ProductItemBase):
     """Schema for creating a new product item."""
+
+    id: Optional[GUID] = None
 
 
 @optional
