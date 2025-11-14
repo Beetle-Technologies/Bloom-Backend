@@ -43,14 +43,15 @@ class ProductItemService:
 
     async def create_product_item(self, product_item_data: ProductItemCreate) -> ProductItem:
         try:
-            existing_product_item_by_product_id = await self.product_item_repository.query(
-                params=BaseQueryEngineParams(filters={"product_id": product_item_data.product_id})
-            )
-            if existing_product_item_by_product_id:
-                raise errors.ServiceError(
-                    message="Product item already exists for this product",
-                    detail=f"Product item for product_id:{product_item_data.product_id} already exists",
+            if product_item_data.product_id is not None:
+                existing_product_item_by_product_id = await self.product_item_repository.query(
+                    params=BaseQueryEngineParams(filters={"product_id": product_item_data.product_id})
                 )
+                if existing_product_item_by_product_id:
+                    raise errors.ServiceError(
+                        message="Product item already exists for this product",
+                        detail="You already have the product in your catalog",
+                    )
 
             return await self.product_item_repository.create(product_item_data)
         except errors.ServiceError as e:

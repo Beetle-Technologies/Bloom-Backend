@@ -17,6 +17,7 @@ from src.domain.models.product import Product
 from src.domain.models.product_item import ProductItem
 from src.domain.repositories.attachment_blob_repository import AttachmentBlobRepository
 from src.domain.repositories.attachment_repository import AttachmentRepository
+from src.domain.repositories.category_repository import CategoryRepository
 from src.domain.repositories.inventory_action_repository import InventoryActionRepository
 from src.domain.repositories.product_item_repository import ProductItemRepository
 from src.domain.repositories.product_repository import ProductRepository
@@ -50,6 +51,7 @@ class CatalogService:
         self.session = session
         self.product_repository = ProductRepository(session=self.session)
         self.product_item_repository = ProductItemRepository(session=self.session)
+        self.category_repository = CategoryRepository(session=self.session)
 
     async def browse_catalog(
         self,
@@ -107,6 +109,15 @@ class CatalogService:
             inventory_action_service = InventoryActionService(self.session)
 
             if auth_state.type.is_supplier():
+                if item_data.category_id:
+                    category = await self.category_repository.find_one_by(id=item_data.category_id)
+                    if not category:
+                        raise errors.ServiceError(
+                            message="Category not found",
+                            detail="Category does not exist",
+                            meta={"category_id": item_data.category_id},
+                        )
+
                 product_data = ProductCreate(
                     id=item_data.id,
                     name=item_data.name,
@@ -141,6 +152,15 @@ class CatalogService:
 
                 return product
             elif auth_state.type.is_business():
+                if item_data.category_id:
+                    category = await self.category_repository.find_one_by(id=item_data.category_id)
+                    if not category:
+                        raise errors.ServiceError(
+                            message="Category not found",
+                            detail="Category does not exist",
+                            meta={"category_id": item_data.category_id},
+                        )
+
                 product_item_data = ProductItemCreate(
                     id=item_data.id,
                     product_id=None,
