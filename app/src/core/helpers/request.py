@@ -22,18 +22,69 @@ def is_friendly_id(value: str) -> bool:
     return all(c in FriendlyMixin._ALPHABET for c in value[1:])
 
 
-def parse_comma_separated_list(enum_type: Optional[type[StrEnum]] = None):
-    def parser(v: list[str]):
-        value = v[0] if v else None
-        if value is None:
+def parse_bool(true_values: set[str] | None = None, false_values: set[str] | None = None):
+    if true_values is None:
+        true_values = {"true", "1", "yes", "on", "t", "y"}
+    if false_values is None:
+        false_values = {"false", "0", "no", "off", "f", "n"}
+
+    def validator(v: Any) -> bool:
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            lower = v.lower().strip()
+            if lower in true_values:
+                return True
+            if lower in false_values:
+                return False
+            raise ValueError(f"Cannot parse '{v}' as boolean")
+        if isinstance(v, int):
+            return bool(v)
+        raise ValueError(f"Cannot convert {type(v)} to bool")
+
+    return validator
+
+
+def parse_comma_separated_list(obj: Optional[type[StrEnum]] | Any = None):
+    """
+    Parse a comma-separated string into a list of items of the specified type.
+    """
+
+    def parser(v: Any):
+        if v is None:
             return None
 
-        items = value.split(",")
+        if isinstance(v, dict):
+            try:
+                items = [v[k] for k in sorted(v.keys(), key=lambda x: int(x))]
+            except Exception:
+                items = list(v.values())
+        elif isinstance(v, list):
+            items = v
+        else:
+            value = str(v)
+            items = value.split(",") if value != "" else []
 
-        if enum_type:
-            return [enum_type(item.strip()) for item in items]
+        flattened: list[Any] = []
+        for item in items:
+            if item is None:
+                continue
+            if isinstance(item, list):
+                flattened.extend(item)
+            else:
+                pieces = str(item).split(",")
+                for p in pieces:
+                    piece = p.strip()
+                    if piece:
+                        flattened.append(piece)
 
-        return [item.strip() for item in items]
+        if obj and flattened:
+            try:
+                return [obj(item) if not isinstance(item, obj) else item for item in flattened]
+            except Exception:
+                return [obj(str(item)) if not isinstance(item, obj) else item for item in flattened]
+
+        return flattened
 
     return parser
 

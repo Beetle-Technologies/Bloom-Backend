@@ -15,6 +15,7 @@ from src.domain.models.inventory import Inventory
 from src.domain.models.inventory_action import InventoryAction
 from src.domain.models.product import Product
 from src.domain.models.product_item import ProductItem
+from src.domain.repositories.account_repository import AccountRepository
 from src.domain.repositories.attachment_blob_repository import AttachmentBlobRepository
 from src.domain.repositories.attachment_repository import AttachmentRepository
 from src.domain.repositories.category_repository import CategoryRepository
@@ -519,7 +520,7 @@ class CatalogService:
             )
             raise errors.ServiceError("Failed to adjust inventory")
 
-    async def _get_attachments_for_catalog_item(
+    async def _get_attachments_for_attachements(
         self, attachable_type: str, attachable_id: GUID
     ) -> list[dict[str, str]]:
         """
@@ -633,10 +634,22 @@ class CatalogService:
     ):
         if hasattr(item, "model_dump"):
             item_dict = item.model_dump()
-            attachable_type = "Product" if auth_state and auth_state.type.is_supplier() else "ProductItem"
+            # Determine if item is a Product or ProductItem based on the presence of supplier or seller fields
+            if "supplier_account_id" in item_dict and item_dict.get("supplier_account_id") is not None:
+                attachable_type = "Product"
+            elif "seller_account_id" in item_dict and item_dict.get("seller_account_id") is not None:
+                attachable_type = "ProductItem"
+            else:
+                # Fallback based on auth_state for backward compatibility
+                attachable_type = "Product" if auth_state and auth_state.type.is_supplier() else "ProductItem"
         elif hasattr(item, "_mapping"):
             item_dict = dict(item._mapping)  # type: ignore
-            attachable_type = "Product" if auth_state and auth_state.type.is_supplier() else "ProductItem"
+            if "supplier_account_id" in item_dict and item_dict.get("supplier_account_id") is not None:
+                attachable_type = "Product"
+            elif "seller_account_id" in item_dict and item_dict.get("seller_account_id") is not None:
+                attachable_type = "ProductItem"
+            else:
+                attachable_type = "ProductItem"
         else:
             try:
                 item_dict = {key: getattr(item, key) for key in item.__table__.columns.keys()}  # type: ignore
@@ -674,7 +687,7 @@ class CatalogService:
 
         item_dict["price_display"] = f"{currency_symbol}{price_formatted}"
 
-        attachments = await self._get_attachments_for_catalog_item(attachable_type, item_id)
+        attachments = await self._get_attachments_for_attachements(attachable_type, item_id)
 
         inventoriable_type = (
             InventoriableType.PRODUCT if attachable_type == "Product" else InventoriableType.PRODUCT_ITEM
@@ -695,5 +708,38 @@ class CatalogService:
             item_dict["inventory"]["available_stock"] = (
                 item_dict["inventory"]["quantity_in_stock"] - item_dict["inventory"]["reserved_stock"]
             )
+        if attachable_type == "Product":
+            supplier_id = item_dict.get("supplier_account_id")
+            if supplier_id:
+                account_repo = AccountRepository(self.session)
+                try:
+                    supplier = await account_repo.find_one_by(id=supplier_id)
+                except Exception:
+                    supplier = None
 
+                if supplier:
+                    display_name = None
+                    try:
+                        display_name = (
+                            getattr(supplier, "display_name", None) or f"{supplier.first_name} {supplier.last_name}"
+                        )
+                    except Exception:
+                        display_name = None
+
+                    supplier_avatar = None
+                    try:
+                        attachments_for_supplier = await self._get_attachments_for_attachements("Account", supplier.id)
+
+                        avatar_att = None
+                        if len(attachments_for_supplier) > 0:
+                            avatar_att = attachments_for_supplier[0]
+
+                            supplier_avatar = avatar_att.get("url")
+                    except Exception:
+                        supplier_avatar = None
+
+                    item_dict["supplier"] = {
+                        "display": display_name,
+                        "avatar": supplier_avatar,
+                    }
         return item_dict

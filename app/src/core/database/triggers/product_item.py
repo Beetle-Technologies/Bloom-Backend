@@ -7,56 +7,59 @@ CREATE FUNCTION populate_product_item_fields()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Only populate fields if they are NULL (allows manual overrides)
+    -- If there is no parent product (product_id is NULL) we should not
+    -- overwrite provided values or attempt to select from products table.
+    IF NEW.product_id IS NOT NULL THEN
+        -- Copy name from product if not provided
+        IF NEW.name IS NULL THEN
+            SELECT name INTO NEW.name FROM products WHERE id = NEW.product_id;
+        END IF;
 
-    -- Copy name from product if not provided
-    IF NEW.name IS NULL THEN
-        SELECT name INTO NEW.name FROM products WHERE id = NEW.product_id;
-    END IF;
+        -- Copy description from product if not provided
+        IF NEW.description IS NULL THEN
+            SELECT description INTO NEW.description FROM products WHERE id = NEW.product_id;
+        END IF;
 
-    -- Copy description from product if not provided
-    IF NEW.description IS NULL THEN
-        SELECT description INTO NEW.description FROM products WHERE id = NEW.product_id;
-    END IF;
+        -- Calculate price from product price + markup if not provided
+        IF NEW.price IS NULL THEN
+            SELECT price + (price * NEW.markup_percentage / 100)
+            INTO NEW.price
+            FROM products
+            WHERE id = NEW.product_id;
+        END IF;
 
-    -- Calculate price from product price + markup if not provided
-    IF NEW.price IS NULL THEN
-        SELECT price + (price * NEW.markup_percentage / 100)
-        INTO NEW.price
-        FROM products
-        WHERE id = NEW.product_id;
-    END IF;
+        -- Copy currency_id from product if not provided
+        IF NEW.currency_id IS NULL THEN
+            SELECT currency_id INTO NEW.currency_id FROM products WHERE id = NEW.product_id;
+        END IF;
 
-    -- Copy currency_id from product if not provided
-    IF NEW.currency_id IS NULL THEN
-        SELECT currency_id INTO NEW.currency_id FROM products WHERE id = NEW.product_id;
-    END IF;
+        -- Copy category_id from product if not provided
+        IF NEW.category_id IS NULL THEN
+            SELECT category_id INTO NEW.category_id FROM products WHERE id = NEW.product_id;
+        END IF;
 
-    -- Copy category_id from product if not provided
-    IF NEW.category_id IS NULL THEN
-        SELECT category_id INTO NEW.category_id FROM products WHERE id = NEW.product_id;
-    END IF;
+        -- Copy status from product if not provided
+        IF NEW.status IS NULL THEN
+            SELECT status INTO NEW.status FROM products WHERE id = NEW.product_id;
+        END IF;
 
-    -- Copy status from product if not provided
-    IF NEW.status IS NULL THEN
-        SELECT status INTO NEW.status FROM products WHERE id = NEW.product_id;
-    END IF;
+        -- Copy is_digital from product if not provided
+        IF NEW.is_digital IS NULL THEN
+            SELECT is_digital INTO NEW.is_digital FROM products WHERE id = NEW.product_id;
+        END IF;
 
-    -- Copy is_digital from product if not provided
-    IF NEW.is_digital IS NULL THEN
-        SELECT is_digital INTO NEW.is_digital FROM products WHERE id = NEW.product_id;
-    END IF;
-
-    -- Merge attributes with product attributes if not provided
-    IF NEW.attributes IS NULL THEN
-        SELECT attributes INTO NEW.attributes FROM products WHERE id = NEW.product_id;
-    ELSE
-        -- If attributes are provided, merge them with product attributes
-        -- Custom attributes override product attributes
-        SELECT
-            COALESCE(p.attributes, '{}'::jsonb) || COALESCE(NEW.attributes, '{}'::jsonb)
-        INTO NEW.attributes
-        FROM products p
-        WHERE p.id = NEW.product_id;
+        -- Merge attributes with product attributes if not provided
+        IF NEW.attributes IS NULL THEN
+            SELECT attributes INTO NEW.attributes FROM products WHERE id = NEW.product_id;
+        ELSE
+            -- If attributes are provided, merge them with product attributes
+            -- Custom attributes override product attributes
+            SELECT
+                COALESCE(p.attributes, '{}'::jsonb) || COALESCE(NEW.attributes, '{}'::jsonb)
+            INTO NEW.attributes
+            FROM products p
+            WHERE p.id = NEW.product_id;
+        END IF;
     END IF;
 
     RETURN NEW;
