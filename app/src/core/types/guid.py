@@ -99,7 +99,7 @@ class GUID(str):
         unique_id = uuid4()
         int_id = unique_id.int
 
-        id_bytes = struct.pack(">QQ", int_id >> 64, int_id & 0xFFFFFFFFFFFFFFFF)
+        id_bytes = struct.pack(">QQ", int_id >> 64, int_id & 0xFFFFFFFFFFFFFFFF)  # type: ignore
         encoded_id = base64.urlsafe_b64encode(id_bytes).decode("ascii").rstrip("=")
 
         guid_str = f"gid://{cls._APP_NAME}/{resource_type}/{encoded_id}"

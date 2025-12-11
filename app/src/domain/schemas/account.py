@@ -50,6 +50,7 @@ class AccountCreate(AccountBase):
 class AccountUpdate(AccountBase):
 
     type_attributes: JsonValue | None = None
+    is_verfied: bool | None
 
 
 class AccountResponse(BaseModel):

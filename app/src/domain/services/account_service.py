@@ -554,6 +554,10 @@ class AccountService:
             if not account:
                 raise errors.AccountNotFoundError()
 
+            updated_email = profile_update.get("email") if isinstance(profile_update, dict) else profile_update.email  # type: ignore
+            if updated_email is not None and updated_email != account.email:
+                profile_update.is_verified = False  # type: ignore
+
             update_account = await self.account_repository.update(id, profile_update)
             if not update_account:
                 raise errors.AccountUpdateError(detail="Failed to update account profile")
