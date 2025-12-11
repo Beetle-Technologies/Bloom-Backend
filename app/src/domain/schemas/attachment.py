@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import File, UploadFile
 from pydantic import BaseModel, BeforeValidator, Field, field_validator, model_validator
 from src.core.helpers import optional
-from src.core.helpers.request import parse_comma_separated_list
+from src.core.helpers.request import parse_list
 from src.core.types import GUID
 
 
@@ -225,7 +225,7 @@ class AttachmentBulkUploadRequest(BaseModel):
     """
 
     files: list[Annotated[UploadFile, File(description="Files to be uploaded")]]
-    names: Annotated[list[str], BeforeValidator(parse_comma_separated_list())] = Field(
+    names: Annotated[list[str], BeforeValidator(parse_list())] = Field(
         ..., description="Comma separated string identifiers for the attachments"
     )
     attachable_type: str = Field(
@@ -278,7 +278,7 @@ class AttachmentBulkDirectUploadRequest(BaseModel):
     """
 
     filenames: list[str] = Field(..., description="Names of the files")
-    names: Annotated[list[str], BeforeValidator(parse_comma_separated_list())] = Field(
+    names: Annotated[list[str], BeforeValidator(parse_list())] = Field(
         ..., description="Name identifiers for the attachments"
     )
     attachable_type: str = Field(..., max_length=120, description="Type of the attachable entity")

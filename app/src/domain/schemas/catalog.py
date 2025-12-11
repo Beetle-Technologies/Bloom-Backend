@@ -3,7 +3,7 @@ from typing import Annotated, Any, Dict, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, BeforeValidator, Field
-from src.core.helpers.request import parse_bool, parse_comma_separated_list
+from src.core.helpers.request import parse_bool, parse_list
 from src.core.types import GUID
 from src.domain.enums import ProductStatus
 from src.libs.query_engine import PaginationType
@@ -16,9 +16,9 @@ class CatalogFilterParams(BaseModel):
 
     status: Annotated[
         list[ProductStatus] | None,
-        BeforeValidator(parse_comma_separated_list(ProductStatus)),
+        BeforeValidator(parse_list(ProductStatus)),
     ] = None
-    category: Annotated[list[str] | list[GUID] | None, BeforeValidator(parse_comma_separated_list())] = None
+    category: Annotated[list[str] | list[GUID] | None, BeforeValidator(parse_list())] = None
     min_price: Optional[Decimal] = None
     max_price: Optional[Decimal] = None
     search: Optional[str] = None
@@ -31,9 +31,9 @@ class CatalogBrowseParams(BaseModel):
     """
 
     filters: Optional[CatalogFilterParams] = None
-    include: Annotated[list[str] | None, BeforeValidator(parse_comma_separated_list())] = None
+    include: Annotated[list[str] | None, BeforeValidator(parse_list())] = None
     fields: Optional[str] = None
-    order_by: Annotated[list[str] | None, BeforeValidator(parse_comma_separated_list())] = None
+    order_by: Annotated[list[str] | None, BeforeValidator(parse_list())] = None
     limit: int = Field(20, ge=1, le=100)
     cursor: Optional[str] = None
     offset: int = Field(0, ge=0)

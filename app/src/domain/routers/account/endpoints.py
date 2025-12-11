@@ -77,7 +77,7 @@ async def update_me(
         data = await account_service.update_profile_by(
             id=auth_state.id,
             type_info_id=auth_state.type_info_id,
-            account_update=account_data,
+            profile_update=account_data,
         )
 
         assert isinstance(data, AccountBasicProfileResponse)

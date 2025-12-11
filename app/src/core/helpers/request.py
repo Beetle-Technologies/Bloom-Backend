@@ -45,9 +45,9 @@ def parse_bool(true_values: set[str] | None = None, false_values: set[str] | Non
     return validator
 
 
-def parse_comma_separated_list(obj: Optional[type[StrEnum]] | Any = None):
+def parse_list(obj: Optional[type[StrEnum]] | Any = None):
     """
-    Parse a comma-separated string into a list of items of the specified type.
+    Parse a conformable type into a list of items.
     """
 
     def parser(v: Any):
