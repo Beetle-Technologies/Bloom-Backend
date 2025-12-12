@@ -701,7 +701,14 @@ class CatalogService:
 
         item_dict["price_display"] = f"{currency_symbol}{price_formatted}"
 
-        attachments = await self._get_attachments_for_attachable(attachable_type, item_id)
+        attachable_part = attachable_type 
+        attachable_part_id = item_id
+        requested_product_for_product_item = item.get("product_id", None)
+        if requested_product_for_product_item:
+            attachable_part = "Product"
+            attachable_part_id = requested_product_for_product_item
+            
+        attachments = await self._get_attachments_for_attachable(attachable_part, attachable_part_id)
 
         inventoriable_type = (
             InventoriableType.PRODUCT if attachable_type == "Product" else InventoriableType.PRODUCT_ITEM
