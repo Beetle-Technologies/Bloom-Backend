@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pydantic import EmailStr
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.config import settings
 from src.core.database.decorators import transactional
@@ -12,7 +13,7 @@ from src.core.helpers.misc import call
 from src.core.logging import get_logger
 from src.core.types import IDType, Password, PhoneNumber
 from src.domain.enums import AccountTypeEnum
-from src.domain.models import Account
+from src.domain.models import Account, AccountType, AccountTypeInfo, Attachment
 from src.domain.repositories import AccountRepository, AccountTypeInfoRepository
 from src.domain.schemas import AccountBasicProfileResponse, AccountCreate, AccountUpdate, AttachmentBasicResponse
 from src.domain.services.security_service import security_service
@@ -559,14 +560,15 @@ class AccountService:
                 profile_update.is_verified = False  # type: ignore
 
             account_update_body = {
-                "first_name": call(profile_update, "first_name") or None,
-                "last_name": call(profile_update, "last_name") or None,
-                "email": call(profile_update, "email") or None,
-                "username": call(profile_update, "username") or None,
-                "phone_number": call(profile_update, "phone_number") or None,
+                "first_name": call(profile_update, "first_name") or account.first_name,
+                "last_name": call(profile_update, "last_name") or account.last_name,
+                "email": call(profile_update, "email") or account.email,
+                "username": call(profile_update, "username") or account.username,
+                "phone_number": call(profile_update, "phone_number") or account.phone_number,
             }
 
             update_account = await self.account_repository.update(id, account_update_body)
+
             if not update_account:
                 raise errors.AccountUpdateError(detail="Failed to update account profile")
 
@@ -575,57 +577,62 @@ class AccountService:
             attachment = None
             cart = None
 
-            if type_attributes is not None:
-                type_info = await self.account_type_info_repository.find_one_by(
-                    id=type_info_id,
-                    params=BaseQueryEngineParams(
-                        include=["attachment", "account_type"],
-                    ),
+            query = select(AccountTypeInfo).where(AccountTypeInfo.id == type_info_id)
+            result = await self.session.exec(query)
+            type_info = result.one_or_none()
+
+            # TODO: Figure out why include for query in not working as expected as such I have to load account_type and attachment separately
+            account_type = None
+            if type_info and type_info.account_type_id:
+                account_type_query = select(AccountType).where(AccountType.id == type_info.account_type_id)
+                account_type_result = await self.session.exec(account_type_query)
+                account_type = account_type_result.one_or_none()
+
+            attachment_obj = None
+            if type_info and type_info.attachment_id:
+                attachment_query = select(Attachment).where(Attachment.id == type_info.attachment_id)
+                attachment_result = await self.session.exec(attachment_query)
+                attachment_obj = attachment_result.one_or_none()
+
+            if type_attributes and type_info:
+                updated_type_info_attributes = type_info.attributes or {}
+                updated_type_info_attributes.update(type_attributes)
+
+                updated_type_attributes.update(updated_type_info_attributes.copy())
+
+                await self.account_type_info_repository.update(
+                    type_info.id,
+                    {"attributes": updated_type_info_attributes},
                 )
 
-                if type_info:
-                    updated_type_info_attributes = type_info.attributes or {}
-                    updated_type_info_attributes.update(type_attributes)
+            if type_info and attachment_obj:
+                from src.domain.services import AttachmentService
+                from src.libs.storage import storage_service
 
-                    updated_type_attributes.update(updated_type_info_attributes.copy())
+                attachment_fid = attachment_obj.friendly_id
 
-                    if type_info and type_info.attachment:
+                attachment_service = AttachmentService(session=self.session)
+                attachment_url = await attachment_service.get_attachment_url(attachment_fid=attachment_fid, storage_service=storage_service)  # type: ignore
 
-                        from src.domain.services import AttachmentService
-                        from src.libs.storage import storage_service
+                if not attachment_url:
+                    attachment_url = None
 
-                        attachment_fid = type_info.attachment.friendly_id
+                attachment = AttachmentBasicResponse(
+                    id=attachment_obj.id,
+                    fid=attachment_obj.friendly_id,  # type: ignore
+                    url=attachment_url,
+                )
 
-                        attachment_service = AttachmentService(session=self.session)
-                        attachment_url = await attachment_service.get_attachment_url(attachment_fid=attachment_fid, storage_service=storage_service)  # type: ignore
+            # Handle cart for USER account type
+            if type_info and account_type and account_type.key == AccountTypeEnum.USER.value:
+                from src.domain.repositories.cart_repository import CartRepository
+                from src.domain.schemas.cart import CartBasicResponse
 
-                        if not attachment_url:
-                            attachment_url = None
+                cart_repository = CartRepository(session=self.session)
+                user_cart = await cart_repository.get_cart_by_account_type_info(type_info.id)
 
-                        attachment = AttachmentBasicResponse(
-                            id=type_info.attachment.id,
-                            fid=type_info.attachment.friendly_id,  # type: ignore
-                            url=attachment_url,
-                        )
-
-                        await self.account_type_info_repository.update(
-                            type_info.id,
-                            {"attributes": updated_type_info_attributes},
-                        )
-
-                    if (
-                        type_info
-                        and type_info.account_type
-                        and type_info.account_type.key == AccountTypeEnum.USER.value
-                    ):
-                        from src.domain.repositories.cart_repository import CartRepository
-                        from src.domain.schemas.cart import CartBasicResponse
-
-                        cart_repository = CartRepository(session=self.session)
-                        user_cart = await cart_repository.get_cart_by_account_type_info(type_info.id)
-
-                        if user_cart and user_cart.friendly_id:
-                            cart = CartBasicResponse(fid=user_cart.friendly_id)
+                if user_cart and user_cart.friendly_id:
+                    cart = CartBasicResponse(fid=user_cart.friendly_id)
 
             return AccountBasicProfileResponse(
                 id=update_account.id,

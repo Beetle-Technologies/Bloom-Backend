@@ -84,7 +84,7 @@ class CartService:
         return None
 
     async def _get_one_attachment(self, cartable_type: str, cartable_id: GUID) -> dict | None:
-        attachments = await self.catalog_service._get_attachments_for_attachements(cartable_type, cartable_id)
+        attachments = await self.catalog_service._get_attachments_for_attachable(cartable_type, cartable_id)
         return attachments[0] if attachments else None
 
     async def create_cart_if_not_exists(self, auth_state: AuthSessionState) -> Cart:

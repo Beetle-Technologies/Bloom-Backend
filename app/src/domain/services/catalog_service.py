@@ -65,6 +65,8 @@ class CatalogService:
         try:
             result = await self._browse_catalog_internal(auth_state, pagination)
 
+            print("result:  ", result)
+
             items = []
             for item in result.items:
                 item_info = await self._format_item_info(item, auth_state)
@@ -140,7 +142,10 @@ class CatalogService:
                     quantity_in_stock=item_data.initial_stock,
                     reserved_stock=0,
                 )
+                print("inventory_data: ", inventory_data)
                 inventory = await inventory_service.create_inventory(inventory_data)
+
+                print("inventory: ", inventory)
 
                 if item_data.initial_stock > 0:
                     action_data = InventoryActionCreate(
@@ -149,7 +154,9 @@ class CatalogService:
                         quantity=item_data.initial_stock,
                         reason="Initial stock for new product",
                     )
-                    await inventory_action_service.create_action(action_data)
+                    print("action_data: ", action_data)
+                    inventory_action = await inventory_action_service.create_action(action_data)
+                    print("inventory_action: ", inventory_action)
 
                 return product
             elif auth_state.type.is_business():
@@ -520,25 +527,26 @@ class CatalogService:
             )
             raise errors.ServiceError("Failed to adjust inventory")
 
-    async def _get_attachments_for_attachements(
-        self, attachable_type: str, attachable_id: GUID
-    ) -> list[dict[str, str]]:
+    async def _get_attachments_for_attachable(self, attachable_type: str, attachable_id: GUID) -> list[dict[str, str]]:
         """
         Get attachment info for an attachable entity.
         """
 
         try:
             attachment_repo = AttachmentRepository(self.session)
-
-            attachments = await attachment_repo.query_all(
-                params=BaseQueryEngineParams(
-                    filters={
-                        "attachable_type__eq": attachable_type,
-                        "attachable_id__eq": str(attachable_id),
-                    },
-                    fields="id,friendly_id,name,blob_id",
-                )
+            params = BaseQueryEngineParams(
+                filters={
+                    "attachable_type": attachable_type,
+                    "attachable_id": str(attachable_id),
+                },
+                fields="id,friendly_id,name,blob_id",
             )
+
+            print("params: ", params)
+
+            attachments = await attachment_repo.query_all(params=params)
+
+            print("attachments: ", attachments)
 
             result = []
             storage_service = get_storage_service()
@@ -611,20 +619,26 @@ class CatalogService:
         is_product_check = pagination.filters.pop("is_product", None)
 
         if auth_state is None or auth_state.type.is_user():
+            pagination.fields = pagination.fields + ",seller_account_id"
             return await self.product_item_repository.find(pagination=pagination)
         elif auth_state.type.is_supplier():
+            pagination.fields = pagination.fields + ",supplier_account_id"
             pagination.filters = pagination.filters or {}
             pagination.filters["supplier_account_id__eq"] = str(auth_state.id)
             return await self.product_repository.find(pagination=pagination)
         elif auth_state.type.is_business():
+
             pagination.filters = pagination.filters or {}
 
             if is_product_check is not None and is_product_check is True:
+                pagination.fields = pagination.fields + ",supplier_account_id"
                 return await self.product_repository.find(pagination=pagination)
             else:
+                pagination.fields = pagination.fields + ",seller_account_id"
                 pagination.filters["seller_account_id__eq"] = str(auth_state.id)
                 return await self.product_item_repository.find(pagination=pagination)
         else:
+            pagination.fields = pagination.fields + ",seller_account_id"
             return await self.product_item_repository.find(pagination=pagination)
 
     async def _format_item_info(
@@ -687,7 +701,7 @@ class CatalogService:
 
         item_dict["price_display"] = f"{currency_symbol}{price_formatted}"
 
-        attachments = await self._get_attachments_for_attachements(attachable_type, item_id)
+        attachments = await self._get_attachments_for_attachable(attachable_type, item_id)
 
         inventoriable_type = (
             InventoriableType.PRODUCT if attachable_type == "Product" else InventoriableType.PRODUCT_ITEM
@@ -728,7 +742,7 @@ class CatalogService:
 
                     supplier_avatar = None
                     try:
-                        attachments_for_supplier = await self._get_attachments_for_attachements("Account", supplier.id)
+                        attachments_for_supplier = await self._get_attachments_for_attachable("Account", supplier.id)
 
                         avatar_att = None
                         if len(attachments_for_supplier) > 0:
