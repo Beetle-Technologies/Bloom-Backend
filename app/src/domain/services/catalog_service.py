@@ -619,7 +619,7 @@ class CatalogService:
         is_product_check = pagination.filters.pop("is_product", None)
 
         if auth_state is None or auth_state.type.is_user():
-            pagination.fields = pagination.fields + ",seller_account_id"
+            pagination.fields = pagination.fields + ",seller_account_id,product_id"
             return await self.product_item_repository.find(pagination=pagination)
         elif auth_state.type.is_supplier():
             pagination.fields = pagination.fields + ",supplier_account_id"
@@ -634,11 +634,11 @@ class CatalogService:
                 pagination.fields = pagination.fields + ",supplier_account_id"
                 return await self.product_repository.find(pagination=pagination)
             else:
-                pagination.fields = pagination.fields + ",seller_account_id"
+                pagination.fields = pagination.fields + ",seller_account_id,product_id"
                 pagination.filters["seller_account_id__eq"] = str(auth_state.id)
                 return await self.product_item_repository.find(pagination=pagination)
         else:
-            pagination.fields = pagination.fields + ",seller_account_id"
+            pagination.fields = pagination.fields + ",seller_account_id,product_id"
             return await self.product_item_repository.find(pagination=pagination)
 
     async def _format_item_info(
