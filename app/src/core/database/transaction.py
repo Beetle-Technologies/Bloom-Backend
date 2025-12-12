@@ -24,6 +24,7 @@ class Transaction:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.token = None
+        self._tx = None
         self.is_outermost = False
 
     async def __aenter__(self) -> Self:
@@ -33,6 +34,7 @@ class Transaction:
 
         if self.is_outermost:
             logger.debug("Starting outermost transaction")
+            self._tx = await self.session.begin()
         else:
             logger.debug(f"Starting nested transaction at level {level + 1}")
 
@@ -47,12 +49,20 @@ class Transaction:
                 )
                 if self.is_outermost:
                     logger.debug("Rolling back outermost transaction")
-                    await self.session.rollback()
+                    if self._tx is not None:
+                        await self._tx.rollback()
+                        self._tx = None
+                    else:
+                        await self.session.rollback()
                 return False
 
             if self.is_outermost:
                 logger.debug("Committing outermost transaction")
-                await self.session.commit()
+                if self._tx is not None:
+                    await self._tx.commit()
+                    self._tx = None
+                else:
+                    await self.session.commit()
         finally:
             if self.token is not None:
                 _transaction_level.reset(self.token)

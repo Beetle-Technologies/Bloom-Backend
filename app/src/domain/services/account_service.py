@@ -558,11 +558,19 @@ class AccountService:
             if updated_email is not None and updated_email != account.email:
                 profile_update.is_verified = False  # type: ignore
 
-            update_account = await self.account_repository.update(id, profile_update)
+            account_update_body = {
+                "first_name": call(profile_update, "first_name") or None,
+                "last_name": call(profile_update, "last_name") or None,
+                "email": call(profile_update, "email") or None,
+                "username": call(profile_update, "username") or None,
+                "phone_number": call(profile_update, "phone_number") or None,
+            }
+
+            update_account = await self.account_repository.update(id, account_update_body)
             if not update_account:
                 raise errors.AccountUpdateError(detail="Failed to update account profile")
 
-            type_attributes = call(profile_update, "type_attributes")
+            type_attributes = call(profile_update, "type_attributes") or None
             updated_type_attributes = {}
             attachment = None
             cart = None
